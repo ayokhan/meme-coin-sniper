@@ -276,7 +276,64 @@ export default function AdminEmailsPanel({ onNotice, onError }: Props) {
       const p = getAdminEmailPreset(id);
       if (!p) return;
       if (p.template === "why-traders") setFormat("rich");
-      if (p.template === "futures-morning-brief") setFormat("rich");
+      if (p.template === "futures-morning-brief") {
+        setFormat("rich");
+        // Prefer today's stored Daily Wrap (same content cron / Publish today builds)
+        try {
+          const wrapRes = await fetch("/api/futures/daily-wrap", {
+            credentials: "include",
+            cache: "no-store",
+          });
+          const wrapData = await wrapRes.json().catch(() => ({}));
+          const wrap = wrapData?.wrap as
+            | {
+                title?: string;
+                emailTeaser?: { text: string; highlights?: string[] }[];
+                hotTopics?: { text: string; highlights?: string[] }[];
+              }
+            | null
+            | undefined;
+          if (wrapRes.ok && wrap) {
+            const { morningFuturesBriefPlainBody, morningFuturesBriefSubject } = await import(
+              "@/lib/futures-daily-wrap-email"
+            );
+            const { FUTURES_WRAP_APP_URL } = await import("@/lib/futures-daily-wrap");
+            const teaser =
+              Array.isArray(wrap.emailTeaser) && wrap.emailTeaser.length > 0
+                ? wrap.emailTeaser
+                : Array.isArray(wrap.hotTopics)
+                  ? wrap.hotTopics.slice(0, 3)
+                  : [];
+            if (teaser.length > 0) {
+              setDraft({
+                subject: morningFuturesBriefSubject(wrap.title || "Daily Market Wrap"),
+                body: morningFuturesBriefPlainBody(
+                  teaser.map((t, i) => ({
+                    id: `wrap-${i}`,
+                    text: t.text,
+                    highlights: t.highlights ?? [],
+                  }))
+                ),
+                audience: p.defaultAudience ?? "newsletter",
+                includePartnerLogos: false,
+                partnerBrand: "blofin",
+                template: "futures-morning-brief",
+                ctaLabel: p.ctaLabel,
+                ctaUrl: FUTURES_WRAP_APP_URL,
+              });
+              onNotice?.(
+                "Loaded today’s Daily Wrap into the Morning Futures Brief. Edit if needed, then send."
+              );
+              return;
+            }
+          }
+          onNotice?.(
+            "No Daily Wrap stored yet — showing sample brief. Publish today under Crypto Futures → Daily Wrap (or wait for the wrap cron), then reload this preset."
+          );
+        } catch {
+          onNotice?.("Could not load Daily Wrap — using sample Morning Futures Brief.");
+        }
+      }
       setDraft({
         subject: p.subject,
         body: p.body,
@@ -599,7 +656,7 @@ export default function AdminEmailsPanel({ onNotice, onError }: Props) {
           )}
           {format === "rich" && draft.template === "futures-morning-brief" && (
             <p className="text-xs text-teal-700 dark:text-teal-300 rounded-md border border-teal-500/30 bg-teal-500/10 px-3 py-2">
-              Morning Futures Brief layout (dark digest + teal keywords). Bullet lines become teasers; CTA opens Daily Wrap. Also auto-sent by cron when digest-to-newsletter is ON.
+              Loads today’s stored Daily Wrap into subject/body when you pick this preset (or after Publish today). Sample text means no wrap in DB yet. CTA opens Crypto Futures → Daily Wrap. Cron emails the live wrap separately when DIGEST_EMAIL_TO / newsletter flag is set.
             </p>
           )}
           {format === "rich" && draft.template === "nova-branded" && (

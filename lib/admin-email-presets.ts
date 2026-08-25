@@ -118,7 +118,7 @@ export const ADMIN_EMAIL_PRESETS: AdminEmailPreset[] = [
   {
     id: "futures-morning-brief",
     label: "Morning Futures Brief",
-    blurb: "Login driver — teaser bullets → Daily Wrap in app (auto also via cron)",
+    blurb: "Loads today’s Daily Wrap when available — else sample. Cron can email this too.",
     subject: "Morning Futures Brief | Today",
     body: morningFuturesBriefPlainBody([
       {
