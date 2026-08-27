@@ -637,7 +637,7 @@ const FLAG_LABELS: Record<string, { label: string; description: string }> = {
   nova_early_catch: {
     label: "Early Catch (Narratives)",
     description:
-      "Master switch. When ON, VIP users see Early Catch under Narratives — fresh (<~3d) strong-narrative memes still under ~$20k mcap. Pair with owner-only flag. Default OFF.",
+      "Master switch. When ON, VIP users see Early Catch under Narratives — fresh (<~3d) micro-caps with narrative heat + early flow under ~$20k mcap. Pair with owner-only flag. Default OFF.",
   },
   nova_early_catch_owner_only: {
     label: "Early Catch — owner only",

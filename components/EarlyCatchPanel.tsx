@@ -85,8 +85,8 @@ export default function EarlyCatchPanel() {
       <div>
         <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">Early Catch</h3>
         <p className="text-sm text-muted-foreground mt-0.5 max-w-xl">
-          Fresh memes (under ~3 days) with real narrative overlap and heat, still under ~$20k market cap — the
-          window where a small buy can matter.
+          Fresh memes (under ~3 days) under ~$20k with narrative theme/news heat and real early flow — not idle
+          leftovers.
         </p>
       </div>
 
@@ -112,7 +112,7 @@ export default function EarlyCatchPanel() {
 
       {result && result.coins.length === 0 && !loading && (
         <p className="text-sm text-muted-foreground">
-          No fresh micro-caps with strong narrative overlap right now. Try again later.
+          No fresh micro-caps with good narrative heat and early flow right now. Try again later.
         </p>
       )}
 
