@@ -7,7 +7,12 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Check, Copy, Gift, Users, Zap } from "lucide-react";
 import { openTelegramShare, sharePnlWithFallback } from "@/lib/pnl-share";
-import { downloadAffiliatePostcard, drawAffiliatePostcard } from "@/lib/affiliate-share-image";
+import {
+  buildAffiliateAdShareCaption,
+  buildInviteShareCaption,
+  downloadAffiliatePostcard,
+  drawAffiliatePostcard,
+} from "@/lib/affiliate-share-image";
 import SiteInstagramFooter from "@/components/SiteInstagramFooter";
 
 type CommissionRow = {
@@ -56,7 +61,8 @@ function statusBadge(status: string) {
 }
 
 export default function AffiliatePage() {
-  const { status } = useSession();
+  const { data: session, status } = useSession();
+  const isOwner = (session?.user as { isOwner?: boolean } | undefined)?.isOwner ?? false;
   const [month, setMonth] = useState("");
   const [date, setDate] = useState("");
   const [data, setData] = useState<AffiliateData | null>(null);
@@ -121,18 +127,6 @@ export default function AffiliatePage() {
           <Button asChild>
             <Link href="/signin?callbackUrl=/affiliate">Sign in</Link>
           </Button>
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() =>
-              void downloadAffiliatePostcard(
-                undefined,
-                `NovaStaris_Affiliate_Ad_${new Date().toISOString().slice(0, 10)}.jpg`
-              )
-            }
-          >
-            Download ad postcard
-          </Button>
           <Button variant="outline" asChild>
             <Link href="/">Back to app</Link>
           </Button>
@@ -160,35 +154,63 @@ export default function AffiliatePage() {
         </p>
       </div>
 
-      <Card className="border-teal-500/30 bg-teal-500/5 dark:bg-teal-950/20">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-base">Social ad postcard</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <p className="text-sm text-muted-foreground">
-            Generic 1080×1080 image for WhatsApp Status, Instagram Stories, or posts — no personal code. Points people to{" "}
-            <span className="font-medium text-foreground">novastaris.ai/affiliate</span>.
-          </p>
-          <Button
-            type="button"
-            className="bg-teal-500 text-zinc-950 hover:bg-teal-600"
-            disabled={postcardBusy}
-            onClick={async () => {
-              setPostcardBusy(true);
-              try {
-                await downloadAffiliatePostcard(
-                  { commissionRatePct: data?.commissionRatePct ?? 10 },
-                  `NovaStaris_Affiliate_Ad_${new Date().toISOString().slice(0, 10)}.jpg`
-                );
-              } finally {
-                setPostcardBusy(false);
-              }
-            }}
-          >
-            {postcardBusy ? "Preparing…" : "Download ad postcard"}
-          </Button>
-        </CardContent>
-      </Card>
+      {isOwner && (
+        <Card className="border-teal-500/30 bg-teal-500/5 dark:bg-teal-950/20">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">Social ad postcard (owner)</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <p className="text-sm text-muted-foreground">
+              Generic 1080×1080 Affiliate Program ad for WhatsApp Status / Instagram — mentions 10% and points to{" "}
+              <span className="font-medium text-foreground">novastaris.ai/affiliate</span>. Hidden from customers.
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                type="button"
+                className="bg-teal-500 text-zinc-950 hover:bg-teal-600"
+                disabled={postcardBusy}
+                onClick={async () => {
+                  setPostcardBusy(true);
+                  try {
+                    const rate = data?.commissionRatePct ?? 10;
+                    const blob = await drawAffiliatePostcard({
+                      variant: "ad",
+                      commissionRatePct: rate,
+                    });
+                    await sharePnlWithFallback(
+                      blob,
+                      `NovaStaris_Affiliate_Ad_${new Date().toISOString().slice(0, 10)}.jpg`,
+                      buildAffiliateAdShareCaption(rate)
+                    );
+                  } finally {
+                    setPostcardBusy(false);
+                  }
+                }}
+              >
+                {postcardBusy ? "Preparing…" : "Share ad postcard"}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                disabled={postcardBusy}
+                onClick={async () => {
+                  setPostcardBusy(true);
+                  try {
+                    await downloadAffiliatePostcard(
+                      { variant: "ad", commissionRatePct: data?.commissionRatePct ?? 10 },
+                      `NovaStaris_Affiliate_Ad_${new Date().toISOString().slice(0, 10)}.jpg`
+                    );
+                  } finally {
+                    setPostcardBusy(false);
+                  }
+                }}
+              >
+                Download ad postcard
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {error && (
         <div className="rounded-lg border border-rose-200 dark:border-rose-800 bg-rose-50/60 dark:bg-rose-950/30 p-3 text-sm text-rose-700 dark:text-rose-300">
@@ -256,95 +278,91 @@ export default function AffiliatePage() {
           </div>
 
           {data?.referralLink && (
-            <div className="flex flex-wrap gap-2">
-              <Button
-                type="button"
-                size="sm"
-                className="bg-teal-500 text-zinc-950 hover:bg-teal-600"
-                disabled={postcardBusy}
-                onClick={async () => {
-                  setPostcardBusy(true);
-                  try {
-                    const blob = await drawAffiliatePostcard({
-                      referralCode: data.referralCode,
-                      referralLink: data.referralLink,
-                      commissionRatePct: data.commissionRatePct,
-                    });
-                    const caption = `Earn ${data.commissionRatePct}% on VIP referrals with me on NovaStaris\nCode: ${data.referralCode}\n${data.referralLink}`;
-                    const result = await sharePnlWithFallback(
-                      blob,
-                      `NovaStaris_Affiliate_${data.referralCode}.jpg`,
-                      caption
-                    );
-                    if (result === "download" || result === "unsupported") {
-                      // sharePnlWithFallback already downloads on fallback
-                    }
-                  } catch {
+            <div className="space-y-2">
+              <p className="text-xs text-muted-foreground">
+                Invite postcard shares your link/code — it does not mention your commission.
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  type="button"
+                  size="sm"
+                  className="bg-teal-500 text-zinc-950 hover:bg-teal-600"
+                  disabled={postcardBusy}
+                  onClick={async () => {
+                    setPostcardBusy(true);
                     try {
-                      await downloadAffiliatePostcard({
+                      const blob = await drawAffiliatePostcard({
+                        variant: "invite",
                         referralCode: data.referralCode,
                         referralLink: data.referralLink,
-                        commissionRatePct: data.commissionRatePct,
                       });
+                      await sharePnlWithFallback(
+                        blob,
+                        `NovaStaris_Invite_${data.referralCode}.jpg`,
+                        buildInviteShareCaption(data.referralCode, data.referralLink)
+                      );
                     } catch {
-                      /* ignore */
+                      try {
+                        await downloadAffiliatePostcard({
+                          variant: "invite",
+                          referralCode: data.referralCode,
+                          referralLink: data.referralLink,
+                        });
+                      } catch {
+                        /* ignore */
+                      }
+                    } finally {
+                      setPostcardBusy(false);
                     }
-                  } finally {
-                    setPostcardBusy(false);
-                  }
-                }}
-              >
-                {postcardBusy ? "Preparing…" : "Share postcard"}
-              </Button>
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                disabled={postcardBusy}
-                onClick={async () => {
-                  setPostcardBusy(true);
-                  try {
-                    await downloadAffiliatePostcard({
-                      referralCode: data.referralCode,
-                      referralLink: data.referralLink,
-                      commissionRatePct: data.commissionRatePct,
-                    });
-                  } finally {
-                    setPostcardBusy(false);
-                  }
-                }}
-              >
-                Download my postcard
-              </Button>
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                asChild
-              >
-                <a
-                  href={`https://wa.me/?text=${encodeURIComponent(
-                    `Earn with me on NovaStaris — ${data.commissionRatePct}% VIP referral\n${data.referralLink}`
-                  )}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
+                  }}
                 >
-                  Share WhatsApp
-                </a>
-              </Button>
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                onClick={() =>
-                  openTelegramShare(
-                    `Earn with me on NovaStaris — ${data.commissionRatePct}% VIP referral\n${data.referralLink}`,
-                    data.referralLink
-                  )
-                }
-              >
-                Share Telegram
-              </Button>
+                  {postcardBusy ? "Preparing…" : "Share invite postcard"}
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  disabled={postcardBusy}
+                  onClick={async () => {
+                    setPostcardBusy(true);
+                    try {
+                      await downloadAffiliatePostcard({
+                        variant: "invite",
+                        referralCode: data.referralCode,
+                        referralLink: data.referralLink,
+                      });
+                    } finally {
+                      setPostcardBusy(false);
+                    }
+                  }}
+                >
+                  Download invite postcard
+                </Button>
+                <Button type="button" size="sm" variant="outline" asChild>
+                  <a
+                    href={`https://wa.me/?text=${encodeURIComponent(
+                      buildInviteShareCaption(data.referralCode, data.referralLink)
+                    )}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    Share WhatsApp
+                  </a>
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() =>
+                    openTelegramShare(
+                      buildInviteShareCaption(data.referralCode, data.referralLink),
+                      data.referralLink
+                    )
+                  }
+                >
+                  Share Telegram
+                </Button>
+              </div>
             </div>
           )}
 
