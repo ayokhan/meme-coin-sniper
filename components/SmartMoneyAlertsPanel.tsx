@@ -26,6 +26,17 @@ type WalletRow = {
   source?: string | null;
 };
 
+type LeaderboardRow = {
+  rank: number;
+  walletAddress: string;
+  label: string | null;
+  totalPnlUsd: number;
+  winRatePct: number | null;
+  tradeCount: number;
+  volumeUsd: number;
+  watching: boolean;
+};
+
 const TYPE_LABEL: Record<string, { label: string; className: string }> = {
   buy_2k: { label: "Buy ≥ $2k", className: "bg-cyan-500/15 text-cyan-700 dark:text-cyan-300 border-cyan-500/25" },
   buy_10k: { label: "Buy ≥ $10k", className: "bg-amber-500/15 text-amber-800 dark:text-amber-200 border-amber-500/25" },
@@ -52,12 +63,24 @@ function shortAddr(a: string) {
   return a.length > 10 ? `${a.slice(0, 4)}…${a.slice(-4)}` : a;
 }
 
+function fmtUsd(n: number) {
+  const sign = n >= 0 ? "+" : "-";
+  const abs = Math.abs(n);
+  if (abs >= 1_000_000) return `${sign}$${(abs / 1_000_000).toFixed(2)}M`;
+  if (abs >= 1_000) return `${sign}$${(abs / 1_000).toFixed(1)}K`;
+  return `${sign}$${abs.toFixed(0)}`;
+}
+
 export default function SmartMoneyAlertsPanel({ isOwner }: { isOwner?: boolean }) {
   const [alerts, setAlerts] = useState<AlertRow[]>([]);
   const [wallets, setWallets] = useState<WalletRow[]>([]);
+  const [leaderboard, setLeaderboard] = useState<LeaderboardRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [scanning, setScanning] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const [trackingAddr, setTrackingAddr] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [msg, setMsg] = useState<string | null>(null);
   const [usage, setUsage] = useState<{ used: number; limit: number | null } | null>(null);
 
   const load = useCallback(async () => {
@@ -72,6 +95,7 @@ export default function SmartMoneyAlertsPanel({ isOwner }: { isOwner?: boolean }
       }
       setAlerts(data.alerts ?? []);
       setWallets(data.wallets ?? []);
+      setLeaderboard(data.leaderboard ?? []);
       setUsage(data.usage ?? null);
     } catch {
       setError("Network error");
@@ -87,6 +111,7 @@ export default function SmartMoneyAlertsPanel({ isOwner }: { isOwner?: boolean }
   const scan = async () => {
     setScanning(true);
     setError(null);
+    setMsg(null);
     try {
       const res = await fetch("/api/wallet-tracker/smart-money", {
         method: "POST",
@@ -105,14 +130,71 @@ export default function SmartMoneyAlertsPanel({ isOwner }: { isOwner?: boolean }
     }
   };
 
+  const importTop20 = async () => {
+    if (!isOwner) return;
+    setImporting(true);
+    setError(null);
+    setMsg(null);
+    try {
+      const res = await fetch("/api/admin/smart-money/wallets", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ action: "import_top20", period: "7d" }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        setError(data.error || "Import failed");
+        return;
+      }
+      setMsg(`Imported ${data.imported ?? 0} wallets from top 20 (7d). Hit Refresh alerts.`);
+      await load();
+    } catch {
+      setError("Network error");
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  const trackOne = async (row: LeaderboardRow) => {
+    if (!isOwner) return;
+    setTrackingAddr(row.walletAddress);
+    setError(null);
+    setMsg(null);
+    try {
+      const res = await fetch("/api/admin/smart-money/wallets", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          action: "add",
+          address: row.walletAddress,
+          label: row.label || `LB #${row.rank}`,
+          source: "leaderboard",
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        setError(data.error || "Could not add wallet");
+        return;
+      }
+      setMsg(`Now watching ${row.label || shortAddr(row.walletAddress)}`);
+      await load();
+    } catch {
+      setError("Network error");
+    } finally {
+      setTrackingAddr(null);
+    }
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
         <div>
           <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">Smart Money Alerts</h3>
           <p className="text-sm text-muted-foreground mt-0.5 max-w-xl">
-            Track admin-curated wallets (FOMO / leaderboard / manual). Alerts for buys ≥ $2k / ≥ $10k, held &gt; 5 min,
-            still holding, and sold — times shown in your local timezone. In-app only.
+            Top meme traders (7d PnL) plus alerts for buys ≥ $2k / ≥ $10k, held &gt; 5 min, still holding, and sold —
+            times in your local timezone. In-app only.
           </p>
           {usage && usage.limit != null && (
             <p className="text-xs text-muted-foreground mt-1">
@@ -121,13 +203,21 @@ export default function SmartMoneyAlertsPanel({ isOwner }: { isOwner?: boolean }
           )}
           {isOwner && (
             <p className="text-xs text-amber-700 dark:text-amber-300 mt-1">
-              Owner: unlimited refresh. Manage wallets in Admin → Smart Money.
+              Owner: unlimited refresh. Import top 20 below or manage at Admin → Smart Money. Paste FOMO wallets there
+              with labels like FOMO: handle.
             </p>
           )}
         </div>
-        <Button size="sm" onClick={() => void scan()} disabled={scanning || loading}>
-          {scanning ? "Scanning…" : "Refresh alerts"}
-        </Button>
+        <div className="flex flex-wrap gap-2 shrink-0">
+          {isOwner && (
+            <Button size="sm" variant="outline" onClick={() => void importTop20()} disabled={importing || loading}>
+              {importing ? "Importing…" : "Watch top 20"}
+            </Button>
+          )}
+          <Button size="sm" onClick={() => void scan()} disabled={scanning || loading}>
+            {scanning ? "Scanning…" : "Refresh alerts"}
+          </Button>
+        </div>
       </div>
 
       {error && (
@@ -135,6 +225,73 @@ export default function SmartMoneyAlertsPanel({ isOwner }: { isOwner?: boolean }
           {error}
         </div>
       )}
+      {msg && (
+        <div className="rounded-lg border border-emerald-200 dark:border-emerald-900/50 bg-emerald-50/80 dark:bg-emerald-950/30 px-3 py-2 text-sm text-emerald-800 dark:text-emerald-200">
+          {msg}
+        </div>
+      )}
+
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm">Top 20 leaderboard (7d PnL)</CardTitle>
+          <p className="text-xs text-muted-foreground font-normal">
+            Nova meme trader rankings. Refresh snapshots from Meme Coin Advantage Bundle. FOMO.family addresses can be
+            added manually in Admin.
+          </p>
+        </CardHeader>
+        <CardContent className="space-y-1.5">
+          {loading && leaderboard.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Loading leaderboard…</p>
+          ) : leaderboard.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              No leaderboard snapshot yet. Open Meme Coin Advantage Bundle and refresh the leaderboard, then return here.
+            </p>
+          ) : (
+            leaderboard.map((row) => (
+              <div
+                key={row.walletAddress}
+                className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-zinc-200 dark:border-zinc-800 bg-zinc-50/80 dark:bg-zinc-900/40 px-3 py-2"
+              >
+                <div className="min-w-0 flex items-center gap-2">
+                  <span className="text-xs font-mono text-muted-foreground w-6">#{row.rank}</span>
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium truncate">{row.label || shortAddr(row.walletAddress)}</p>
+                    <p className="text-[10px] font-mono text-muted-foreground truncate">{shortAddr(row.walletAddress)}</p>
+                  </div>
+                </div>
+                <div className="flex flex-wrap items-center gap-3 text-xs">
+                  <span className={`font-mono font-semibold ${row.totalPnlUsd >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-500"}`}>
+                    {fmtUsd(row.totalPnlUsd)}
+                  </span>
+                  {row.winRatePct != null && <span className="text-muted-foreground">{row.winRatePct.toFixed(0)}% WR</span>}
+                  <span className="text-muted-foreground">{row.tradeCount} trades</span>
+                  {row.watching ? (
+                    <span className="text-[10px] font-semibold px-2 py-0.5 rounded border border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300">
+                      Watching
+                    </span>
+                  ) : isOwner ? (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-7 text-xs"
+                      disabled={trackingAddr === row.walletAddress}
+                      onClick={() => void trackOne(row)}
+                    >
+                      {trackingAddr === row.walletAddress ? "…" : "Watch"}
+                    </Button>
+                  ) : null}
+                  <a
+                    href={`/?tab=wallets&wallet=meme-leaderboard&analyze=${encodeURIComponent(row.walletAddress)}`}
+                    className="text-[10px] px-2 py-1 rounded bg-amber-500/15 text-amber-800 dark:text-amber-200 border border-amber-500/20 hover:bg-amber-500/25"
+                  >
+                    Analyze
+                  </a>
+                </div>
+              </div>
+            ))
+          )}
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader className="pb-2">
@@ -142,7 +299,9 @@ export default function SmartMoneyAlertsPanel({ isOwner }: { isOwner?: boolean }
         </CardHeader>
         <CardContent>
           {wallets.length === 0 ? (
-            <p className="text-xs text-muted-foreground">No wallets yet. Admin can add FOMO addresses or import top 20 from the meme leaderboard.</p>
+            <p className="text-xs text-muted-foreground">
+              None yet. Owner: use <strong>Watch top 20</strong> above or Watch on a leaderboard row.
+            </p>
           ) : (
             <ul className="flex flex-wrap gap-2">
               {wallets.map((w) => (
@@ -165,7 +324,7 @@ export default function SmartMoneyAlertsPanel({ isOwner }: { isOwner?: boolean }
         {loading ? (
           <p className="text-sm text-muted-foreground">Loading…</p>
         ) : alerts.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No alerts yet. Hit Refresh alerts after wallets are added.</p>
+          <p className="text-sm text-muted-foreground">No alerts yet. Watch wallets, then hit Refresh alerts.</p>
         ) : (
           alerts.map((a) => {
             const badge = TYPE_LABEL[a.type] ?? { label: a.type, className: "bg-zinc-100 text-zinc-700 border-zinc-200" };
