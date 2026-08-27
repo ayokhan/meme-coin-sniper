@@ -6,7 +6,8 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Check, Copy, Gift, Users, Zap } from "lucide-react";
-import { openTelegramShare } from "@/lib/pnl-share";
+import { openTelegramShare, sharePnlWithFallback } from "@/lib/pnl-share";
+import { downloadAffiliatePostcard, drawAffiliatePostcard } from "@/lib/affiliate-share-image";
 import SiteInstagramFooter from "@/components/SiteInstagramFooter";
 
 type CommissionRow = {
@@ -62,6 +63,7 @@ export default function AffiliatePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState<"code" | "link" | null>(null);
+  const [postcardBusy, setPostcardBusy] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -115,9 +117,16 @@ export default function AffiliatePage() {
         <Gift className="h-10 w-10 mx-auto text-amber-500" />
         <h1 className="text-xl font-semibold">NovaStaris Affiliate Program</h1>
         <p className="text-sm text-muted-foreground">Sign in to get your referral link and track commissions.</p>
-        <div className="flex items-center justify-center gap-2">
+        <div className="flex flex-wrap items-center justify-center gap-2">
           <Button asChild>
             <Link href="/signin?callbackUrl=/affiliate">Sign in</Link>
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => void downloadAffiliatePostcard()}
+          >
+            Download postcard
           </Button>
           <Button variant="outline" asChild>
             <Link href="/">Back to app</Link>
@@ -213,6 +222,65 @@ export default function AffiliatePage() {
 
           {data?.referralLink && (
             <div className="flex flex-wrap gap-2">
+              <Button
+                type="button"
+                size="sm"
+                className="bg-teal-500 text-zinc-950 hover:bg-teal-600"
+                disabled={postcardBusy}
+                onClick={async () => {
+                  setPostcardBusy(true);
+                  try {
+                    const blob = await drawAffiliatePostcard({
+                      referralCode: data.referralCode,
+                      referralLink: data.referralLink,
+                      commissionRatePct: data.commissionRatePct,
+                    });
+                    const caption = `Earn ${data.commissionRatePct}% on VIP referrals with me on NovaStaris\nCode: ${data.referralCode}\n${data.referralLink}`;
+                    const result = await sharePnlWithFallback(
+                      blob,
+                      `NovaStaris_Affiliate_${data.referralCode}.jpg`,
+                      caption
+                    );
+                    if (result === "download" || result === "unsupported") {
+                      // sharePnlWithFallback already downloads on fallback
+                    }
+                  } catch {
+                    try {
+                      await downloadAffiliatePostcard({
+                        referralCode: data.referralCode,
+                        referralLink: data.referralLink,
+                        commissionRatePct: data.commissionRatePct,
+                      });
+                    } catch {
+                      /* ignore */
+                    }
+                  } finally {
+                    setPostcardBusy(false);
+                  }
+                }}
+              >
+                {postcardBusy ? "Preparing…" : "Share postcard"}
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                disabled={postcardBusy}
+                onClick={async () => {
+                  setPostcardBusy(true);
+                  try {
+                    await downloadAffiliatePostcard({
+                      referralCode: data.referralCode,
+                      referralLink: data.referralLink,
+                      commissionRatePct: data.commissionRatePct,
+                    });
+                  } finally {
+                    setPostcardBusy(false);
+                  }
+                }}
+              >
+                Download postcard
+              </Button>
               <Button
                 type="button"
                 size="sm"
