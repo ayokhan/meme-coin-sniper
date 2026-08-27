@@ -19,6 +19,11 @@ export type WalletBuy = {
   signature?: string;
 };
 
+/** Buy with approximate SOL spent (from nativeBalanceChange) for USD sizing. */
+export type SizedWalletBuy = WalletBuy & {
+  solSpent: number;
+};
+
 /**
  * Helius enhanced transaction item (subset we need).
  * See: GET /v0/addresses/{address}/transactions
@@ -147,6 +152,62 @@ export async function getRecentTokenBuysForWallet(
     return Array.from(seen.values()).sort((a, b) => b.timestamp - a.timestamp);
   } catch (e) {
     console.warn('Helius getRecentTokenBuysForWallet error:', e);
+    return [];
+  }
+}
+
+function solSpentFromTx(tx: HeliusTx, walletAddress: string): number {
+  const LAMPORTS = 1_000_000_000;
+  for (const ad of tx.accountData ?? []) {
+    if (ad.account !== walletAddress) continue;
+    const delta = ad.nativeBalanceChange ?? 0;
+    if (delta < 0) return Math.abs(delta) / LAMPORTS;
+  }
+  return 0;
+}
+
+/**
+ * Recent sized buys: mint + approx SOL spent (for USD alert thresholds).
+ * Uses SWAP + BUY enhanced txs. SOL spent = |nativeBalanceChange| when negative.
+ */
+export async function getRecentSizedTokenBuysForWallet(
+  walletAddress: string,
+  limit = 40,
+  maxAgeMs = 48 * 60 * 60 * 1000
+): Promise<SizedWalletBuy[]> {
+  if (!HELIUS_API_KEY) return [];
+
+  try {
+    const perType = Math.min(limit, 50);
+    const [swapTxs, buyTxs] = await Promise.all([
+      fetchTransactions(walletAddress, 'SWAP', perType),
+      fetchTransactions(walletAddress, 'BUY', perType),
+    ]);
+    const txs = [...swapTxs, ...buyTxs];
+    const cutoff = Date.now() - maxAgeMs;
+    const seen = new Map<string, SizedWalletBuy>();
+
+    for (const tx of txs) {
+      const ts = tx.timestamp ? tx.timestamp * 1000 : 0;
+      if (ts < cutoff) continue;
+      const solSpent = solSpentFromTx(tx, walletAddress);
+      const receivedMints = getReceivedMints(tx, walletAddress);
+      for (const mint of receivedMints) {
+        if (!mint) continue;
+        const key = `${mint}:${tx.signature ?? ts}`;
+        if (seen.has(key)) continue;
+        seen.set(key, {
+          mint,
+          timestamp: ts || Date.now(),
+          signature: tx.signature,
+          solSpent,
+        });
+      }
+    }
+
+    return Array.from(seen.values()).sort((a, b) => b.timestamp - a.timestamp).slice(0, limit);
+  } catch (e) {
+    console.warn('Helius getRecentSizedTokenBuysForWallet error:', e);
     return [];
   }
 }

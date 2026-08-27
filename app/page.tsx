@@ -73,6 +73,7 @@ import DeepMemeAgentPanel from "@/components/DeepMemeAgentPanel";
 import AiAgentMonitorPanel from "@/components/AiAgentMonitorPanel";
 import AiAgentScorecard from "@/components/AiAgentScorecard";
 import NarrativesPanel from "@/components/NarrativesPanel";
+import SmartMoneyAlertsPanel from "@/components/SmartMoneyAlertsPanel";
 import CoachCallsPanel from "@/components/CoachCallsPanel";
 import OnlineBossDemandFibPlaybook from "@/components/OnlineBossDemandFibPlaybook";
 import TradingBotPanel from "@/components/TradingBotPanel";
@@ -866,7 +867,7 @@ function Dashboard() {
     memeAgent: AiAgentUsageSnapshot;
     chartAnalysis: AiAgentUsageSnapshot;
   } | null>(null);
-  type WalletTrackerView = "meme" | "leverage" | "nova-perp-wallet-analyst" | "meme-leaderboard" | "deep-meme-agent";
+  type WalletTrackerView = "meme" | "leverage" | "nova-perp-wallet-analyst" | "meme-leaderboard" | "deep-meme-agent" | "smart-money";
   const [walletTrackerView, setWalletTrackerView] = useState<WalletTrackerView>("meme");
   const onDemandLocked = activeTab === "ct" && !canAccessCtScanEffective;
   const isGuest = status === "unauthenticated";
@@ -1235,6 +1236,7 @@ function Dashboard() {
   const [showNovaPerpWalletAnalyst, setShowNovaPerpWalletAnalyst] = useState(false);
   const [showMemeLeaderboard, setShowMemeLeaderboard] = useState(false);
   const [showDeepMemeAgent, setShowDeepMemeAgent] = useState(false);
+  const [showSmartMoneyAlerts, setShowSmartMoneyAlerts] = useState(false);
   const [deepAgentHandoffTrigger, setDeepAgentHandoffTrigger] = useState(0);
   const [deepAgentHandoffAddress, setDeepAgentHandoffAddress] = useState<string | undefined>(undefined);
   const [deepAgentHandoffChain, setDeepAgentHandoffChain] = useState<"solana" | "bsc" | undefined>(undefined);
@@ -1349,7 +1351,10 @@ function Dashboard() {
       setWalletTrackerView("meme");
     }
     if (walletTrackerView === "deep-meme-agent" && !showDeepMemeAgent) {
-      setWalletTrackerView(showMemeLeaderboard ? "meme-leaderboard" : "meme");
+      setWalletTrackerView(showMemeLeaderboard ? "meme-leaderboard" : showSmartMoneyAlerts ? "smart-money" : "meme");
+    }
+    if (walletTrackerView === "smart-money" && !showSmartMoneyAlerts) {
+      setWalletTrackerView(showMemeLeaderboard ? "meme-leaderboard" : showDeepMemeAgent ? "deep-meme-agent" : "meme");
     }
     if (
       walletTrackerView === "meme" &&
@@ -1386,7 +1391,7 @@ function Dashboard() {
               : "meme";
       setWalletTrackerView(next);
     }
-  }, [walletTrackerView, showMemeLeaderboard, showDeepMemeAgent, showNovaPerpWalletAnalyst, pageTabFlags, pageTabFlagsLoaded]);
+  }, [walletTrackerView, showMemeLeaderboard, showDeepMemeAgent, showSmartMoneyAlerts, showNovaPerpWalletAnalyst, pageTabFlags, pageTabFlagsLoaded]);
 
   useEffect(() => {
     if (status !== "authenticated") {
@@ -1405,6 +1410,29 @@ function Dashboard() {
       })
       .catch(() => {
         if (!cancelled) setShowDeepMemeAgent(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [status, isVip, isOwner]);
+
+  useEffect(() => {
+    if (status !== "authenticated") {
+      setShowSmartMoneyAlerts(false);
+      return;
+    }
+    let cancelled = false;
+    fetch("/api/wallet-tracker/smart-money/access", { credentials: "include", cache: "no-store" })
+      .then((r) => {
+        if (!r.ok) return { success: false };
+        return r.json();
+      })
+      .then((d) => {
+        if (cancelled) return;
+        setShowSmartMoneyAlerts(!!d?.success);
+      })
+      .catch(() => {
+        if (!cancelled) setShowSmartMoneyAlerts(false);
       });
     return () => {
       cancelled = true;
@@ -1704,7 +1732,8 @@ function Dashboard() {
           wallet === "leverage" ||
           wallet === "nova-perp-wallet-analyst" ||
           wallet === "meme-leaderboard" ||
-          wallet === "deep-meme-agent"
+          wallet === "deep-meme-agent" ||
+          wallet === "smart-money"
         ) {
           setWalletTrackerView(wallet);
         }
@@ -1807,7 +1836,8 @@ function Dashboard() {
       wallet === "leverage" ||
       wallet === "nova-perp-wallet-analyst" ||
       wallet === "meme-leaderboard" ||
-      wallet === "deep-meme-agent"
+      wallet === "deep-meme-agent" ||
+      wallet === "smart-money"
     ) {
       setWalletTrackerView(wallet);
     }
@@ -8930,7 +8960,7 @@ function Dashboard() {
                     const showMemeCoinsTraders = pageTabFlags?.page_tab_meme_coins_traders ?? true;
                     const showLeverageTraders = pageTabFlags?.page_tab_leverage_traders ?? true;
                     const hasMemeWalletGroup =
-                      showMemeCoinsTraders || showMemeLeaderboard || showDeepMemeAgent;
+                      showMemeCoinsTraders || showMemeLeaderboard || showDeepMemeAgent || showSmartMoneyAlerts;
                     const hasFuturesWalletGroup = showLeverageTraders || showNovaPerpWalletAnalyst;
                     const walletSubTabListClass =
                       "bg-zinc-100/95 dark:bg-zinc-800/90 border border-zinc-200/80 dark:border-zinc-700/80 p-1.5 rounded-xl flex-nowrap overflow-x-auto max-w-full gap-1.5 snap-x snap-mandatory [scrollbar-width:thin] [&::-webkit-scrollbar]:h-1.5 [&_[role=tab]]:snap-start";
@@ -8955,6 +8985,11 @@ function Dashboard() {
                           {showDeepMemeAgent && (
                             <TabsTrigger value="deep-meme-agent" className="rounded-lg px-3.5 py-2 sm:py-1.5 min-h-[40px] sm:min-h-0 text-sm font-medium whitespace-nowrap data-[state=inactive]:bg-transparent data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:text-zinc-300 data-[state=active]:bg-violet-500 data-[state=active]:text-white dark:data-[state=active]:bg-violet-600" title="Deep Meme Agent — contract security + top holder report (SOL · BSC · ETH)">
                               Deep Meme Agent
+                            </TabsTrigger>
+                          )}
+                          {showSmartMoneyAlerts && (
+                            <TabsTrigger value="smart-money" className="rounded-lg px-3.5 py-2 sm:py-1.5 min-h-[40px] sm:min-h-0 text-sm font-medium whitespace-nowrap data-[state=inactive]:bg-transparent data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:text-zinc-300 data-[state=active]:bg-rose-500 data-[state=active]:text-white dark:data-[state=active]:bg-rose-600" title="Smart Money Alerts — FOMO / KOL sized buys, hold, sold">
+                              Smart Money Alerts
                             </TabsTrigger>
                           )}
                         </TabsList>
@@ -9656,6 +9691,9 @@ function Dashboard() {
                         setWalletTrackerView("meme-leaderboard");
                       }}
                     />
+                  </TabsContent>
+                  <TabsContent value="smart-money" className="mt-0 space-y-4">
+                    <SmartMoneyAlertsPanel isOwner={isOwner} />
                   </TabsContent>
                 </Tabs>
               </div>

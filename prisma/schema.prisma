@@ -1868,3 +1868,94 @@ model DemoRegistration {
   @@index([paymentStatus])
   @@index([stripeCheckoutSessionId])
 }
+
+/** Admin-curated wallets for Smart Money Alerts (FOMO Tracker). Cap ~20 for CU. */
+model SmartMoneyWallet {
+  id        String   @id @default(cuid())
+  address   String   @unique
+  label     String?
+  active    Boolean  @default(true)
+  source    String?  // "manual" | "leaderboard" | "fomo"
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([active])
+}
+
+/** Open / closed positions tracked for hold / sold alerts. */
+model SmartMoneyPosition {
+  id              String    @id @default(cuid())
+  walletAddress   String
+  mint            String
+  symbol          String?
+  buyUsd          Float?
+  buyAt           DateTime
+  soldAt          DateTime?
+  status          String    @default("holding") // holding | sold
+  heldOver5mSent  Boolean   @default(false)
+  stillHoldingSent Boolean  @default(false)
+  lastCheckedAt   DateTime  @default(now())
+  createdAt       DateTime  @default(now())
+
+  @@unique([walletAddress, mint])
+  @@index([status])
+  @@index([buyAt])
+}
+
+/** In-app Smart Money alert feed (no Telegram). */
+model SmartMoneyAlert {
+  id              String   @id @default(cuid())
+  /** Dedup key e.g. buy_10k:wallet:mint:sig or held_over_5m:wallet:mint */
+  dedupeKey       String   @unique
+  type            String   // buy_2k | buy_10k | held_over_5m | still_holding | sold
+  walletAddress   String
+  walletLabel     String?
+  mint            String
+  symbol          String?
+  buyUsd          Float?
+  buyAt           DateTime?
+  soldAt          DateTime?
+  heldMinutes     Float?
+  signature       String?
+  createdAt       DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([type])
+}
+
+model SmartMoneyConfig {
+  id                 String   @id @default("default")
+  enabled            Boolean  @default(true)
+  vipDailyLimit      Int      @default(1)
+  freeDailyLimit     Int      @default(0)
+  buyAlertUsd        Float    @default(2000)
+  bigBuyAlertUsd     Float    @default(10000)
+  holdAlertMinutes   Int      @default(5)
+  maxWallets         Int      @default(20)
+  updatedAt          DateTime @updatedAt
+}
+
+model SmartMoneyUserLimit {
+  id         String   @id @default(cuid())
+  userId     String   @unique
+  dailyLimit Int
+  updatedAt  DateTime @updatedAt
+}
+
+/** Early Catch under Narratives — strong narrative + micro mcap. */
+model EarlyCatchConfig {
+  id              String   @id @default("default")
+  enabled         Boolean  @default(true)
+  vipDailyLimit   Int      @default(1)
+  freeDailyLimit  Int      @default(0)
+  maxMarketCapUsd Float    @default(20000)
+  minLiquidityUsd Float    @default(2000)
+  updatedAt       DateTime @updatedAt
+}
+
+model EarlyCatchUserLimit {
+  id         String   @id @default(cuid())
+  userId     String   @unique
+  dailyLimit Int
+  updatedAt  DateTime @updatedAt
+}

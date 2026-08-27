@@ -109,6 +109,21 @@ export const FEATURE_FLAG_KEYS = {
   NOVA_MEME_LEADERBOARD: 'nova_meme_leaderboard',
   /** VIP: Deep Meme Agent subtab under Wallet Tracker (token security + top-holder analyzer using GoPlus + Dexscreener + Helius). Default ON. */
   NOVA_DEEP_MEME_AGENT: 'nova_deep_meme_agent',
+  /**
+   * VIP: Smart Money Alerts (FOMO Tracker) under Wallet Tracker.
+   * Big-buy / hold / sold alerts for admin-curated wallets. Default OFF until admin enables.
+   * Pair with NOVA_SMART_MONEY_ALERTS_OWNER_ONLY for Off / Owner / All VIP.
+   */
+  NOVA_SMART_MONEY_ALERTS: 'nova_smart_money_alerts',
+  /** When master ON: restrict Smart Money Alerts to owner only. Default ON (owner testing). */
+  NOVA_SMART_MONEY_ALERTS_OWNER_ONLY: 'nova_smart_money_alerts_owner_only',
+  /**
+   * VIP: Early Catch under Narratives — strong narratives still under ~$20k mcap.
+   * Default OFF until admin enables. Pair with NOVA_EARLY_CATCH_OWNER_ONLY.
+   */
+  NOVA_EARLY_CATCH: 'nova_early_catch',
+  /** When master ON: restrict Early Catch to owner only. Default ON (owner testing). */
+  NOVA_EARLY_CATCH_OWNER_ONLY: 'nova_early_catch_owner_only',
   /** VIP: Nova Scalp Agent under Nova Pulse → Futures (leveraged scalp entry/exit + Quick Wins scanner). Default OFF until admin enables. */
   NOVA_SCALP_AGENT: 'nova_scalp_agent',
   /** VIP: Calculate PnL under Nova Pulse (crypto + forex risk/lot math, optional RORO meter). Default OFF until admin enables. */

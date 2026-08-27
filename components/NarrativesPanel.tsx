@@ -1,8 +1,9 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import EarlyCatchPanel from "@/components/EarlyCatchPanel";
 
 /* ---------- Types ---------- */
 
@@ -295,15 +296,35 @@ function DiyResearchTab() {
 
 /* ---------- Main component ---------- */
 
-type SubTab = "scanner" | "diy";
+type SubTab = "scanner" | "early-catch" | "diy";
 
 export default function NarrativesPanel({ isPaid }: { isPaid?: boolean }) {
   const [subTab, setSubTab] = useState<SubTab>("scanner");
+  const [showEarlyCatch, setShowEarlyCatch] = useState(false);
   const [timeframe, setTimeframe] = useState<NarrativeTimeframe>("30m");
   const [result, setResult] = useState<ScanResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [limitLocked, setLimitLocked] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/early-catch/access", { credentials: "include", cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : { success: false }))
+      .then((d) => {
+        if (!cancelled) setShowEarlyCatch(!!d?.success);
+      })
+      .catch(() => {
+        if (!cancelled) setShowEarlyCatch(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (subTab === "early-catch" && !showEarlyCatch) setSubTab("scanner");
+  }, [subTab, showEarlyCatch]);
 
   const scan = useCallback(async (tf: NarrativeTimeframe) => {
     setLoading(true);
@@ -359,15 +380,23 @@ export default function NarrativesPanel({ isPaid }: { isPaid?: boolean }) {
       </div>
 
       {/* Sub-tabs */}
-      <div className="flex gap-1 mb-5 border-b border-zinc-200 dark:border-zinc-800">
+      <div className="flex gap-1 mb-5 border-b border-zinc-200 dark:border-zinc-800 overflow-x-auto">
         <button
-          className={`px-3 py-2 text-sm font-medium transition-colors border-b-2 -mb-px ${subTab === "scanner" ? "border-cyan-500 text-cyan-600 dark:text-cyan-400" : "border-transparent text-muted-foreground hover:text-zinc-700 dark:hover:text-zinc-300"}`}
+          className={`px-3 py-2 text-sm font-medium transition-colors border-b-2 -mb-px whitespace-nowrap ${subTab === "scanner" ? "border-cyan-500 text-cyan-600 dark:text-cyan-400" : "border-transparent text-muted-foreground hover:text-zinc-700 dark:hover:text-zinc-300"}`}
           onClick={() => setSubTab("scanner")}
         >
           Narrative Scanner
         </button>
+        {showEarlyCatch && (
+          <button
+            className={`px-3 py-2 text-sm font-medium transition-colors border-b-2 -mb-px whitespace-nowrap ${subTab === "early-catch" ? "border-amber-500 text-amber-600 dark:text-amber-400" : "border-transparent text-muted-foreground hover:text-zinc-700 dark:hover:text-zinc-300"}`}
+            onClick={() => setSubTab("early-catch")}
+          >
+            Early Catch
+          </button>
+        )}
         <button
-          className={`px-3 py-2 text-sm font-medium transition-colors border-b-2 -mb-px ${subTab === "diy" ? "border-cyan-500 text-cyan-600 dark:text-cyan-400" : "border-transparent text-muted-foreground hover:text-zinc-700 dark:hover:text-zinc-300"}`}
+          className={`px-3 py-2 text-sm font-medium transition-colors border-b-2 -mb-px whitespace-nowrap ${subTab === "diy" ? "border-cyan-500 text-cyan-600 dark:text-cyan-400" : "border-transparent text-muted-foreground hover:text-zinc-700 dark:hover:text-zinc-300"}`}
           onClick={() => setSubTab("diy")}
         >
           DIY Research
@@ -376,6 +405,8 @@ export default function NarrativesPanel({ isPaid }: { isPaid?: boolean }) {
 
       {subTab === "diy" ? (
         <DiyResearchTab />
+      ) : subTab === "early-catch" ? (
+        <EarlyCatchPanel />
       ) : (
         <div className="space-y-4">
           {/* Timeframe + Scan */}

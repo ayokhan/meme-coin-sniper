@@ -439,6 +439,10 @@ export default function AdminWalletTrackerPage() {
             Leverage Wallet Tracker
           </Link>
           <span className="text-muted-foreground">·</span>
+          <Link href="/admin/smart-money" className="text-sm text-cyan-600 dark:text-cyan-400 hover:underline">
+            Smart Money Alerts
+          </Link>
+          <span className="text-muted-foreground">·</span>
           <span className="text-sm font-medium">Nova Admin — Wallet Tracker</span>
         </div>
 

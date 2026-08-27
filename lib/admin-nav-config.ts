@@ -111,6 +111,7 @@ export const ADMIN_NAV_ITEMS: AdminNavItem[] = [
     ownerOnly: true,
   },
   { href: "/admin/wallet-tracker", label: "Wallet Tracker", icon: Wallet, group: "trackers" },
+  { href: "/admin/smart-money", label: "Smart Money Alerts", icon: Wallet, group: "trackers" },
   { href: "/admin/leverage-wallet-tracker", label: "Leverage wallets", icon: Wallet, group: "trackers" },
   { href: "/admin/polymarket-tracker", label: "Polymarket", icon: Wallet, group: "trackers" },
   {

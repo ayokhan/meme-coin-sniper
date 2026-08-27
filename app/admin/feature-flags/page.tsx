@@ -158,7 +158,14 @@ const FLAG_GROUPS: { id: string; title: string; match: (key: string) => boolean 
     match: (k) =>
       k === "nova_perp_wallet_analyst" ||
       k === "nova_meme_leaderboard" ||
-      k === "nova_deep_meme_agent",
+      k === "nova_deep_meme_agent" ||
+      k === "nova_smart_money_alerts" ||
+      k === "nova_smart_money_alerts_owner_only",
+  },
+  {
+    id: "narratives-early",
+    title: "Narratives — Early Catch",
+    match: (k) => k === "nova_early_catch" || k === "nova_early_catch_owner_only",
   },
   {
     id: "account",
@@ -617,6 +624,26 @@ const FLAG_LABELS: Record<string, { label: string; description: string }> = {
     description:
       "When ON, VIP users see the Deep Meme Agent subtab under Wallet Tracker. Paste a Solana, BSC, or Ethereum contract to get a full report: token overview (Dexscreener), security flags + top holders (GoPlus free API), honeypot/rug detection, dev/creator wallet, and per-holder classification (Dev, Whale, LP, Sniper/Bot, Pro, Fresh) with one-click Track or Analyze actions that hand off to the Meme Coin Advantage Bundle.",
   },
+  nova_smart_money_alerts: {
+    label: "Smart Money Alerts / FOMO Tracker (Wallet Tracker)",
+    description:
+      "Master switch. When ON, VIP users can use Smart Money Alerts under Wallet Tracker (sized buys ≥$2k/$10k, held >5m, still holding, sold). Pair with owner-only flag. Default OFF.",
+  },
+  nova_smart_money_alerts_owner_only: {
+    label: "Smart Money Alerts — owner only",
+    description:
+      "When master is ON and this is ON, only the owner sees Smart Money Alerts (test mode). Turn OFF for All VIP. Default ON.",
+  },
+  nova_early_catch: {
+    label: "Early Catch (Narratives)",
+    description:
+      "Master switch. When ON, VIP users see Early Catch under Narratives — strong-narrative memes still under ~$20k mcap. Pair with owner-only flag. Default OFF.",
+  },
+  nova_early_catch_owner_only: {
+    label: "Early Catch — owner only",
+    description:
+      "When master is ON and this is ON, only the owner sees Early Catch (test mode). Turn OFF for All VIP. Default ON.",
+  },
   vercel_cron_enabled: {
     label: "Vercel scheduled cron (master)",
     description:
@@ -1032,11 +1059,22 @@ export default function AdminFeatureFlagsPage() {
   };
   const hideFromFlagsList = (key: string) =>
     (key.startsWith("page_tab_") && key !== "page_tab_nova_job_agent") ||
-    key === "nova_crypto_buddie_owner_only";
+    key === "nova_crypto_buddie_owner_only" ||
+    key === "nova_smart_money_alerts" ||
+    key === "nova_smart_money_alerts_owner_only" ||
+    key === "nova_early_catch" ||
+    key === "nova_early_catch_owner_only";
   const groupedFlags = FLAG_GROUPS.map((g) => ({
     ...g,
     entries: flagEntries.filter(([key]) => !hideFromFlagsList(key) && flagGroupId(key) === g.id),
-  })).filter((g) => g.entries.length > 0 || g.id === "nova-jobs-agent" || g.id === "crypto-buddie");
+  })).filter(
+    (g) =>
+      g.entries.length > 0 ||
+      g.id === "nova-jobs-agent" ||
+      g.id === "crypto-buddie" ||
+      g.id === "narratives-early" ||
+      g.id === "wallet-subs"
+  );
 
   return (
     <div className="max-w-3xl">
@@ -1482,6 +1520,61 @@ export default function AdminFeatureFlagsPage() {
                           );
                         })()}
                       </div>
+                    ) : group.id === "narratives-early" ? (
+                      <div className="space-y-4 px-4 pb-4 border-t border-zinc-200 dark:border-zinc-700 pt-3">
+                        <p className="text-xs text-muted-foreground">
+                          Early Catch is <strong className="text-zinc-800 dark:text-zinc-200">VIP only</strong> under Narratives.
+                          Daily scan limits: Admin → Product visibility. Default VIP = 1/day.
+                        </p>
+                        {(() => {
+                          const audience = forexAudienceFromFlags("nova_early_catch", "nova_early_catch_owner_only");
+                          const busy = toggling === "nova_early_catch";
+                          return (
+                            <div className="rounded-lg bg-zinc-50/80 dark:bg-zinc-900/50 p-3 space-y-3">
+                              <div className="flex flex-wrap items-start justify-between gap-2">
+                                <div className="min-w-0 flex-1">
+                                  <p className="font-medium text-zinc-900 dark:text-zinc-100">Early Catch</p>
+                                  <p className="text-xs text-muted-foreground mt-0.5">
+                                    Strong narratives still under ~$20k market cap.
+                                  </p>
+                                </div>
+                                <span
+                                  className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
+                                    audience === "off"
+                                      ? "bg-zinc-200 text-zinc-600 dark:bg-zinc-700 dark:text-zinc-400"
+                                      : audience === "owner"
+                                        ? "bg-amber-100 text-amber-900 dark:bg-amber-950 dark:text-amber-200"
+                                        : "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300"
+                                  }`}
+                                >
+                                  {audience === "off" ? "OFF" : audience === "owner" ? "OWNER ONLY" : "ALL VIP"}
+                                </span>
+                              </div>
+                              <div className="flex flex-wrap gap-2">
+                                {(
+                                  [
+                                    { id: "off" as const, label: "Off" },
+                                    { id: "owner" as const, label: "Owner only (test)" },
+                                    { id: "vip" as const, label: "All VIP" },
+                                  ] as const
+                                ).map((opt) => (
+                                  <Button
+                                    key={opt.id}
+                                    size="sm"
+                                    variant={audience === opt.id ? "default" : "outline"}
+                                    disabled={busy}
+                                    onClick={() =>
+                                      void setForexAudience("nova_early_catch", "nova_early_catch_owner_only", opt.id)
+                                    }
+                                  >
+                                    {busy && audience !== opt.id ? "…" : opt.label}
+                                  </Button>
+                                ))}
+                              </div>
+                            </div>
+                          );
+                        })()}
+                      </div>
                     ) : group.id === "nova-forex-bots" ? (
                       <div className="space-y-4 px-4 pb-4 border-t border-zinc-200 dark:border-zinc-700 pt-3">
                         <p className="text-xs text-muted-foreground">
@@ -1580,6 +1673,101 @@ export default function AdminFeatureFlagsPage() {
                                     {busy ? "…" : enabled ? "Turn off" : "Turn on"}
                                   </Button>
                                 </div>
+                              </div>
+                            </div>
+                          );
+                        })()}
+                      </div>
+                    ) : group.id === "wallet-subs" ? (
+                      <div className="space-y-4 px-4 pb-4 border-t border-zinc-200 dark:border-zinc-700 pt-3">
+                        <ul className="space-y-3">
+                          {group.entries.map(([key, { label, description }]) => {
+                            const enabled = flags[key] ?? true;
+                            const busy = toggling === key;
+                            return (
+                              <li key={key} className="rounded-lg p-3 bg-zinc-50/80 dark:bg-zinc-900/50">
+                                <div className="flex flex-wrap items-start justify-between gap-3">
+                                  <div className="min-w-0 flex-1">
+                                    <p className="font-medium text-zinc-900 dark:text-zinc-100">{label}</p>
+                                    <p className="text-xs text-muted-foreground mt-0.5">{description}</p>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <span
+                                      className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
+                                        enabled
+                                          ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300"
+                                          : "bg-zinc-200 text-zinc-600 dark:bg-zinc-700 dark:text-zinc-400"
+                                      }`}
+                                    >
+                                      {enabled ? "ON" : "OFF"}
+                                    </span>
+                                    <Button size="sm" variant={enabled ? "outline" : "default"} onClick={() => handleToggle(key)} disabled={busy}>
+                                      {busy ? "…" : enabled ? "Turn off" : "Turn on"}
+                                    </Button>
+                                  </div>
+                                </div>
+                              </li>
+                            );
+                          })}
+                        </ul>
+                        <p className="text-xs text-muted-foreground">
+                          Smart Money Alerts is <strong className="text-zinc-800 dark:text-zinc-200">VIP only</strong>. Manage wallets at{" "}
+                          <a href="/admin/smart-money" className="text-cyan-600 hover:underline">
+                            Admin → Smart Money
+                          </a>
+                          . Daily refresh limits: Product visibility.
+                        </p>
+                        {(() => {
+                          const audience = forexAudienceFromFlags(
+                            "nova_smart_money_alerts",
+                            "nova_smart_money_alerts_owner_only"
+                          );
+                          const busy = toggling === "nova_smart_money_alerts";
+                          return (
+                            <div className="rounded-lg bg-zinc-50/80 dark:bg-zinc-900/50 p-3 space-y-3">
+                              <div className="flex flex-wrap items-start justify-between gap-2">
+                                <div className="min-w-0 flex-1">
+                                  <p className="font-medium text-zinc-900 dark:text-zinc-100">Smart Money Alerts (FOMO Tracker)</p>
+                                  <p className="text-xs text-muted-foreground mt-0.5">
+                                    Sized buys, hold, still holding, sold — in-app only.
+                                  </p>
+                                </div>
+                                <span
+                                  className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
+                                    audience === "off"
+                                      ? "bg-zinc-200 text-zinc-600 dark:bg-zinc-700 dark:text-zinc-400"
+                                      : audience === "owner"
+                                        ? "bg-amber-100 text-amber-900 dark:bg-amber-950 dark:text-amber-200"
+                                        : "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300"
+                                  }`}
+                                >
+                                  {audience === "off" ? "OFF" : audience === "owner" ? "OWNER ONLY" : "ALL VIP"}
+                                </span>
+                              </div>
+                              <div className="flex flex-wrap gap-2">
+                                {(
+                                  [
+                                    { id: "off" as const, label: "Off" },
+                                    { id: "owner" as const, label: "Owner only (test)" },
+                                    { id: "vip" as const, label: "All VIP" },
+                                  ] as const
+                                ).map((opt) => (
+                                  <Button
+                                    key={opt.id}
+                                    size="sm"
+                                    variant={audience === opt.id ? "default" : "outline"}
+                                    disabled={busy}
+                                    onClick={() =>
+                                      void setForexAudience(
+                                        "nova_smart_money_alerts",
+                                        "nova_smart_money_alerts_owner_only",
+                                        opt.id
+                                      )
+                                    }
+                                  >
+                                    {busy && audience !== opt.id ? "…" : opt.label}
+                                  </Button>
+                                ))}
                               </div>
                             </div>
                           );
