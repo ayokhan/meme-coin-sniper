@@ -49,40 +49,50 @@ export async function POST(request: Request) {
   const db = ext.smartMoneyWallet;
   if (!db) return NextResponse.json({ success: false, error: "Run prisma db push first." }, { status: 500 });
 
-  if (body.action === "import_top20") {
-    const period = typeof body.period === "string" ? body.period : "7d";
-    const statsDb = ext.memeTraderStats;
-    if (!statsDb) {
-      return NextResponse.json({ success: false, error: "Leaderboard stats unavailable." }, { status: 500 });
+  if (body.action === "import_fomo_json") {
+    const raw = body.wallets;
+    if (!Array.isArray(raw)) {
+      return NextResponse.json(
+        { success: false, error: 'Expected wallets: [{ address, name? }]' },
+        { status: 400 }
+      );
     }
     const cfg = await ext.smartMoneyConfig?.findUnique({ where: { id: "default" } });
     const maxWallets = cfg?.maxWallets ?? 20;
-    const top = await statsDb.findMany({
-      where: { periodKey: period },
-      orderBy: { totalPnlUsd: "desc" },
-      take: maxWallets,
-    } as object);
     let added = 0;
-    for (const row of top) {
-      const address = (row.walletAddress || "").trim();
-      if (!address) continue;
+    for (const item of raw) {
+      if (!item || typeof item !== "object") continue;
+      const row = item as Record<string, unknown>;
+      const address = String(row.address ?? row.wallet ?? "").trim();
+      if (!address || address.length < 32) continue;
+      const nameRaw = String(row.name ?? row.label ?? "").trim();
+      const label = nameRaw
+        ? nameRaw.toLowerCase().startsWith("fomo:")
+          ? nameRaw
+          : `FOMO: ${nameRaw}`
+        : `FOMO: ${address.slice(0, 4)}…${address.slice(-4)}`;
+      const count = await db.count({ where: { active: true } });
+      const existing = await db.findUnique({ where: { address } });
+      if (!existing && count >= maxWallets) break;
       await db.upsert({
         where: { address },
-        create: {
-          address,
-          label: row.label || `LB #${added + 1}`,
-          active: true,
-          source: "leaderboard",
-        },
-        update: {
-          active: true,
-          source: "leaderboard",
-          ...(row.label ? { label: row.label } : {}),
-        },
+        create: { address, label, active: true, source: "fomo" },
+        update: { label, active: true, source: "fomo" },
       });
       added += 1;
     }
     return NextResponse.json({ success: true, imported: added });
+  }
+
+  if (body.action === "import_top20") {
+    return NextResponse.json(
+      {
+        success: false,
+        error:
+          "Nova meme leaderboard import removed. Use Import FOMO JSON or add FOMO wallets manually — FOMO.family has no public API.",
+      },
+      { status: 400 }
+    );
   }
 
   if (body.action === "add") {

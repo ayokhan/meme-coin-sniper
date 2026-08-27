@@ -78,56 +78,6 @@ export async function GET() {
       } as object)
     : [];
 
-  const watchedSet = new Set(
-    (wallets as Array<{ address: string }>).map((w) => w.address.toLowerCase())
-  );
-
-  type LbRow = {
-    rank: number;
-    walletAddress: string;
-    label: string | null;
-    totalPnlUsd: number;
-    winRatePct: number | null;
-    tradeCount: number;
-    volumeUsd: number;
-    watching: boolean;
-  };
-  let leaderboard: LbRow[] = [];
-  try {
-    const stats = await (
-      prisma as unknown as {
-        memeTraderStats: {
-          findMany: (a: object) => Promise<
-            Array<{
-              walletAddress: string;
-              label: string | null;
-              totalPnlUsd: number;
-              winRatePct: number | null;
-              tradeCount: number;
-              volumeUsd: number;
-            }>
-          >;
-        };
-      }
-    ).memeTraderStats.findMany({
-      where: { periodKey: "7d" },
-      orderBy: { totalPnlUsd: "desc" },
-      take: 20,
-    });
-    leaderboard = stats.map((s, i) => ({
-      rank: i + 1,
-      walletAddress: s.walletAddress,
-      label: s.label,
-      totalPnlUsd: s.totalPnlUsd,
-      winRatePct: s.winRatePct,
-      tradeCount: s.tradeCount,
-      volumeUsd: s.volumeUsd,
-      watching: watchedSet.has(s.walletAddress.toLowerCase()),
-    }));
-  } catch {
-    leaderboard = [];
-  }
-
   const config = await getConfig();
   const isOwner = isOwnerSession(session);
   let used = 0;
@@ -146,7 +96,6 @@ export async function GET() {
     success: true,
     alerts,
     wallets,
-    leaderboard,
     isOwner,
     usage: { used, limit: isOwner ? null : limit, resets: "midnight UTC" },
   });
