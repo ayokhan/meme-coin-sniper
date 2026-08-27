@@ -24,9 +24,18 @@ type EarlyResult = {
   scannedAt: string;
   maxMarketCapUsd: number;
   minLiquidityUsd: number;
+  maxAgeMinutes?: number;
+  minNarrativeScore?: number;
   pairsScanned: number;
   coins: EarlyCoin[];
 };
+
+function fmtAgeCap(minutes?: number) {
+  if (minutes == null) return null;
+  if (minutes < 60) return `≤ ${Math.round(minutes)}m old`;
+  if (minutes < 48 * 60) return `≤ ${(minutes / 60).toFixed(0)}h old`;
+  return `≤ ${(minutes / (60 * 24)).toFixed(0)}d old`;
+}
 
 function fmtUsd(n: number) {
   if (n >= 1_000_000) return `$${(n / 1_000_000).toFixed(2)}M`;
@@ -76,8 +85,8 @@ export default function EarlyCatchPanel() {
       <div>
         <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">Early Catch</h3>
         <p className="text-sm text-muted-foreground mt-0.5 max-w-xl">
-          Memes with strong narrative heat still under ~$20k market cap — the window where a small buy can matter.
-          VIP default: 1 scan per day (admin can change globally or per user).
+          Fresh memes (under ~3 days) with real narrative overlap and heat, still under ~$20k market cap — the
+          window where a small buy can matter.
         </p>
       </div>
 
@@ -87,8 +96,10 @@ export default function EarlyCatchPanel() {
         </Button>
         {result && (
           <span className="text-xs text-muted-foreground">
-            {result.coins.length} coins · mcap ≤ {fmtUsd(result.maxMarketCapUsd)} · {result.pairsScanned} pairs
-            scanned · {new Date(result.scannedAt).toLocaleString()}
+            {result.coins.length} coins · mcap ≤ {fmtUsd(result.maxMarketCapUsd)}
+            {fmtAgeCap(result.maxAgeMinutes) ? ` · ${fmtAgeCap(result.maxAgeMinutes)}` : ""}
+            {result.minNarrativeScore != null ? ` · score ≥ ${result.minNarrativeScore}` : ""} ·{" "}
+            {result.pairsScanned} pairs scanned · {new Date(result.scannedAt).toLocaleString()}
           </span>
         )}
       </div>
@@ -100,7 +111,9 @@ export default function EarlyCatchPanel() {
       )}
 
       {result && result.coins.length === 0 && !loading && (
-        <p className="text-sm text-muted-foreground">No micro-cap narrative coins matched right now. Try again later.</p>
+        <p className="text-sm text-muted-foreground">
+          No fresh micro-caps with strong narrative overlap right now. Try again later.
+        </p>
       )}
 
       <div className="space-y-2">

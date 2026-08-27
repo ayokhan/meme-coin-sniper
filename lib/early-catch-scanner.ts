@@ -10,6 +10,11 @@ import {
 } from "@/lib/api-clients/dexscreener";
 import { fetchGoogleNewsHeadlines } from "@/lib/nova-crypto-narratives";
 
+/** Default: still early — pair younger than 3 days. */
+export const EARLY_CATCH_MAX_AGE_MINUTES = 72 * 60;
+/** Default: need real narrative heat, not noise scores like 1–7. */
+export const EARLY_CATCH_MIN_NARRATIVE_SCORE = 25;
+
 export type EarlyCatchCoin = {
   name: string;
   symbol: string;
@@ -30,6 +35,8 @@ export type EarlyCatchResult = {
   scannedAt: string;
   maxMarketCapUsd: number;
   minLiquidityUsd: number;
+  maxAgeMinutes: number;
+  minNarrativeScore: number;
   pairsScanned: number;
   coins: EarlyCatchCoin[];
 };
@@ -80,7 +87,7 @@ function scorePair(p: DexPair, headlineTokens: Set<string>): { score: number; ta
   if (tags.length) reasonParts.push(`Narrative overlap: ${tags.slice(0, 4).join(", ")}`);
   if (vol > 500) reasonParts.push(`Active volume $${Math.round(vol).toLocaleString()}`);
   if (change > 10) reasonParts.push(`Momentum ${change.toFixed(0)}%`);
-  if (!reasonParts.length) reasonParts.push("Fresh micro-cap with early flow");
+  if (!reasonParts.length) reasonParts.push("Micro-cap with early flow");
 
   return { score: Math.round(Math.min(100, score)), tags, reason: reasonParts.join(" · ") };
 }
@@ -88,10 +95,17 @@ function scorePair(p: DexPair, headlineTokens: Set<string>): { score: number; ta
 export async function runEarlyCatchScan(opts: {
   maxMarketCapUsd?: number;
   minLiquidityUsd?: number;
+  maxAgeMinutes?: number;
+  minNarrativeScore?: number;
+  /** Require at least one headline-token overlap (default true). */
+  requireNarrativeTag?: boolean;
   limit?: number;
 }): Promise<EarlyCatchResult> {
   const maxMarketCapUsd = opts.maxMarketCapUsd ?? 20_000;
   const minLiquidityUsd = opts.minLiquidityUsd ?? 2_000;
+  const maxAgeMinutes = opts.maxAgeMinutes ?? EARLY_CATCH_MAX_AGE_MINUTES;
+  const minNarrativeScore = opts.minNarrativeScore ?? EARLY_CATCH_MIN_NARRATIVE_SCORE;
+  const requireNarrativeTag = opts.requireNarrativeTag ?? true;
   const limit = opts.limit ?? 30;
 
   const [wsPairs, searchPairs, headlines] = await Promise.all([
@@ -124,8 +138,15 @@ export async function runEarlyCatchScan(opts: {
     const liq = p.liquidity?.usd ?? 0;
     if (liq < minLiquidityUsd) continue;
 
+    const created = pairCreatedMs(p);
+    if (!created) continue;
+    const ageMinutes = Math.max(0, (now - created) / 60_000);
+    if (ageMinutes > maxAgeMinutes) continue;
+
     const { score, tags, reason } = scorePair(p, headlineTokens);
-    const ageMinutes = Math.max(0, (now - pairCreatedMs(p)) / 60_000);
+    if (score < minNarrativeScore) continue;
+    if (requireNarrativeTag && tags.length === 0) continue;
+
     const addr = p.baseToken.address;
 
     coins.push({
@@ -151,6 +172,8 @@ export async function runEarlyCatchScan(opts: {
     scannedAt: new Date().toISOString(),
     maxMarketCapUsd,
     minLiquidityUsd,
+    maxAgeMinutes,
+    minNarrativeScore,
     pairsScanned: all.length,
     coins: coins.slice(0, limit),
   };

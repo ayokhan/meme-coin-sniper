@@ -118,7 +118,7 @@ export const FEATURE_FLAG_KEYS = {
   /** When master ON: restrict Smart Money Alerts to owner only. Default ON (owner testing). */
   NOVA_SMART_MONEY_ALERTS_OWNER_ONLY: 'nova_smart_money_alerts_owner_only',
   /**
-   * VIP: Early Catch under Narratives — strong narratives still under ~$20k mcap.
+   * VIP: Early Catch under Narratives — fresh (<~3d) strong narratives still under ~$20k mcap.
    * Default OFF until admin enables. Pair with NOVA_EARLY_CATCH_OWNER_ONLY.
    */
   NOVA_EARLY_CATCH: 'nova_early_catch',
