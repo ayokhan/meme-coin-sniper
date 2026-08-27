@@ -63,7 +63,6 @@ function wrapLines(
 export function drawAffiliatePostcard(options?: AffiliatePostcardOptions): Promise<Blob> {
   const rate = options?.commissionRatePct ?? REFERRAL_COMMISSION_RATE_PCT;
   const code = options?.referralCode?.trim() || null;
-  const link = options?.referralLink?.trim() || "https://novastaris.ai/affiliate";
 
   const canvas = document.createElement("canvas");
   canvas.width = W;
@@ -87,13 +86,12 @@ export function drawAffiliatePostcard(options?: AffiliatePostcardOptions): Promi
   ctx.fillRect(0, 0, W, H);
 
   const pad = 72;
+  const isPersonal = Boolean(code);
 
   // Eyebrow
   ctx.fillStyle = CYAN_BRIGHT;
   ctx.font = "700 22px system-ui, sans-serif";
-  ctx.letterSpacing = "0.18em";
   ctx.fillText("AFFILIATE PROGRAM", pad, pad + 12);
-  ctx.letterSpacing = "0";
 
   // Brand
   ctx.fillStyle = WHITE;
@@ -102,7 +100,7 @@ export function drawAffiliatePostcard(options?: AffiliatePostcardOptions): Promi
 
   // Offer card
   const cardY = pad + 130;
-  const cardH = code ? 520 : 440;
+  const cardH = isPersonal ? 520 : 460;
   roundRect(ctx, pad, cardY, W - 2 * pad, cardH, 28);
   ctx.fillStyle = "rgba(10,10,11,0.78)";
   ctx.fill();
@@ -125,18 +123,32 @@ export function drawAffiliatePostcard(options?: AffiliatePostcardOptions): Promi
     ctx.fillText(line, innerX, y);
     y += 60;
   }
-  y += 12;
+  y += 16;
 
   ctx.fillStyle = MUTED;
   ctx.font = "500 26px system-ui, sans-serif";
-  const body =
-    "Share your link. When friends subscribe to VIP, you earn commission. Payouts every Friday after verification.";
+  const body = isPersonal
+    ? "Share your link. When friends subscribe to VIP, you earn commission. Payouts every Friday after verification."
+    : "Join the NovaStaris Affiliate Program. Share your link — when friends go VIP, you earn 10%. Payouts every Friday after verification.";
   for (const line of wrapLines(ctx, body, W - 2 * pad - 80)) {
     ctx.fillText(line, innerX, y);
     y += 36;
   }
 
-  if (code) {
+  if (!isPersonal) {
+    y += 28;
+    const bullets = ["10% of VIP subscription fee", "Track referrals in-app", "Weekly Friday payouts"];
+    ctx.font = "600 24px system-ui, sans-serif";
+    for (const b of bullets) {
+      ctx.fillStyle = CYAN;
+      ctx.fillText("▸", innerX, y);
+      ctx.fillStyle = WHITE;
+      ctx.fillText(b, innerX + 36, y);
+      y += 40;
+    }
+  }
+
+  if (isPersonal && code) {
     y += 28;
     roundRect(ctx, innerX, y, W - 2 * pad - 80, 88, 16);
     ctx.fillStyle = "rgba(20,184,166,0.15)";
@@ -159,16 +171,11 @@ export function drawAffiliatePostcard(options?: AffiliatePostcardOptions): Promi
   ctx.fill();
   ctx.fillStyle = "#042f2e";
   ctx.font = "700 28px system-ui, sans-serif";
-  ctx.fillText(code ? "Join with my code on NovaStaris" : "Get your referral link", pad + 40, stripY + 42);
+  ctx.fillText(isPersonal ? "Join with my code on NovaStaris" : "Get your referral link", pad + 40, stripY + 42);
   ctx.font = "600 22px system-ui, sans-serif";
-  const ctaUrl = code && link.includes("ref=") ? link.replace(/^https?:\/\//, "") : "novastaris.ai/affiliate";
-  // Keep CTA readable — prefer short path when personal link is long
-  const displayUrl =
-    ctaUrl.length > 42 && code
-      ? `novastaris.ai/register?ref=${code}`
-      : ctaUrl.length > 48
-        ? "novastaris.ai/affiliate"
-        : ctaUrl;
+  const displayUrl = isPersonal && code
+    ? `novastaris.ai/register?ref=${code}`
+    : "novastaris.ai/affiliate";
   ctx.fillText(displayUrl, pad + 40, stripY + 74);
 
   ctx.fillStyle = MUTED;

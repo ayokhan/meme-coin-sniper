@@ -124,9 +124,14 @@ export default function AffiliatePage() {
           <Button
             type="button"
             variant="outline"
-            onClick={() => void downloadAffiliatePostcard()}
+            onClick={() =>
+              void downloadAffiliatePostcard(
+                undefined,
+                `NovaStaris_Affiliate_Ad_${new Date().toISOString().slice(0, 10)}.jpg`
+              )
+            }
           >
-            Download postcard
+            Download ad postcard
           </Button>
           <Button variant="outline" asChild>
             <Link href="/">Back to app</Link>
@@ -154,6 +159,36 @@ export default function AffiliatePage() {
           Earn <strong className="text-foreground">{data?.commissionRatePct ?? 10}%</strong> when friends you refer subscribe to VIP.
         </p>
       </div>
+
+      <Card className="border-teal-500/30 bg-teal-500/5 dark:bg-teal-950/20">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base">Social ad postcard</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <p className="text-sm text-muted-foreground">
+            Generic 1080×1080 image for WhatsApp Status, Instagram Stories, or posts — no personal code. Points people to{" "}
+            <span className="font-medium text-foreground">novastaris.ai/affiliate</span>.
+          </p>
+          <Button
+            type="button"
+            className="bg-teal-500 text-zinc-950 hover:bg-teal-600"
+            disabled={postcardBusy}
+            onClick={async () => {
+              setPostcardBusy(true);
+              try {
+                await downloadAffiliatePostcard(
+                  { commissionRatePct: data?.commissionRatePct ?? 10 },
+                  `NovaStaris_Affiliate_Ad_${new Date().toISOString().slice(0, 10)}.jpg`
+                );
+              } finally {
+                setPostcardBusy(false);
+              }
+            }}
+          >
+            {postcardBusy ? "Preparing…" : "Download ad postcard"}
+          </Button>
+        </CardContent>
+      </Card>
 
       {error && (
         <div className="rounded-lg border border-rose-200 dark:border-rose-800 bg-rose-50/60 dark:bg-rose-950/30 p-3 text-sm text-rose-700 dark:text-rose-300">
@@ -279,7 +314,7 @@ export default function AffiliatePage() {
                   }
                 }}
               >
-                Download postcard
+                Download my postcard
               </Button>
               <Button
                 type="button"
