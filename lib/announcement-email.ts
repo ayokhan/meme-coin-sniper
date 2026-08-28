@@ -4,6 +4,11 @@ import { sendEmailDetailed } from "@/lib/send-email";
 import {
   buildMorningFuturesBriefEmailHtml,
 } from "@/lib/futures-daily-wrap-email";
+import {
+  PNL_CALCULATOR_LAUNCH_EMAIL,
+  PNL_CALCULATOR_URL,
+  shouldUseCustomPnlCalculatorIntro,
+} from "@/lib/pnl-calculator-launch-email";
 import type { FuturesWrapItem } from "@/lib/futures-daily-wrap";
 
 export type AnnouncementAudience = "newsletter" | "all";
@@ -15,7 +20,26 @@ export type AnnouncementEmailTemplate =
   | "welcome"
   | "nova-branded"
   | "why-traders"
-  | "futures-morning-brief";
+  | "futures-morning-brief"
+  | "pnl-calculator";
+
+export const ANNOUNCEMENT_EMAIL_TEMPLATES: AnnouncementEmailTemplate[] = [
+  "default",
+  "forex-rebate",
+  "affiliate",
+  "welcome",
+  "nova-branded",
+  "why-traders",
+  "futures-morning-brief",
+  "pnl-calculator",
+];
+
+export function parseAnnouncementEmailTemplate(value: string | null | undefined): AnnouncementEmailTemplate {
+  if (value && ANNOUNCEMENT_EMAIL_TEMPLATES.includes(value as AnnouncementEmailTemplate)) {
+    return value as AnnouncementEmailTemplate;
+  }
+  return "default";
+}
 
 export type RecentRegistrant = {
   email: string;
@@ -364,6 +388,120 @@ export function buildWhyTradersEmailHtml(args?: {
   return whyTradersEmailShell(inner);
 }
 
+function pnlCalculatorCtaButtonHtml(label: string, url: string): string {
+  return `
+<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:8px auto 8px auto;border-collapse:collapse;">
+  <tr>
+    <td align="center" bgcolor="#f59e0b" style="border-radius:10px;background:#f59e0b;">
+      <a href="${escapeHtml(url)}" target="_blank" style="display:inline-block;padding:14px 28px;font-family:Arial,Helvetica,sans-serif;font-size:15px;font-weight:700;color:#422006;text-decoration:none;border-radius:10px;">
+        ${escapeHtml(label)}
+      </a>
+    </td>
+  </tr>
+</table>`.trim();
+}
+
+function pnlCalculatorEmailShell(inner: string): string {
+  return `
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="utf-8" /><meta name="viewport" content="width=device-width,initial-scale=1" /></head>
+<body style="margin:0;padding:0;background:#422006;font-family:Arial,Helvetica,sans-serif;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#422006" style="background:#422006;padding:24px 12px;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#18181b" style="max-width:560px;background:#18181b;border-radius:16px;overflow:hidden;">
+          ${inner}
+          <tr>
+            <td bgcolor="#18181b" style="padding:20px 28px 28px 28px;border-top:1px solid #27272a;">
+              <p style="margin:0 0 6px 0;font-size:12px;line-height:1.5;color:#a1a1aa;">
+                Educational only — not financial advice. Manage preferences in your
+                <a href="${APP_ORIGIN}/account" style="color:#fcd34d;text-decoration:underline;">account settings</a>.
+              </p>
+              <p style="margin:0;font-size:12px;color:#71717a;">
+                <a href="${APP_ORIGIN}" style="color:#71717a;text-decoration:none;">novastaris.ai</a>
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`.trim();
+}
+
+/** Rich PnL Calculator launch email — amber hero, feature card, access tiers, CTA. */
+export function buildPnlCalculatorLaunchEmailHtml(args?: {
+  body?: string;
+  ctaLabel?: string | null;
+  ctaUrl?: string | null;
+}): string {
+  const customBody = (args?.body ?? "").trim();
+  const ctaLabel = args?.ctaLabel?.trim() || PNL_CALCULATOR_LAUNCH_EMAIL.ctaLabel;
+  const ctaUrl = args?.ctaUrl?.trim() || PNL_CALCULATOR_LAUNCH_EMAIL.ctaUrl;
+
+  const bodyBlock = customBody
+    ? `<td bgcolor="#18181b" style="padding:28px 28px 8px 28px;background:#18181b;">
+        ${announcementBodyToHtml(customBody)}
+        <div style="margin:8px 0 8px 0;text-align:center;">${pnlCalculatorCtaButtonHtml(ctaLabel, ctaUrl)}</div>
+      </td>`
+    : `<td bgcolor="#18181b" style="padding:28px 28px 8px 28px;background:#18181b;">
+        <p style="margin:0 0 14px 0;font-size:15px;line-height:1.55;color:#e4e4e7;">Hi there,</p>
+        <p style="margin:0 0 18px 0;font-size:15px;line-height:1.55;color:#e4e4e7;">
+          We&apos;ve added a standalone <strong style="color:#fafafa;">PnL Calculator</strong> to NovaStaris — professional sizing for
+          <strong style="color:#fafafa;">crypto futures and forex</strong> in one desk.
+        </p>
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 18px 0;border-collapse:collapse;">
+          <tr>
+            <td style="background:#27272a;border:1px solid #78350f;border-radius:12px;padding:16px 18px;">
+              <p style="margin:0 0 10px 0;font-size:13px;font-weight:700;color:#fcd34d;text-transform:uppercase;letter-spacing:0.06em;">What&apos;s included</p>
+              <p style="margin:0 0 8px 0;font-size:15px;line-height:1.45;color:#f4f4f5;">Position size from account risk and stop distance</p>
+              <p style="margin:0 0 8px 0;font-size:15px;line-height:1.45;color:#f4f4f5;">Take-profit and stop-loss in price, %, or pips</p>
+              <p style="margin:0 0 8px 0;font-size:15px;line-height:1.45;color:#f4f4f5;">Reward-to-risk and account gain/loss percentages</p>
+              <p style="margin:0 0 8px 0;font-size:15px;line-height:1.45;color:#f4f4f5;">Live pivot levels you can apply to your plan</p>
+              <p style="margin:0;font-size:15px;line-height:1.45;color:#f4f4f5;">Forex sessions include risk-on/risk-off context</p>
+            </td>
+          </tr>
+        </table>
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 20px 0;border-collapse:collapse;">
+          <tr>
+            <td style="background:#422006;border:1px solid #b45309;border-radius:12px;padding:16px 18px;">
+              <p style="margin:0 0 10px 0;font-size:13px;font-weight:700;color:#fde68a;text-transform:uppercase;letter-spacing:0.06em;">Access</p>
+              <p style="margin:0 0 6px 0;font-size:15px;color:#fef3c7;"><strong>Guests:</strong> 2 calculations/day</p>
+              <p style="margin:0 0 6px 0;font-size:15px;color:#fef3c7;"><strong>Registered free:</strong> 4/day</p>
+              <p style="margin:0;font-size:15px;color:#fef3c7;"><strong>VIP:</strong> unlimited</p>
+            </td>
+          </tr>
+        </table>
+        ${pnlCalculatorCtaButtonHtml(ctaLabel, ctaUrl)}
+        <p style="margin:20px 0 0 0;font-size:12px;line-height:1.5;color:#a1a1aa;text-align:center;">
+          Open the <strong>PnL Calculator</strong> tab in the dashboard, or visit
+          <a href="${PNL_CALCULATOR_URL}" style="color:#fcd34d;">novastaris.ai/?tab=pnl-calculator</a>
+        </p>
+      </td>`;
+
+  const inner = `
+    <tr>
+      <td align="center" bgcolor="#422006" style="background:#422006;background-image:linear-gradient(160deg,#0a0a0b 0%,#18181b 55%,#78350f 140%);padding:36px 28px 32px 28px;">
+        <p style="margin:0 0 10px 0;font-family:Arial,Helvetica,sans-serif;font-size:11px;letter-spacing:0.16em;text-transform:uppercase;color:#fcd34d;">
+          NEW · PNL CALCULATOR
+        </p>
+        <p style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:26px;line-height:1.25;font-weight:700;color:#ffffff;letter-spacing:-0.02em;">
+          Size the trade before you send it
+        </p>
+        <p style="margin:14px 0 0 0;font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.45;color:#fde68a;">
+          Crypto futures + forex · one professional desk
+        </p>
+      </td>
+    </tr>
+    <tr>
+      ${bodyBlock}
+    </tr>`;
+
+  return pnlCalculatorEmailShell(inner);
+}
+
 /** Polished welcome / Start here email with NovaStaris brand banner. */
 export function buildWelcomeEmailHtml(args?: { body?: string }): string {
   const customBody = (args?.body ?? "").trim();
@@ -536,6 +674,14 @@ export function buildAnnouncementEmailHtml(args: {
     return buildNovaBrandedEmailHtml({
       body: args.body,
       eyebrow: "Next step",
+      ctaLabel: args.ctaLabel,
+      ctaUrl: args.ctaUrl,
+    });
+  }
+
+  if (args.template === "pnl-calculator") {
+    return buildPnlCalculatorLaunchEmailHtml({
+      body: shouldUseCustomPnlCalculatorIntro(args.body) ? args.body : undefined,
       ctaLabel: args.ctaLabel,
       ctaUrl: args.ctaUrl,
     });
@@ -910,7 +1056,8 @@ export async function sendAnnouncementEmails(args: {
         template === "welcome" ||
         template === "why-traders" ||
         template === "nova-branded" ||
-        template === "futures-morning-brief")
+        template === "futures-morning-brief" ||
+        template === "pnl-calculator")
     )
   ) {
     throw new Error("Message body is required.");

@@ -4,9 +4,9 @@ import { authOptions, isOwnerSession } from "@/lib/auth";
 import {
   getAnnouncementEmailStats,
   listRecentAnnouncementCampaigns,
+  parseAnnouncementEmailTemplate,
   sendAnnouncementEmails,
   type AnnouncementAudience,
-  type AnnouncementEmailTemplate,
 } from "@/lib/announcement-email";
 import { listRecentWelcomeEmailLogs } from "@/lib/send-welcome-email";
 
@@ -54,18 +54,7 @@ export async function POST(request: Request) {
     const recipients = Array.isArray(body.recipients)
       ? body.recipients.filter((e): e is string => typeof e === "string")
       : undefined;
-    const template: AnnouncementEmailTemplate =
-      body.template === "forex-rebate"
-        ? "forex-rebate"
-        : body.template === "affiliate"
-          ? "affiliate"
-          : body.template === "welcome"
-            ? "welcome"
-            : body.template === "why-traders"
-              ? "why-traders"
-              : body.template === "nova-branded"
-                ? "nova-branded"
-                : "default";
+    const template = parseAnnouncementEmailTemplate(body.template);
     const format = body.format === "plain" ? "plain" : "rich";
     const result = await sendAnnouncementEmails({
       subject: body.subject ?? "",

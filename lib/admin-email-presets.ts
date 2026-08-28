@@ -4,6 +4,7 @@ import {
   NOVA_FOREX_BOTS_LAUNCH_EMAIL,
 } from "@/lib/forex-broker-partner-promo";
 import { BLOFIN_PARTNERSHIP_EMAIL } from "@/lib/blofin-partner-promo";
+import { PNL_CALCULATOR_LAUNCH_EMAIL } from "@/lib/pnl-calculator-launch-email";
 import { AFFILIATE_PROGRAM_EMAIL } from "@/lib/referral-program";
 import { WELCOME_EMAIL } from "@/lib/welcome-email";
 import { WHY_TRADERS_EMAIL } from "@/lib/why-traders-email";
@@ -53,6 +54,7 @@ export type AdminEmailPresetId =
   | "affiliate"
   | "forex-rebate"
   | "forex-bots-launch"
+  | "pnl-calculator-launch"
   | "tio-partnership"
   | "vantage-partnership"
   | "assex-partnership"
@@ -347,6 +349,19 @@ export const ADMIN_EMAIL_PRESETS: AdminEmailPreset[] = [
     partnerBrand: "tiomarkets",
     ctaLabel: "Open Nova Forex Bots",
     ctaUrl: FOREX_BOTS,
+  },
+  {
+    id: "pnl-calculator-launch",
+    label: "PnL Calculator launch",
+    blurb: "New tab — crypto futures + forex sizing desk",
+    subject: PNL_CALCULATOR_LAUNCH_EMAIL.subject,
+    body: PNL_CALCULATOR_LAUNCH_EMAIL.body,
+    template: "pnl-calculator",
+    includePartnerLogos: false,
+    partnerBrand: "blofin",
+    ctaLabel: PNL_CALCULATOR_LAUNCH_EMAIL.ctaLabel,
+    ctaUrl: PNL_CALCULATOR_LAUNCH_EMAIL.ctaUrl,
+    defaultAudience: "all",
   },
   {
     id: "tio-partnership",

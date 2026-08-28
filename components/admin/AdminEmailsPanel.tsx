@@ -17,6 +17,12 @@ import { buildVipTrialInviteEmail } from "@/lib/vip-trial";
 import type { AnnouncementEmailTemplate } from "@/lib/announcement-email";
 import type { PartnerBrandEmail } from "@/lib/partner-logos-email";
 import { ADMIN_EMAIL_DRAFT_STORAGE_KEY } from "@/lib/paid-strategy-call";
+import {
+  buildPnlCalculatorShareCaption,
+  downloadPnlCalculatorPostcard,
+  drawPnlCalculatorPostcard,
+} from "@/lib/pnl-calculator-share-image";
+import { sharePnlWithFallback } from "@/lib/pnl-share";
 
 type RecentRegistrant = {
   email: string;
@@ -118,6 +124,7 @@ export default function AdminEmailsPanel({ onNotice, onError }: Props) {
   const [strategyCallEnabled, setStrategyCallEnabled] = useState(false);
   const [strategyCallShowNav, setStrategyCallShowNav] = useState(true);
   const [strategyCallShowPopup, setStrategyCallShowPopup] = useState(true);
+  const [postcardBusy, setPostcardBusy] = useState(false);
   const [strategyCallSaving, setStrategyCallSaving] = useState(false);
 
   const loadStats = useCallback(async () => {
@@ -563,6 +570,58 @@ export default function AdminEmailsPanel({ onNotice, onError }: Props) {
         </CardContent>
       </Card>
 
+      <Card className="border-amber-200/80 dark:border-amber-800/50">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base">PnL Calculator — social postcard</CardTitle>
+          <p className="text-sm text-muted-foreground">
+            Owner-only marketing asset for X, Instagram, WhatsApp, and Telegram. Pair with the PnL Calculator launch
+            email preset below.
+          </p>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="flex flex-wrap gap-2">
+            <Button
+              type="button"
+              size="sm"
+              disabled={postcardBusy}
+              onClick={async () => {
+                setPostcardBusy(true);
+                try {
+                  const blob = await drawPnlCalculatorPostcard();
+                  await sharePnlWithFallback(
+                    blob,
+                    `NovaStaris_PnL_Calculator_${new Date().toISOString().slice(0, 10)}.jpg`,
+                    buildPnlCalculatorShareCaption()
+                  );
+                  onNotice?.("Postcard shared or downloaded.");
+                } finally {
+                  setPostcardBusy(false);
+                }
+              }}
+            >
+              {postcardBusy ? "Preparing…" : "Share postcard"}
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              disabled={postcardBusy}
+              onClick={async () => {
+                setPostcardBusy(true);
+                try {
+                  await downloadPnlCalculatorPostcard();
+                  onNotice?.("Postcard downloaded.");
+                } finally {
+                  setPostcardBusy(false);
+                }
+              }}
+            >
+              Download postcard
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
       <Card>
         <CardHeader className="pb-2">
           <CardTitle className="text-base">1. Choose a template</CardTitle>
@@ -657,6 +716,12 @@ export default function AdminEmailsPanel({ onNotice, onError }: Props) {
           {format === "rich" && draft.template === "futures-morning-brief" && (
             <p className="text-xs text-teal-700 dark:text-teal-300 rounded-md border border-teal-500/30 bg-teal-500/10 px-3 py-2">
               Loads today’s stored Daily Wrap into subject/body when you pick this preset (or after Publish today). Sample text means no wrap in DB yet. CTA opens Crypto Futures → Daily Wrap. Cron emails the live wrap separately when DIGEST_EMAIL_TO / newsletter flag is set.
+            </p>
+          )}
+          {format === "rich" && draft.template === "pnl-calculator" && (
+            <p className="text-xs text-amber-700 dark:text-amber-300 rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2">
+              PnL Calculator rich layout is on (amber hero, feature card, access tiers, Open PnL Calculator CTA).
+              Suggested audience: all users with email.
             </p>
           )}
           {format === "rich" && draft.template === "nova-branded" && (
