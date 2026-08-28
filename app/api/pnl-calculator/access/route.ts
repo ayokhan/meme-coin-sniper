@@ -2,12 +2,18 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions, isOwnerSession } from "@/lib/auth";
 import { getPnlCalculatorAccess } from "@/lib/pnl-calculator-access";
+import { parseVisitorIdFromRequest } from "@/lib/pnl-calculator-quota";
 
 export const dynamic = "force-dynamic";
 
-export async function GET() {
+export async function GET(request: Request) {
   const session = await getServerSession(authOptions);
-  const access = await getPnlCalculatorAccess(session, { isOwner: isOwnerSession(session) });
+  const url = new URL(request.url);
+  const visitorId = parseVisitorIdFromRequest(url, request.headers.get("x-visitor-id"));
+  const access = await getPnlCalculatorAccess(session, {
+    isOwner: isOwnerSession(session),
+    visitorId,
+  });
   if (!access.ok) {
     return NextResponse.json(
       {
@@ -15,7 +21,7 @@ export async function GET() {
         error: access.error,
         locked: access.locked,
         disabled: access.disabled,
-        needsSignIn: access.needsSignIn,
+        needsRegister: access.needsRegister,
       },
       { status: access.status }
     );
@@ -23,6 +29,7 @@ export async function GET() {
 
   return NextResponse.json({
     success: true,
+    isGuest: access.isGuest,
     unlimited: access.unlimited,
     used: access.used,
     limit: access.limit,

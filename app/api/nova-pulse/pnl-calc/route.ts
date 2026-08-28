@@ -10,7 +10,11 @@ import type { Candle } from "@/lib/hyperliquid";
 import { resolveScalpSymbol } from "@/lib/nova-scalp-agent";
 import { getNovaScalpCandles, getNovaScalpTicker } from "@/lib/nova-scalp-blofin-market";
 import { assertPnlCalculatorCalculate, getPnlCalculatorAccess } from "@/lib/pnl-calculator-access";
-import { recordPnlCalculatorUse } from "@/lib/pnl-calculator-quota";
+import {
+  parseVisitorIdFromRequest,
+  recordPnlCalculatorGuestUse,
+  recordPnlCalculatorUse,
+} from "@/lib/pnl-calculator-quota";
 
 export const dynamic = "force-dynamic";
 
@@ -72,10 +76,11 @@ export async function GET(request: Request) {
     const isOwner = isOwnerSession(session);
     const url = new URL(request.url);
     const wantsCalculate = url.searchParams.get("calculate") === "1" || url.searchParams.get("calculate") === "true";
+    const visitorId = parseVisitorIdFromRequest(url, request.headers.get("x-visitor-id"));
 
     const access = wantsCalculate
-      ? await assertPnlCalculatorCalculate(session, { isOwner })
-      : await getPnlCalculatorAccess(session, { isOwner });
+      ? await assertPnlCalculatorCalculate(session, { isOwner, visitorId })
+      : await getPnlCalculatorAccess(session, { isOwner, visitorId });
 
     if (!access.ok) {
       return NextResponse.json(
@@ -84,8 +89,9 @@ export async function GET(request: Request) {
           error: access.error,
           locked: access.locked,
           disabled: access.disabled,
-          needsSignIn: access.needsSignIn,
-          limitReached: access.status === 429,
+          needsSignIn: access.needsRegister,
+          needsRegister: access.needsRegister,
+          limitReached: access.limitReached,
         },
         { status: access.status }
       );
@@ -103,7 +109,11 @@ export async function GET(request: Request) {
       const symbol = resolveScalpSymbol(rawSymbol);
       const [price, pivotOhlc] = await Promise.all([cryptoPrice(symbol), loadPivotOhlc("crypto", symbol, pivotPeriod)]);
       if (wantsCalculate && !isOwner) {
-        await recordPnlCalculatorUse(access.userId);
+        if (access.isGuest && access.visitorId) {
+          await recordPnlCalculatorGuestUse(access.visitorId);
+        } else if (access.userId) {
+          await recordPnlCalculatorUse(access.userId);
+        }
       }
       return NextResponse.json({
         success: true,
@@ -143,7 +153,11 @@ export async function GET(request: Request) {
     const alignment = meter ? roroAlignmentForTrade(symbol, side, meter) : null;
 
     if (wantsCalculate && !isOwner) {
-      await recordPnlCalculatorUse(access.userId);
+      if (access.isGuest && access.visitorId) {
+        await recordPnlCalculatorGuestUse(access.visitorId);
+      } else if (access.userId) {
+        await recordPnlCalculatorUse(access.userId);
+      }
     }
 
     return NextResponse.json({

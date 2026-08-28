@@ -347,7 +347,7 @@ const FLAG_LABELS: Record<string, { label: string; description: string }> = {
   page_tab_pnl_calculator: {
     label: "Tab: PnL Calculator",
     description:
-      "Show/hide the standalone PnL Calculator tab. Also requires Calculate PnL master flag ON. Free users: 2 full calculations/day by default (Admin → Product visibility). VIP: unlimited by default.",
+      "Show/hide the standalone PnL Calculator tab. Also requires Calculate PnL master flag ON. Guests: 2 calculations/day; registered free: 4/day; VIP unlimited by default.",
   },
   page_tab_nova_plus: {
     label: "Tab: Nova+",
@@ -492,7 +492,7 @@ const FLAG_LABELS: Record<string, { label: string; description: string }> = {
   nova_pulse_pnl_calculator: {
     label: "PnL Calculator (master)",
     description:
-      "When ON, users can use the standalone PnL Calculator tab: crypto + forex ticket math (price / % / pips), BabyPips-style lot sizing, profit/loss breakdown, forex risk-on/off meter, and send to Scalper / NovaQ. Pair with Tab: PnL Calculator. Free default 2 calculations/day; VIP unlimited (configurable in Admin → Product visibility). Default OFF until you enable it.",
+      "When ON, users can use the standalone PnL Calculator tab: crypto + forex ticket math (price / % / pips), BabyPips-style lot sizing, profit/loss breakdown, forex risk-on/off meter, and send to Scalper / NovaQ. Pair with Tab: PnL Calculator. Guest default 2 calculations/day; registered free 4/day; VIP unlimited (configurable in Admin → Product visibility). Default OFF until you enable it.",
   },
   nova_q_fib: {
     label: "NovaQ Fib (NovaForecast)",

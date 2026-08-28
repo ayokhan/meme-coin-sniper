@@ -265,7 +265,7 @@ export const en = {
     "coach-calls": "Coach Calls + Telegram Signals: exclusive CA (call alerts) from the team, in-app and via Telegram. VIP only.",
     "nova-forecast": "NovaForecast Agent: multi-timeframe crypto perp structure—high/low zones, NovaQ, NovaRadar, and more. VIP only.",
     "nova-pulse": "Nova Pulse: AI-assisted short-horizon setups for crypto futures (Nova Scalp Agent) and forex (Nova Forex Agent). VIP only.",
-    "pnl-calculator": "PnL Calculator: size crypto and forex trades (price / % / pips), lot sizing, and risk/reward before you scalp. Free: 2 full calculations/day. VIP: unlimited.",
+    "pnl-calculator": "PnL Calculator: size crypto and forex trades (price / % / pips), lot sizing, and risk/reward before you scalp. Guests: 2 calculations/day. Free registered: 4/day. VIP: unlimited.",
     "nova-forex": "Nova Forex Agent: Market Watch for gold, FX, and indices—NovaQ Forex with S/R touches, Smart Analysis, Fib, and Radar. VIP only.",
     "nova-forex-bot": "Nova Forex Bots: trade on your Vantage Markets or TIOmarkets MT4/MT5 account.",
     "nova-plus": "Nova+ provides risk-managed trade analysis with a recommended stop loss, take-profit target, and position sizing guidance. VIP only.",

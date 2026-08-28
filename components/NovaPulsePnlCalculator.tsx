@@ -33,12 +33,15 @@ import { useScalpHandoffNav } from "@/components/useScalpHandoffNav";
 type Props = {
   enabled: boolean;
   isVip: boolean;
+  isGuest?: boolean;
+  visitorId?: string;
   novaForexScalpBot?: boolean;
   quota?: {
     unlimited: boolean;
     used: number;
     limit: number | null;
     remaining: number | null;
+    isGuest?: boolean;
   } | null;
   onQuotaChange?: () => void;
 };
@@ -169,6 +172,8 @@ function RoroMeterCard({
 export default function NovaPulsePnlCalculator({
   enabled,
   isVip,
+  isGuest = false,
+  visitorId = "",
   novaForexScalpBot,
   quota,
   onQuotaChange,
@@ -325,6 +330,7 @@ export default function NovaPulsePnlCalculator({
         if (market === "forex") params.set("roro", "1");
         params.set("pivotPeriod", pivotPeriod);
         if (opts?.calculate) params.set("calculate", "1");
+        if (visitorId) params.set("visitorId", visitorId);
         const res = await fetch(`/api/nova-pulse/pnl-calc?${params}`, { credentials: "include", cache: "no-store" });
         const data = await res.json();
         if (!data?.success) {
@@ -332,7 +338,7 @@ export default function NovaPulsePnlCalculator({
             data?.error ??
               (data?.locked ? "Daily limit reached or access locked." : "Quote failed")
           );
-          if (data?.limitReached) onQuotaChange?.();
+          if (data?.limitReached || data?.needsRegister) onQuotaChange?.();
           return;
         }
         const px = typeof data.price === "number" ? data.price : Number(data.price);
@@ -414,6 +420,7 @@ export default function NovaPulsePnlCalculator({
       syncLevels,
       pivotPeriod,
       onQuotaChange,
+      visitorId,
     ]
   );
 
@@ -565,7 +572,12 @@ export default function NovaPulsePnlCalculator({
           {quota && !quota.unlimited && quota.limit != null && (
             <p className="text-[11px] text-amber-700 dark:text-amber-300">
               {quota.remaining ?? 0} of {quota.limit} full calculation{quota.limit !== 1 ? "s" : ""} left today
-              {!isVip ? " — VIP unlimited" : ""}.
+              {isGuest || quota.isGuest
+                ? " (guest) — register for 4/day"
+                : !isVip
+                  ? " — VIP unlimited"
+                  : ""}
+              .
             </p>
           )}
           {quota?.unlimited && (

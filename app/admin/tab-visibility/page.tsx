@@ -956,6 +956,7 @@ function EarlyCatchConfigCard() {
 function PnlCalculatorConfigCard() {
   const [cfg, setCfg] = useState<{
     enabled: boolean;
+    guestDailyLimit: number;
     freeDailyLimit: number;
     vipDailyLimit: number;
   } | null>(null);
@@ -1019,9 +1020,9 @@ function PnlCalculatorConfigCard() {
       </CardHeader>
       <CardContent className="space-y-4 text-sm">
         <p className="text-xs text-muted-foreground">
-          Tab On/Off: Admin → Product visibility. Master On/Off: Admin → Feature flags → PnL Calculator. Free default =
-          2 full calculations/day; VIP default = unlimited (VIP limit 0). Individual override: -1 = unlimited, 0 =
-          disabled.
+          Tab On/Off: Admin → Product visibility. Master On/Off: Admin → Feature flags → PnL Calculator. Guest default =
+          2/day; registered free default = 4/day; VIP default = unlimited (VIP limit 0). Individual override: -1 =
+          unlimited, 0 = disabled.
         </p>
         <label className="flex items-center gap-2 cursor-pointer">
           <input
@@ -1033,9 +1034,19 @@ function PnlCalculatorConfigCard() {
           />
           PnL Calculator quota enabled
         </label>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-3 gap-3">
           <div>
-            <label className="text-xs text-muted-foreground">Free daily limit</label>
+            <label className="text-xs text-muted-foreground">Guest daily limit</label>
+            <input
+              type="number"
+              min={0}
+              className="w-full mt-1 px-2 py-1 rounded border text-sm bg-background"
+              value={cfg.guestDailyLimit}
+              onChange={(e) => setCfg({ ...cfg, guestDailyLimit: +e.target.value })}
+            />
+          </div>
+          <div>
+            <label className="text-xs text-muted-foreground">Registered free daily limit</label>
             <input
               type="number"
               min={0}
@@ -1058,7 +1069,13 @@ function PnlCalculatorConfigCard() {
         <Button
           size="sm"
           disabled={saving}
-          onClick={() => save({ freeDailyLimit: cfg.freeDailyLimit, vipDailyLimit: cfg.vipDailyLimit })}
+          onClick={() =>
+            save({
+              guestDailyLimit: cfg.guestDailyLimit,
+              freeDailyLimit: cfg.freeDailyLimit,
+              vipDailyLimit: cfg.vipDailyLimit,
+            })
+          }
         >
           {saving ? "Saving…" : "Save PnL Calculator limits"}
         </Button>

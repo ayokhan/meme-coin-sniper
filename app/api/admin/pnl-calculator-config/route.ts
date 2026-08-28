@@ -27,7 +27,7 @@ export async function GET() {
   const cfgDb = (prisma as unknown as PrismaExt).pnlCalculatorConfig;
   const ulDb = (prisma as unknown as PrismaExt).pnlCalculatorUserLimit;
   const row = cfgDb ? await cfgDb.findUnique({ where: { id: CONFIG_ID } }) : null;
-  const config = row ?? { enabled: true, freeDailyLimit: 2, vipDailyLimit: 0 };
+  const config = row ?? { enabled: true, guestDailyLimit: 2, freeDailyLimit: 4, vipDailyLimit: 0 };
   const userLimits = ulDb ? await ulDb.findMany() : [];
   return NextResponse.json({ success: true, config, userLimits });
 }
@@ -43,6 +43,7 @@ export async function PATCH(request: Request) {
 
   const update: Record<string, unknown> = {};
   if (typeof body.enabled === "boolean") update.enabled = body.enabled;
+  if (typeof body.guestDailyLimit === "number") update.guestDailyLimit = Math.max(0, Math.round(body.guestDailyLimit));
   if (typeof body.freeDailyLimit === "number") update.freeDailyLimit = Math.max(0, Math.round(body.freeDailyLimit));
   if (typeof body.vipDailyLimit === "number") update.vipDailyLimit = Math.max(0, Math.round(body.vipDailyLimit));
 
