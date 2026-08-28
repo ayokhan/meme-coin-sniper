@@ -389,11 +389,12 @@ export function buildWhyTradersEmailHtml(args?: {
 }
 
 function pnlCalculatorCtaButtonHtml(label: string, url: string): string {
+  const href = absoluteAnnouncementUrl(url);
   return `
 <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:8px auto 8px auto;border-collapse:collapse;">
   <tr>
-    <td align="center" bgcolor="#f59e0b" style="border-radius:10px;background:#f59e0b;">
-      <a href="${escapeHtml(url)}" target="_blank" style="display:inline-block;padding:14px 28px;font-family:Arial,Helvetica,sans-serif;font-size:15px;font-weight:700;color:#422006;text-decoration:none;border-radius:10px;">
+    <td align="center" bgcolor="#14b8a6" style="border-radius:10px;background:#14b8a6;">
+      <a href="${escapeHtml(href)}" target="_blank" style="display:inline-block;padding:14px 28px;font-family:Arial,Helvetica,sans-serif;font-size:15px;font-weight:700;color:#042f2e;text-decoration:none;border-radius:10px;">
         ${escapeHtml(label)}
       </a>
     </td>
@@ -401,13 +402,21 @@ function pnlCalculatorCtaButtonHtml(label: string, url: string): string {
 </table>`.trim();
 }
 
+function absoluteAnnouncementUrl(url: string): string {
+  const raw = url.trim();
+  if (!raw) return PNL_CALCULATOR_URL;
+  if (raw.startsWith("http://") || raw.startsWith("https://")) return raw;
+  if (raw.startsWith("/")) return `${APP_ORIGIN}${raw}`;
+  return `${APP_ORIGIN}/${raw}`;
+}
+
 function pnlCalculatorEmailShell(inner: string): string {
   return `
 <!DOCTYPE html>
 <html lang="en">
 <head><meta charset="utf-8" /><meta name="viewport" content="width=device-width,initial-scale=1" /></head>
-<body style="margin:0;padding:0;background:#422006;font-family:Arial,Helvetica,sans-serif;">
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#422006" style="background:#422006;padding:24px 12px;">
+<body style="margin:0;padding:0;background:#0f766e;font-family:Arial,Helvetica,sans-serif;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#0f766e" style="background:#0f766e;padding:24px 12px;">
     <tr>
       <td align="center">
         <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#18181b" style="max-width:560px;background:#18181b;border-radius:16px;overflow:hidden;">
@@ -416,7 +425,7 @@ function pnlCalculatorEmailShell(inner: string): string {
             <td bgcolor="#18181b" style="padding:20px 28px 28px 28px;border-top:1px solid #27272a;">
               <p style="margin:0 0 6px 0;font-size:12px;line-height:1.5;color:#a1a1aa;">
                 Educational only — not financial advice. Manage preferences in your
-                <a href="${APP_ORIGIN}/account" style="color:#fcd34d;text-decoration:underline;">account settings</a>.
+                <a href="${APP_ORIGIN}/account" style="color:#5eead4;text-decoration:underline;">account settings</a>.
               </p>
               <p style="margin:0;font-size:12px;color:#71717a;">
                 <a href="${APP_ORIGIN}" style="color:#71717a;text-decoration:none;">novastaris.ai</a>
@@ -439,7 +448,8 @@ export function buildPnlCalculatorLaunchEmailHtml(args?: {
 }): string {
   const customBody = (args?.body ?? "").trim();
   const ctaLabel = args?.ctaLabel?.trim() || PNL_CALCULATOR_LAUNCH_EMAIL.ctaLabel;
-  const ctaUrl = args?.ctaUrl?.trim() || PNL_CALCULATOR_LAUNCH_EMAIL.ctaUrl;
+  const ctaUrl = absoluteAnnouncementUrl(args?.ctaUrl?.trim() || PNL_CALCULATOR_LAUNCH_EMAIL.ctaUrl);
+  const calculatorLink = absoluteAnnouncementUrl(PNL_CALCULATOR_URL);
 
   const bodyBlock = customBody
     ? `<td bgcolor="#18181b" style="padding:28px 28px 8px 28px;background:#18181b;">
@@ -454,8 +464,8 @@ export function buildPnlCalculatorLaunchEmailHtml(args?: {
         </p>
         <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 18px 0;border-collapse:collapse;">
           <tr>
-            <td style="background:#27272a;border:1px solid #78350f;border-radius:12px;padding:16px 18px;">
-              <p style="margin:0 0 10px 0;font-size:13px;font-weight:700;color:#fcd34d;text-transform:uppercase;letter-spacing:0.06em;">What&apos;s included</p>
+            <td style="background:#27272a;border:1px solid #0f766e;border-radius:12px;padding:16px 18px;">
+              <p style="margin:0 0 10px 0;font-size:13px;font-weight:700;color:#5eead4;text-transform:uppercase;letter-spacing:0.06em;">What&apos;s included</p>
               <p style="margin:0 0 8px 0;font-size:15px;line-height:1.45;color:#f4f4f5;">Position size from account risk and stop distance</p>
               <p style="margin:0 0 8px 0;font-size:15px;line-height:1.45;color:#f4f4f5;">Take-profit and stop-loss in price, %, or pips</p>
               <p style="margin:0 0 8px 0;font-size:15px;line-height:1.45;color:#f4f4f5;">Reward-to-risk and account gain/loss percentages</p>
@@ -467,20 +477,20 @@ export function buildPnlCalculatorLaunchEmailHtml(args?: {
         ${pnlCalculatorCtaButtonHtml(ctaLabel, ctaUrl)}
         <p style="margin:20px 0 0 0;font-size:12px;line-height:1.5;color:#a1a1aa;text-align:center;">
           Open the <strong>PnL Calculator</strong> tab in the dashboard, or visit
-          <a href="${PNL_CALCULATOR_URL}" style="color:#fcd34d;">novastaris.ai/?tab=pnl-calculator</a>
+          <a href="${calculatorLink}" style="color:#5eead4;">novastaris.ai/?tab=pnl-calculator</a>
         </p>
       </td>`;
 
   const inner = `
     <tr>
-      <td align="center" bgcolor="#422006" style="background:#422006;background-image:linear-gradient(160deg,#0a0a0b 0%,#18181b 55%,#78350f 140%);padding:36px 28px 32px 28px;">
-        <p style="margin:0 0 10px 0;font-family:Arial,Helvetica,sans-serif;font-size:11px;letter-spacing:0.16em;text-transform:uppercase;color:#fcd34d;">
+      <td align="center" bgcolor="#134e4a" style="background:#134e4a;background-image:linear-gradient(160deg,#0a0a0b 0%,#18181b 55%,#134e4a 140%);padding:36px 28px 32px 28px;">
+        <p style="margin:0 0 10px 0;font-family:Arial,Helvetica,sans-serif;font-size:11px;letter-spacing:0.16em;text-transform:uppercase;color:#5eead4;">
           NEW · PNL CALCULATOR
         </p>
         <p style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:26px;line-height:1.25;font-weight:700;color:#ffffff;letter-spacing:-0.02em;">
           Size the trade before you send it
         </p>
-        <p style="margin:14px 0 0 0;font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.45;color:#fde68a;">
+        <p style="margin:14px 0 0 0;font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.45;color:#ccfbf1;">
           Crypto futures + forex · one professional desk
         </p>
       </td>

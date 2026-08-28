@@ -799,7 +799,7 @@ export default function AdminEmailsPanel({ onNotice, onError }: Props) {
           )}
           {format === "rich" && draft.template === "pnl-calculator" && (
             <p className="text-xs text-amber-700 dark:text-amber-300 rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2">
-              PnL Calculator rich layout is on (amber hero, feature card, Open PnL Calculator CTA). Suggested audience:
+              PnL Calculator rich layout is on (teal NovaStaris hero, feature card, Open PnL Calculator CTA). Suggested audience:
               all users with email.
             </p>
           )}

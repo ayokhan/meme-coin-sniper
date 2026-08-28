@@ -1823,10 +1823,9 @@ function Dashboard() {
     if (!pageTabFlagsLoaded || typeof window === "undefined") return;
     const params = new URLSearchParams(window.location.search);
     const tab = params.get("tab");
-    // Nova Forex Bots visibility depends on vipFuturesAddons. If we mark the URL
-    // "ready" before those flags load, the sync effect rewrites ?tab=nova-forex-bot
-    // to the default Go Hunting tab and the deep link is lost forever.
-    if (tab === "nova-forex-bot" && vipFuturesAddons === null) return;
+    // Nova Forex Bots / PnL Calculator visibility depends on vipFuturesAddons. If we mark the URL
+    // "ready" before those flags load, the sync effect rewrites ?tab=… to Go Hunting and the deep link is lost.
+    if ((tab === "nova-forex-bot" || tab === "pnl-calculator") && vipFuturesAddons === null) return;
     if (tab && URL_TAB_IDS.has(tab) && isTabVisibleInGui(tab as TabId)) {
       setActiveTab(tab as TabId);
     }
