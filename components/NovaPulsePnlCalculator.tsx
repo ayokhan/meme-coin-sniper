@@ -565,9 +565,10 @@ export default function NovaPulsePnlCalculator({
         <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 p-4 space-y-1">
           <h2 className="text-lg font-semibold text-zinc-800 dark:text-zinc-200">Calculate PnL</h2>
           <p className="text-xs text-muted-foreground">
-            One desk instead of four BabyPips tabs: position size, pip value at your size, gain/loss % of account
-            (including recovery), and live Floor / Woodie / Camarilla / DeMark / Fibonacci pivots you can tap onto TP or
-            SL. Forex also shows the risk-on/off tape. Not financial advice.
+            Professional sizing for crypto futures and forex: position size, take-profit and stop-loss in price, %,
+            or pips, account risk and reward-to-risk, plus live pivot levels (Floor, Woodie, Camarilla, DeMark,
+            Fibonacci) you can apply to your plan. Forex adds session risk-on/risk-off context. Educational only — not
+            financial advice.
           </p>
           {quota && !quota.unlimited && quota.limit != null && (
             <p className="text-[11px] text-amber-700 dark:text-amber-300">
