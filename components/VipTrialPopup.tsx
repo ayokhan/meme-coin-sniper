@@ -116,7 +116,7 @@ function VipTrialPopupModal({ open, offer, onRemindLater, onDismissPermanent }: 
             <Link href="/payment-terms" className="underline hover:no-underline text-cyan-600 dark:text-cyan-400">
               Payment Terms
             </Link>
-            , including auto-charge after the free trial if you don’t cancel.
+            .
           </p>
         </div>
 

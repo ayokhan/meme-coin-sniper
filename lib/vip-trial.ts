@@ -55,7 +55,7 @@ export type VipTrialPublicOffer = {
 
 export const VIP_TRIAL_POPUP_DEFAULTS = {
   title: "Try VIP free for {{trialDays}} days",
-  body: "Unlock NovaForecast, Nova Forex, deeper wallet tools, and higher AI limits. Card required — we email you about {{reminderHours}} hours before the trial ends so you can cancel. If you don’t cancel, you’re charged ${{planPrice}} + ${{cardFee}} card fee (${{cardTotal}}) for {{planLabel}} and VIP renews automatically until you turn it off.",
+  body: "Unlock NovaForecast, Nova Forex, deeper wallet tools, and higher AI limits. Card required — we email you about {{reminderHours}} hours before the trial ends so you can cancel.",
   ctaLabel: "Start {{trialDays}}-day VIP trial",
   secondaryCtaLabel: "See VIP plans",
 } as const;

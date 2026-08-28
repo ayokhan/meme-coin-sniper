@@ -38,8 +38,10 @@ export default function PaymentTermsPage() {
                 If you do not cancel before the trial ends, your card is charged automatically for the VIP plan
                 you selected (list price + $8 card fee), and VIP then renews automatically until you cancel.
               </strong>{" "}
-              Cancelling stops future charges; it does not refund time already used. Complimentary admin grants
-              (including Limited VIP) are not card trials and are not billed unless you later subscribe.
+              For example, the default 1-month VIP plan after trial is $150 + $8 card fee ($158 total). Other
+              plan lengths use their listed USDC price plus the $8 card fee. Cancelling stops future charges; it
+              does not refund time already used. Complimentary admin grants (including Limited VIP) are not card
+              trials and are not billed unless you later subscribe.
             </p>
             <p>
               <strong>Payment methods.</strong> We accept credit/debit card (via Stripe) and USDC on Solana. USDC payments are charged at the listed subscription price. Card payments include an additional $8 card payment fee per checkout. You are responsible for providing accurate payment details and for any fees charged by your bank or wallet.
