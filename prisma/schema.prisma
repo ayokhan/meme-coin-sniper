@@ -1959,3 +1959,21 @@ model EarlyCatchUserLimit {
   dailyLimit Int
   updatedAt  DateTime @updatedAt
 }
+
+/** Standalone PnL Calculator tab — free + VIP daily limits. */
+model PnlCalculatorConfig {
+  id             String   @id @default("default")
+  enabled        Boolean  @default(true)
+  freeDailyLimit Int      @default(2)
+  /** 0 = unlimited for VIP tier (global default). */
+  vipDailyLimit  Int      @default(0)
+  updatedAt      DateTime @updatedAt
+}
+
+model PnlCalculatorUserLimit {
+  id         String   @id @default(cuid())
+  userId     String   @unique
+  /** -1 = unlimited, 0 = disabled. */
+  dailyLimit Int
+  updatedAt  DateTime @updatedAt
+}

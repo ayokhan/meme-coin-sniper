@@ -21,6 +21,7 @@ export type DashboardTabId =
   | "coach-calls"
   | "nova-forecast"
   | "nova-pulse"
+  | "pnl-calculator"
   | "nova-forex"
   | "nova-plus"
   | "nova-investment"
@@ -57,6 +58,7 @@ export const DASHBOARD_TAB_ORDER: DashboardTabId[] = [
   "coach-calls",
   "nova-forecast",
   "nova-pulse",
+  "pnl-calculator",
   "nova-forex",
   "nova-plus",
   "nova-investment",
@@ -94,6 +96,7 @@ export const TAB_SHORT_LABELS: Record<DashboardTabId, string> = {
   "coach-calls": "Coach",
   "nova-forecast": "Forecast",
   "nova-pulse": "Pulse",
+  "pnl-calculator": "PnL Calc",
   "nova-forex": "Forex",
   "nova-plus": "Nova+",
   "nova-investment": "Invest",

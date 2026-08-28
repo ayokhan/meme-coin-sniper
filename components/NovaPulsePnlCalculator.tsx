@@ -34,6 +34,13 @@ type Props = {
   enabled: boolean;
   isVip: boolean;
   novaForexScalpBot?: boolean;
+  quota?: {
+    unlimited: boolean;
+    used: number;
+    limit: number | null;
+    remaining: number | null;
+  } | null;
+  onQuotaChange?: () => void;
 };
 
 type LevelField = "price" | "pct" | "pips";
@@ -159,7 +166,13 @@ function RoroMeterCard({
   );
 }
 
-export default function NovaPulsePnlCalculator({ enabled, isVip }: Props) {
+export default function NovaPulsePnlCalculator({
+  enabled,
+  isVip,
+  novaForexScalpBot,
+  quota,
+  onQuotaChange,
+}: Props) {
   const { requestHandoff, dialog: handoffDialog } = useScalpHandoffNav();
   const [market, setMarket] = useState<PulsePnlMarket>("forex");
   const [symbol, setSymbol] = useState("EURUSD");
@@ -311,10 +324,15 @@ export default function NovaPulsePnlCalculator({ enabled, isVip }: Props) {
         });
         if (market === "forex") params.set("roro", "1");
         params.set("pivotPeriod", pivotPeriod);
+        if (opts?.calculate) params.set("calculate", "1");
         const res = await fetch(`/api/nova-pulse/pnl-calc?${params}`, { credentials: "include", cache: "no-store" });
         const data = await res.json();
         if (!data?.success) {
-          setError(data?.error ?? (data?.locked ? "Calculate PnL is for VIP subscribers." : "Quote failed"));
+          setError(
+            data?.error ??
+              (data?.locked ? "Daily limit reached or access locked." : "Quote failed")
+          );
+          if (data?.limitReached) onQuotaChange?.();
           return;
         }
         const px = typeof data.price === "number" ? data.price : Number(data.price);
@@ -370,6 +388,7 @@ export default function NovaPulsePnlCalculator({ enabled, isVip }: Props) {
           setResult(out);
           if (out.lots != null && sizeMode === "custom") setLots(out.lots.toFixed(2));
           if (out.marginUsd > 0 && sizeMode === "custom") setMarginUsd(out.marginUsd.toFixed(2));
+          onQuotaChange?.();
         }
       } catch (e) {
         setError(e instanceof Error ? e.message : "Quote failed");
@@ -394,6 +413,7 @@ export default function NovaPulsePnlCalculator({ enabled, isVip }: Props) {
       resolveTicket,
       syncLevels,
       pivotPeriod,
+      onQuotaChange,
     ]
   );
 
@@ -433,7 +453,7 @@ export default function NovaPulsePnlCalculator({ enabled, isVip }: Props) {
   };
 
   useEffect(() => {
-    if (!enabled || !isVip) return;
+    if (!enabled) return;
     void quote();
     // Refresh H/L/C when the pivot window changes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -525,23 +545,8 @@ export default function NovaPulsePnlCalculator({ enabled, isVip }: Props) {
       <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 p-6 text-center space-y-2">
         <h2 className="text-lg font-semibold text-zinc-800 dark:text-zinc-200">Calculate PnL</h2>
         <p className="text-sm text-muted-foreground max-w-md mx-auto">
-          This desk is not enabled on your account yet — contact support if you need access.
+          This tool is not enabled right now — contact support if you need access.
         </p>
-      </div>
-    );
-  }
-
-  if (!isVip) {
-    return (
-      <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 p-6 text-center space-y-3">
-        <h2 className="text-lg font-semibold text-zinc-800 dark:text-zinc-200">VIP required</h2>
-        <p className="text-sm text-muted-foreground max-w-md mx-auto">
-          Calculate PnL is for VIP subscribers. Upgrade to size crypto and forex trades before you send them to the
-          scalper or NovaQ.
-        </p>
-        <a href="/subscribe" className="inline-flex text-sm font-medium text-violet-600 dark:text-violet-400 hover:underline">
-          Upgrade to VIP
-        </a>
       </div>
     );
   }
@@ -557,6 +562,15 @@ export default function NovaPulsePnlCalculator({ enabled, isVip }: Props) {
             (including recovery), and live Floor / Woodie / Camarilla / DeMark / Fibonacci pivots you can tap onto TP or
             SL. Forex also shows the risk-on/off tape. Not financial advice.
           </p>
+          {quota && !quota.unlimited && quota.limit != null && (
+            <p className="text-[11px] text-amber-700 dark:text-amber-300">
+              {quota.remaining ?? 0} of {quota.limit} full calculation{quota.limit !== 1 ? "s" : ""} left today
+              {!isVip ? " — VIP unlimited" : ""}.
+            </p>
+          )}
+          {quota?.unlimited && (
+            <p className="text-[11px] text-emerald-700 dark:text-emerald-300">Unlimited calculations (VIP).</p>
+          )}
         </div>
 
         <div className="inline-flex rounded-lg border border-zinc-200 dark:border-zinc-700 p-1 bg-zinc-100 dark:bg-zinc-800/80">

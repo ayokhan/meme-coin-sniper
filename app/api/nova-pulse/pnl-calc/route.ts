@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { authOptions, isOwnerSession } from "@/lib/auth";
 import { isBlofinMetal, toBlofinInstId } from "@/lib/blofin-metals";
 import { getForexSpotMid, usesSpotCalibration } from "@/lib/forex-spot-feed";
 import { getForexCandles, getForexTicker, normalizeForexSymbol, validateForexScalpSymbol } from "@/lib/forex-market";
@@ -9,7 +9,8 @@ import { getForexRoroMeter, roroAlignmentForTrade, type RoroMeter } from "@/lib/
 import type { Candle } from "@/lib/hyperliquid";
 import { resolveScalpSymbol } from "@/lib/nova-scalp-agent";
 import { getNovaScalpCandles, getNovaScalpTicker } from "@/lib/nova-scalp-blofin-market";
-import { getNovaPulsePnlCalculatorAccess } from "@/lib/vip-futures-addon-access";
+import { assertPnlCalculatorCalculate, getPnlCalculatorAccess } from "@/lib/pnl-calculator-access";
+import { recordPnlCalculatorUse } from "@/lib/pnl-calculator-quota";
 
 export const dynamic = "force-dynamic";
 
@@ -68,15 +69,28 @@ async function forexPrice(symbol: string): Promise<number | null> {
 export async function GET(request: Request) {
   try {
     const session = await getServerSession(authOptions);
-    const access = await getNovaPulsePnlCalculatorAccess(session);
+    const isOwner = isOwnerSession(session);
+    const url = new URL(request.url);
+    const wantsCalculate = url.searchParams.get("calculate") === "1" || url.searchParams.get("calculate") === "true";
+
+    const access = wantsCalculate
+      ? await assertPnlCalculatorCalculate(session, { isOwner })
+      : await getPnlCalculatorAccess(session, { isOwner });
+
     if (!access.ok) {
       return NextResponse.json(
-        { success: false, error: access.error, locked: access.status === 403, disabled: access.disabled },
+        {
+          success: false,
+          error: access.error,
+          locked: access.locked,
+          disabled: access.disabled,
+          needsSignIn: access.needsSignIn,
+          limitReached: access.status === 429,
+        },
         { status: access.status }
       );
     }
 
-    const url = new URL(request.url);
     const market = url.searchParams.get("market") === "forex" ? "forex" : "crypto";
     const rawSymbol = url.searchParams.get("symbol")?.trim() ?? (market === "forex" ? "EURUSD" : "BTC");
     const wantRoro = url.searchParams.get("roro") === "1" || url.searchParams.get("roro") === "true";
@@ -88,6 +102,9 @@ export async function GET(request: Request) {
     if (market === "crypto") {
       const symbol = resolveScalpSymbol(rawSymbol);
       const [price, pivotOhlc] = await Promise.all([cryptoPrice(symbol), loadPivotOhlc("crypto", symbol, pivotPeriod)]);
+      if (wantsCalculate && !isOwner) {
+        await recordPnlCalculatorUse(access.userId);
+      }
       return NextResponse.json({
         success: true,
         market,
@@ -98,6 +115,15 @@ export async function GET(request: Request) {
         pivotPeriod,
         pivotOhlc,
         pivots: pivotOhlc ? computeAllPivots(pivotOhlc) : [],
+        quota: {
+          unlimited: access.unlimited,
+          used: wantsCalculate && !access.unlimited ? access.used + 1 : access.used,
+          limit: access.limit,
+          remaining:
+            access.unlimited || access.limit == null
+              ? null
+              : Math.max(0, access.limit - (wantsCalculate ? access.used + 1 : access.used)),
+        },
       });
     }
 
@@ -116,6 +142,10 @@ export async function GET(request: Request) {
     const meter = roro as RoroMeter | null;
     const alignment = meter ? roroAlignmentForTrade(symbol, side, meter) : null;
 
+    if (wantsCalculate && !isOwner) {
+      await recordPnlCalculatorUse(access.userId);
+    }
+
     return NextResponse.json({
       success: true,
       market,
@@ -127,6 +157,15 @@ export async function GET(request: Request) {
       pivotPeriod,
       pivotOhlc,
       pivots: pivotOhlc ? computeAllPivots(pivotOhlc) : [],
+      quota: {
+        unlimited: access.unlimited,
+        used: wantsCalculate && !access.unlimited ? access.used + 1 : access.used,
+        limit: access.limit,
+        remaining:
+          access.unlimited || access.limit == null
+            ? null
+            : Math.max(0, access.limit - (wantsCalculate ? access.used + 1 : access.used)),
+      },
     });
   } catch (e) {
     const message = e instanceof Error ? e.message : "Price fetch failed";

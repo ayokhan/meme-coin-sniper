@@ -36,6 +36,8 @@ export const FEATURE_FLAG_KEYS = {
   PAGE_TAB_NOVA_FORECAST: 'page_tab_nova_forecast',
   /** VIP: Nova Pulse top-level tab (short-horizon Futures/Forex scalp desks). Default OFF until admin enables. */
   PAGE_TAB_NOVA_PULSE: 'page_tab_nova_pulse',
+  /** Standalone PnL Calculator tab (free + VIP daily limits). Default OFF until admin enables. */
+  PAGE_TAB_PNL_CALCULATOR: 'page_tab_pnl_calculator',
   /** VIP: Nova Forex Agent top-level tab (forex/CFD Market Watch). Default OFF until admin enables. */
   PAGE_TAB_NOVA_FOREX: 'page_tab_nova_forex',
   PAGE_TAB_NOVA_PLUS: 'page_tab_nova_plus',
@@ -126,7 +128,7 @@ export const FEATURE_FLAG_KEYS = {
   NOVA_EARLY_CATCH_OWNER_ONLY: 'nova_early_catch_owner_only',
   /** VIP: Nova Scalp Agent under Nova Pulse → Futures (leveraged scalp entry/exit + Quick Wins scanner). Default OFF until admin enables. */
   NOVA_SCALP_AGENT: 'nova_scalp_agent',
-  /** VIP: Calculate PnL under Nova Pulse (crypto + forex risk/lot math, optional RORO meter). Default OFF until admin enables. */
+  /** Calculate PnL — standalone tab (crypto + forex risk/lot math). Master switch; pair with page_tab_pnl_calculator. Default OFF. */
   NOVA_PULSE_PNL_CALCULATOR: 'nova_pulse_pnl_calculator',
   /** VIP: NovaQ Fib subtab under NovaForecast Agent (Fibonacci retracement from pivot swings; classic NovaQ unchanged). Default OFF until admin enables. */
   NOVA_Q_FIB: 'nova_q_fib',

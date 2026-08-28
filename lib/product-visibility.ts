@@ -28,6 +28,7 @@ export const PRODUCT_VISIBILITY_FLAG_ROWS: ProductVisibilityFlagRow[] = [
   { tabId: "coach-calls", flagKey: "page_tab_coach_calls", label: "Coach Calls" },
   { tabId: "nova-forecast", flagKey: "page_tab_nova_forecast", label: "NovaForecast Agent" },
   { tabId: "nova-pulse", flagKey: "page_tab_nova_pulse", label: "Nova Pulse" },
+  { tabId: "pnl-calculator", flagKey: "page_tab_pnl_calculator", label: "PnL Calculator" },
   { tabId: "nova-forex", flagKey: "page_tab_nova_forex", label: "Nova Forex Agent" },
   { tabId: "nova-plus", flagKey: "page_tab_nova_plus", label: "Nova+" },
   { tabId: "meme-intelligence", flagKey: "page_tab_meme_intelligence", label: "Meme Intelligence" },

@@ -89,6 +89,7 @@ import PropFirmBotPanel from "@/components/PropFirmBotPanel";
 import NovaUltimatePanel from "@/components/NovaUltimatePanel";
 import NovaInvestmentAgentPanel from "@/components/NovaInvestmentAgentPanel";
 import NovaPulsePanel from "@/components/NovaPulsePanel";
+import PnlCalculatorPanel from "@/components/PnlCalculatorPanel";
 import NovaRadarPanel from "@/components/NovaRadarPanel";
 import { useFuturesOnboarding } from "@/components/FuturesOnboardingModal";
 import { TwoFactorSecurityNudgeHost } from "@/components/TwoFactorSecurityNudgeModal";
@@ -255,6 +256,7 @@ type TabId =
   | "coach-calls"
   | "nova-forecast"
   | "nova-pulse"
+  | "pnl-calculator"
   | "nova-forex"
   | "nova-plus"
   | "nova-investment"
@@ -301,6 +303,7 @@ const TAB_ID_TO_PAGE_FLAG_KEY: Record<TabId, string> = {
   "coach-calls": "page_tab_coach_calls",
   "nova-forecast": "page_tab_nova_forecast",
   "nova-pulse": "page_tab_nova_pulse",
+  "pnl-calculator": "page_tab_pnl_calculator",
   "nova-forex": "page_tab_nova_forex",
   "nova-plus": "page_tab_nova_plus",
   "nova-investment": "page_tab_nova_investment_agent",
@@ -338,6 +341,7 @@ const TAB_VISIBILITY_ORDER: TabId[] = [
   "coach-calls",
   "nova-forecast",
   "nova-pulse",
+  "pnl-calculator",
   "nova-forex",
   "nova-plus",
   "nova-investment",
@@ -616,6 +620,9 @@ function Dashboard() {
     // Admin → Tab visibility: owner-only lock (after master page_tab flag still applies below).
     if (ownerOnlyTabs.includes(tab) && !isOwner) return false;
     /** Same Off / Owner only / All VIP flags as Admin → Feature flags → Nova Forex Bots. */
+    if (tab === "pnl-calculator") {
+      return isTabPageEnabled(tab) && !!vipFuturesAddons?.novaPulsePnlCalculator;
+    }
     if (tab === "nova-forex-bot") {
       return !!(vipFuturesAddons?.novaForexBot || vipFuturesAddons?.novaForexScalpBot);
     }
@@ -628,7 +635,7 @@ function Dashboard() {
 
   const matchesTopTabFilter = (tab: TabId) => {
     if (topTabFilter === "all") return true;
-    const coreTabs: TabId[] = ["new", "trending", "daily-wrap", "bsc", "watchlist", "nova-connect", "trading-university", "nova-store"];
+    const coreTabs: TabId[] = ["new", "trending", "daily-wrap", "bsc", "watchlist", "nova-connect", "trading-university", "nova-store", "pnl-calculator"];
     const proTabs: TabId[] = ["surge", "transactions", "ai-analysis", "futures", "trending-perps", "perp-radar", "narratives"];
     const vipTabs: TabId[] = ["ct", "wallets", "coach-calls", "nova-forecast", "nova-pulse", "nova-forex", "nova-plus", "nova-investment", "nova-futures-narratives", "nova-eagle", "crypto-buddie", "meme-intelligence", "chris-clayton", "nova-job-agent"];
     const botTabs: TabId[] = ["trading-bot", "polymarket-bot", "prop-firm-bot", "nova-forex-bot", "nova-ultimate"];
@@ -1682,7 +1689,7 @@ function Dashboard() {
   const [dashboardUrlReady, setDashboardUrlReady] = useState(false);
   /** Sub-tab under Nova Forex Bots (kept in URL so Scalp handoffs survive sync). */
   const [forexBotSubTab, setForexBotSubTab] = useState<"forex-bot" | "scalp-bot" | null>(null);
-  const [novaPulseSubTab, setNovaPulseSubTab] = useState<"futures" | "forex" | "pnl">("futures");
+  const [novaPulseSubTab, setNovaPulseSubTab] = useState<"futures" | "forex">("futures");
 
   const applyDashboardPathResult = useCallback((result: DashboardPathApplyResult) => {
     setTopTabFilter(result.filter);
@@ -1768,8 +1775,13 @@ function Dashboard() {
           setNovaForecastSubTab(forecast);
         }
         const pulse = url.searchParams.get("pulse");
-        if (pulse === "futures" || pulse === "forex" || pulse === "pnl") {
+        if (pulse === "pnl") {
+          setActiveTab("pnl-calculator");
+        } else if (pulse === "futures" || pulse === "forex") {
           setNovaPulseSubTab(pulse);
+        }
+        if (tab === "pnl-calculator") {
+          setActiveTab("pnl-calculator");
         }
         const forex = url.searchParams.get("forex");
         if (tab === "nova-forex" && forex === "nova-scalp") {
@@ -1872,7 +1884,9 @@ function Dashboard() {
       setNovaForecastSubTab(forecast);
     }
     const pulse = params.get("pulse");
-    if (pulse === "futures" || pulse === "forex" || pulse === "pnl") {
+    if (pulse === "pnl" || tab === "pnl-calculator") {
+      if (isTabVisibleInGui("pnl-calculator")) setActiveTab("pnl-calculator");
+    } else if (pulse === "futures" || pulse === "forex") {
       setNovaPulseSubTab(pulse);
     }
     if (tab === "nova-forex" && params.get("forex") === "nova-scalp") {
@@ -3469,7 +3483,7 @@ function Dashboard() {
 
   // Auto-refresh: Go Hunting / Trending / Surge share VIP daily limit; auto off unless admin enables.
   useEffect(() => {
-    if (activeTab === "ai-analysis" || activeTab === "daily-wrap" || activeTab === "futures" || activeTab === "trending-perps" || activeTab === "perp-radar" || activeTab === "narratives" || activeTab === "trading-bot" || activeTab === "polymarket-bot" || activeTab === "prop-firm-bot" || activeTab === "nova-forex-bot" || activeTab === "nova-ultimate" || activeTab === "nova-forecast" || activeTab === "nova-pulse" || activeTab === "nova-forex" || activeTab === "nova-plus" || activeTab === "nova-investment" || activeTab === "watchlist" || activeTab === "nova-futures-narratives" || activeTab === "nova-eagle" || activeTab === "crypto-buddie" || activeTab === "meme-intelligence" || activeTab === "trading-university" || activeTab === "nova-job-agent" || activeTab === "realtor-os" || activeTab === "nova-store") return;
+    if (activeTab === "ai-analysis" || activeTab === "daily-wrap" || activeTab === "futures" || activeTab === "trending-perps" || activeTab === "perp-radar" || activeTab === "narratives" || activeTab === "trading-bot" || activeTab === "polymarket-bot" || activeTab === "prop-firm-bot" || activeTab === "nova-forex-bot" || activeTab === "nova-ultimate" || activeTab === "nova-forecast" || activeTab === "nova-pulse" || activeTab === "pnl-calculator" || activeTab === "nova-forex" || activeTab === "nova-plus" || activeTab === "nova-investment" || activeTab === "watchlist" || activeTab === "nova-futures-narratives" || activeTab === "nova-eagle" || activeTab === "crypto-buddie" || activeTab === "meme-intelligence" || activeTab === "trading-university" || activeTab === "nova-job-agent" || activeTab === "realtor-os" || activeTab === "nova-store") return;
     if (activeTab === "wallets") {
       const interval = setInterval(() => {
         if (typeof document !== "undefined" && document.visibilityState === "hidden") return;
@@ -4764,6 +4778,12 @@ function Dashboard() {
                     <Flame className="inline-block h-5 w-5 flame-hot-tab shrink-0 animate-flame-flicker" aria-hidden />
                     <span>{t("tabs.nova-pulse")}</span>
                     <TopTabNewPill show={isNewTopTab("nova-pulse")} />
+                  </TabsTrigger>
+                )}
+                {showTopTab("pnl-calculator") && vipFuturesAddons?.novaPulsePnlCalculator && (
+                  <TabsTrigger value="pnl-calculator" className={`${DASHBOARD_TOP_TAB_TRIGGER_CLASS} data-[state=active]:bg-amber-500 data-[state=active]:text-white dark:data-[state=active]:bg-amber-600`}>
+                    <span>{t("tabs.pnl-calculator")}</span>
+                    <TopTabNewPill show={isNewTopTab("pnl-calculator")} />
                   </TabsTrigger>
                 )}
                 {showTopTab("nova-forex") && (
@@ -8539,11 +8559,19 @@ function Dashboard() {
                   canShareCoach={isOwner || isCoachUser}
                   novaScalpAgent={!!vipFuturesAddons?.novaScalpAgent}
                   novaForexScalpAgent={!!vipFuturesAddons?.novaForexScalpAgent}
-                  novaPulsePnlCalculator={!!vipFuturesAddons?.novaPulsePnlCalculator}
                   novaForexBot={!!vipFuturesAddons?.novaForexBot}
                   novaForexScalpBot={!!vipFuturesAddons?.novaForexScalpBot}
                   subTab={novaPulseSubTab}
                   onSubTabChange={setNovaPulseSubTab}
+                />
+              </div>
+            ) : activeTab === "pnl-calculator" ? (
+              <div className="mx-6 py-6">
+                <PnlCalculatorPanel
+                  enabled={!!vipFuturesAddons?.novaPulsePnlCalculator}
+                  isVip={isVip || isOwner}
+                  isGuest={isGuest}
+                  novaForexScalpBot={!!vipFuturesAddons?.novaForexScalpBot}
                 />
               </div>
             ) : activeTab === "nova-forex" ? (

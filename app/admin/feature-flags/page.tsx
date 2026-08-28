@@ -342,7 +342,12 @@ const FLAG_LABELS: Record<string, { label: string; description: string }> = {
   page_tab_nova_pulse: {
     label: "Tab: Nova Pulse",
     description:
-      "Show/hide the Nova Pulse VIP tab (Futures = Nova Scalp Agent, Forex = Nova Forex Agent, Calculate PnL). Subtabs still require their own feature flags. Default OFF until you enable it.",
+      "Show/hide the Nova Pulse VIP tab (Futures = Nova Scalp Agent, Forex = Nova Forex Agent). Subtabs still require their own feature flags. Default OFF until you enable it.",
+  },
+  page_tab_pnl_calculator: {
+    label: "Tab: PnL Calculator",
+    description:
+      "Show/hide the standalone PnL Calculator tab. Also requires Calculate PnL master flag ON. Free users: 2 full calculations/day by default (Admin → Product visibility). VIP: unlimited by default.",
   },
   page_tab_nova_plus: {
     label: "Tab: Nova+",
@@ -485,9 +490,9 @@ const FLAG_LABELS: Record<string, { label: string; description: string }> = {
       "When ON, VIP users see Nova Scalp Agent under Nova Pulse → Futures: leveraged entry/exit plans, expected PnL, stop-loss, and Quick Wins scanner. Requires Tab: Nova Pulse ON. Default OFF until you enable it.",
   },
   nova_pulse_pnl_calculator: {
-    label: "Calculate PnL (Nova Pulse)",
+    label: "PnL Calculator (master)",
     description:
-      "When ON, VIP users see Calculate PnL under Nova Pulse: crypto + forex ticket math (price / % / pips), BabyPips-style lot sizing, profit/loss breakdown, forex risk-on/off meter, and send to Scalper / NovaQ. Requires Tab: Nova Pulse ON. Default OFF until you enable it.",
+      "When ON, users can use the standalone PnL Calculator tab: crypto + forex ticket math (price / % / pips), BabyPips-style lot sizing, profit/loss breakdown, forex risk-on/off meter, and send to Scalper / NovaQ. Pair with Tab: PnL Calculator. Free default 2 calculations/day; VIP unlimited (configurable in Admin → Product visibility). Default OFF until you enable it.",
   },
   nova_q_fib: {
     label: "NovaQ Fib (NovaForecast)",
