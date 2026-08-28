@@ -14,11 +14,6 @@ What's included
 • Live pivot levels (Floor, Woodie, Camarilla, DeMark, Fibonacci) — tap to apply to your plan
 • Forex sessions include risk-on/risk-off context
 
-Who can use it
-• Guests: 2 full calculations per day
-• Registered free: 4 per day
-• VIP: unlimited
-
 Open PnL Calculator in the top tabs, or use the link below.
 
 Educational only — not financial advice.
@@ -31,9 +26,20 @@ https://novastaris.ai/?tab=pnl-calculator`,
   ctaUrl: PNL_CALCULATOR_URL,
 };
 
+/** Site announcement preset (Admin → Banners). Only one announcement is live at a time. */
+export const PNL_CALCULATOR_LAUNCH_BANNER = {
+  enabled: true,
+  title: "New: PnL Calculator for crypto futures & forex",
+  body: "Size your trade before you send it — position size, TP/SL in price, % or pips, risk/reward, and live pivot levels in one professional desk.\n\nEducational only — not financial advice.",
+  ctaLabel: "Open PnL Calculator",
+  ctaHref: "/?tab=pnl-calculator",
+  showPartnerLogos: false,
+  partnerBrand: "blofin" as const,
+};
+
 export function shouldUseCustomPnlCalculatorIntro(body: string): boolean {
   const t = body.trim();
   if (!t) return false;
-  if (t.includes("What's included") && t.includes("Who can use it") && t.includes("pnl-calculator")) return false;
+  if (t.includes("What's included") && t.includes("pnl-calculator")) return false;
   return true;
 }

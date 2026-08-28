@@ -125,6 +125,7 @@ export default function AdminEmailsPanel({ onNotice, onError }: Props) {
   const [strategyCallShowNav, setStrategyCallShowNav] = useState(true);
   const [strategyCallShowPopup, setStrategyCallShowPopup] = useState(true);
   const [postcardBusy, setPostcardBusy] = useState(false);
+  const [announcementBusy, setAnnouncementBusy] = useState(false);
   const [strategyCallSaving, setStrategyCallSaving] = useState(false);
 
   const loadStats = useCallback(async () => {
@@ -572,51 +573,129 @@ export default function AdminEmailsPanel({ onNotice, onError }: Props) {
 
       <Card className="border-amber-200/80 dark:border-amber-800/50">
         <CardHeader className="pb-2">
-          <CardTitle className="text-base">PnL Calculator — social postcard</CardTitle>
+          <CardTitle className="text-base">PnL Calculator — social postcards</CardTitle>
           <p className="text-sm text-muted-foreground">
-            Owner-only marketing asset for X, Instagram, WhatsApp, and Telegram. Pair with the PnL Calculator launch
-            email preset below.
+            Owner-only marketing assets for X, Instagram, WhatsApp, and Telegram. Use <strong>Premium</strong> for the
+            designed card with calculator mockup; <strong>Classic</strong> is the simpler generated layout.
           </p>
         </CardHeader>
-        <CardContent className="space-y-3">
-          <div className="flex flex-wrap gap-2">
-            <Button
-              type="button"
-              size="sm"
-              disabled={postcardBusy}
-              onClick={async () => {
-                setPostcardBusy(true);
-                try {
-                  const blob = await drawPnlCalculatorPostcard();
-                  await sharePnlWithFallback(
-                    blob,
-                    `NovaStaris_PnL_Calculator_${new Date().toISOString().slice(0, 10)}.jpg`,
-                    buildPnlCalculatorShareCaption()
-                  );
-                  onNotice?.("Postcard shared or downloaded.");
-                } finally {
-                  setPostcardBusy(false);
-                }
-              }}
-            >
-              {postcardBusy ? "Preparing…" : "Share postcard"}
-            </Button>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <p className="text-xs font-semibold text-amber-800 dark:text-amber-200">Premium (recommended)</p>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                type="button"
+                size="sm"
+                disabled={postcardBusy}
+                onClick={async () => {
+                  setPostcardBusy(true);
+                  try {
+                    const blob = await drawPnlCalculatorPostcard("premium");
+                    await sharePnlWithFallback(
+                      blob,
+                      `NovaStaris_PnL_Calculator_Premium_${new Date().toISOString().slice(0, 10)}.jpg`,
+                      buildPnlCalculatorShareCaption()
+                    );
+                    onNotice?.("Premium postcard shared or downloaded.");
+                  } finally {
+                    setPostcardBusy(false);
+                  }
+                }}
+              >
+                {postcardBusy ? "Preparing…" : "Share premium"}
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                disabled={postcardBusy}
+                onClick={async () => {
+                  setPostcardBusy(true);
+                  try {
+                    await downloadPnlCalculatorPostcard("premium");
+                    onNotice?.("Premium postcard downloaded.");
+                  } finally {
+                    setPostcardBusy(false);
+                  }
+                }}
+              >
+                Download premium
+              </Button>
+            </div>
+          </div>
+          <div className="space-y-2">
+            <p className="text-xs font-semibold text-zinc-600 dark:text-zinc-400">Classic</p>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                type="button"
+                size="sm"
+                variant="secondary"
+                disabled={postcardBusy}
+                onClick={async () => {
+                  setPostcardBusy(true);
+                  try {
+                    const blob = await drawPnlCalculatorPostcard("classic");
+                    await sharePnlWithFallback(
+                      blob,
+                      `NovaStaris_PnL_Calculator_Classic_${new Date().toISOString().slice(0, 10)}.jpg`,
+                      buildPnlCalculatorShareCaption()
+                    );
+                    onNotice?.("Classic postcard shared or downloaded.");
+                  } finally {
+                    setPostcardBusy(false);
+                  }
+                }}
+              >
+                Share classic
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                disabled={postcardBusy}
+                onClick={async () => {
+                  setPostcardBusy(true);
+                  try {
+                    await downloadPnlCalculatorPostcard("classic");
+                    onNotice?.("Classic postcard downloaded.");
+                  } finally {
+                    setPostcardBusy(false);
+                  }
+                }}
+              >
+                Download classic
+              </Button>
+            </div>
+          </div>
+          <div className="pt-2 border-t border-amber-200/60 dark:border-amber-800/40 space-y-2">
+            <p className="text-xs text-muted-foreground">
+              In-app modal: only one site announcement is live at a time. Publishing replaces the current one and
+              re-shows it for users who dismissed an older version.
+            </p>
             <Button
               type="button"
               size="sm"
               variant="outline"
-              disabled={postcardBusy}
+              disabled={announcementBusy}
               onClick={async () => {
-                setPostcardBusy(true);
+                setAnnouncementBusy(true);
                 try {
-                  await downloadPnlCalculatorPostcard();
-                  onNotice?.("Postcard downloaded.");
+                  const res = await fetch("/api/admin/site-announcement-banner", {
+                    method: "PATCH",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ preset: "pnl-calculator-launch" }),
+                  });
+                  const data = await res.json();
+                  if (data.success) onNotice?.("PnL Calculator site announcement published (ON).");
+                  else onError?.(data.error ?? "Could not publish site announcement.");
+                } catch {
+                  onError?.("Could not publish site announcement.");
                 } finally {
-                  setPostcardBusy(false);
+                  setAnnouncementBusy(false);
                 }
               }}
             >
-              Download postcard
+              {announcementBusy ? "Publishing…" : "Publish in-app announcement"}
             </Button>
           </div>
         </CardContent>
@@ -720,8 +799,8 @@ export default function AdminEmailsPanel({ onNotice, onError }: Props) {
           )}
           {format === "rich" && draft.template === "pnl-calculator" && (
             <p className="text-xs text-amber-700 dark:text-amber-300 rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2">
-              PnL Calculator rich layout is on (amber hero, feature card, access tiers, Open PnL Calculator CTA).
-              Suggested audience: all users with email.
+              PnL Calculator rich layout is on (amber hero, feature card, Open PnL Calculator CTA). Suggested audience:
+              all users with email.
             </p>
           )}
           {format === "rich" && draft.template === "nova-branded" && (

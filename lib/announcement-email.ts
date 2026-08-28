@@ -464,16 +464,6 @@ export function buildPnlCalculatorLaunchEmailHtml(args?: {
             </td>
           </tr>
         </table>
-        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 20px 0;border-collapse:collapse;">
-          <tr>
-            <td style="background:#422006;border:1px solid #b45309;border-radius:12px;padding:16px 18px;">
-              <p style="margin:0 0 10px 0;font-size:13px;font-weight:700;color:#fde68a;text-transform:uppercase;letter-spacing:0.06em;">Access</p>
-              <p style="margin:0 0 6px 0;font-size:15px;color:#fef3c7;"><strong>Guests:</strong> 2 calculations/day</p>
-              <p style="margin:0 0 6px 0;font-size:15px;color:#fef3c7;"><strong>Registered free:</strong> 4/day</p>
-              <p style="margin:0;font-size:15px;color:#fef3c7;"><strong>VIP:</strong> unlimited</p>
-            </td>
-          </tr>
-        </table>
         ${pnlCalculatorCtaButtonHtml(ctaLabel, ctaUrl)}
         <p style="margin:20px 0 0 0;font-size:12px;line-height:1.5;color:#a1a1aa;text-align:center;">
           Open the <strong>PnL Calculator</strong> tab in the dashboard, or visit

@@ -8,6 +8,7 @@ import {
   type SiteAnnouncementBannerConfig,
 } from "@/lib/site-announcement-banner";
 import { AFFILIATE_LAUNCH_BANNER } from "@/lib/referral-program";
+import { PNL_CALCULATOR_LAUNCH_BANNER } from "@/lib/pnl-calculator-launch-email";
 import { BLOFIN_PARTNERSHIP_LAUNCH_BANNER, getBlofinPartnerPromoForAdmin } from "@/lib/blofin-partner-promo";
 
 export async function GET() {
@@ -48,6 +49,10 @@ export async function PATCH(request: Request) {
         ...BLOFIN_PARTNERSHIP_LAUNCH_BANNER,
         showPartnerLogos: promo?.includeLogosInBroadcast ?? true,
       });
+      return NextResponse.json({ success: true, banner });
+    }
+    if (body.preset === "pnl-calculator-launch") {
+      const banner = await setSiteAnnouncementBanner({ ...PNL_CALCULATOR_LAUNCH_BANNER });
       return NextResponse.json({ success: true, banner });
     }
     const { resetToDefault: _, preset: __, ...patch } = body;

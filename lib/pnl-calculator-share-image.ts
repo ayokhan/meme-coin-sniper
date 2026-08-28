@@ -1,5 +1,5 @@
 /**
- * PnL Calculator marketing postcard — 1080×1080 for X, IG, WhatsApp, Telegram.
+ * PnL Calculator marketing postcards — 1080×1080 for X, IG, WhatsApp, Telegram.
  */
 import { downloadBlob } from "@/lib/pnl-share";
 
@@ -10,6 +10,9 @@ const AMBER_BRIGHT = "#fcd34d";
 const WHITE = "#fafafa";
 const MUTED = "#a1a1aa";
 const LINK = "novastaris.ai/?tab=pnl-calculator";
+const PREMIUM_ASSET_PATH = "/marketing/novastaris-pnl-calculator-postcard-premium.png";
+
+export type PnlCalculatorPostcardVariant = "classic" | "premium";
 
 function roundRect(
   ctx: CanvasRenderingContext2D,
@@ -61,7 +64,7 @@ function drawBackground(ctx: CanvasRenderingContext2D) {
   ctx.fillRect(0, 0, W, H);
 }
 
-function drawPostcard(ctx: CanvasRenderingContext2D) {
+function drawClassicPostcard(ctx: CanvasRenderingContext2D) {
   const pad = 72;
   drawBackground(ctx);
 
@@ -144,23 +147,39 @@ function drawPostcard(ctx: CanvasRenderingContext2D) {
   ctx.fillText("Educational only · Not financial advice", pad, H - 36);
 }
 
-export function drawPnlCalculatorPostcard(): Promise<Blob> {
-  const canvas = document.createElement("canvas");
-  canvas.width = W;
-  canvas.height = H;
-  const ctx = canvas.getContext("2d");
-  if (!ctx) return Promise.reject(new Error("Canvas not supported"));
-  drawPostcard(ctx);
+async function loadPremiumPostcardBlob(): Promise<Blob> {
+  const res = await fetch(PREMIUM_ASSET_PATH);
+  if (!res.ok) throw new Error("Premium postcard asset not found.");
+  return res.blob();
+}
+
+function canvasToJpegBlob(canvas: HTMLCanvasElement): Promise<Blob> {
   return new Promise((resolve, reject) => {
     canvas.toBlob((blob) => (blob ? resolve(blob) : reject(new Error("Failed"))), "image/jpeg", 0.94);
   });
 }
 
-export async function downloadPnlCalculatorPostcard(filename?: string) {
-  const blob = await drawPnlCalculatorPostcard();
+export function drawPnlCalculatorPostcard(variant: PnlCalculatorPostcardVariant = "classic"): Promise<Blob> {
+  if (variant === "premium") return loadPremiumPostcardBlob();
+
+  const canvas = document.createElement("canvas");
+  canvas.width = W;
+  canvas.height = H;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return Promise.reject(new Error("Canvas not supported"));
+  drawClassicPostcard(ctx);
+  return canvasToJpegBlob(canvas);
+}
+
+export async function downloadPnlCalculatorPostcard(
+  variant: PnlCalculatorPostcardVariant = "classic",
+  filename?: string
+) {
+  const blob = await drawPnlCalculatorPostcard(variant);
+  const suffix = variant === "premium" ? "Premium" : "Classic";
   downloadBlob(
     blob,
-    filename ?? `NovaStaris_PnL_Calculator_${new Date().toISOString().slice(0, 10)}.jpg`
+    filename ?? `NovaStaris_PnL_Calculator_${suffix}_${new Date().toISOString().slice(0, 10)}.jpg`
   );
 }
 
@@ -173,10 +192,13 @@ export function buildPnlCalculatorShareCaption(): string {
   ].join("\n");
 }
 
-export async function sharePnlCalculatorPostcard(): Promise<"native" | "download" | "cancelled" | "unsupported"> {
-  const blob = await drawPnlCalculatorPostcard();
+export async function sharePnlCalculatorPostcard(
+  variant: PnlCalculatorPostcardVariant = "classic"
+): Promise<"native" | "download" | "cancelled" | "unsupported"> {
+  const blob = await drawPnlCalculatorPostcard(variant);
   const caption = buildPnlCalculatorShareCaption();
-  const file = new File([blob], "NovaStaris-PnL-Calculator.jpg", { type: "image/jpeg" });
+  const suffix = variant === "premium" ? "Premium" : "Classic";
+  const file = new File([blob], `NovaStaris-PnL-Calculator-${suffix}.jpg`, { type: blob.type || "image/jpeg" });
   if (typeof navigator !== "undefined" && navigator.share && navigator.canShare?.({ files: [file] })) {
     try {
       await navigator.share({
@@ -189,6 +211,6 @@ export async function sharePnlCalculatorPostcard(): Promise<"native" | "download
       if (e instanceof Error && e.name === "AbortError") return "cancelled";
     }
   }
-  downloadBlob(blob, `NovaStaris_PnL_Calculator_${new Date().toISOString().slice(0, 10)}.jpg`);
+  downloadBlob(blob, `NovaStaris_PnL_Calculator_${suffix}_${new Date().toISOString().slice(0, 10)}.jpg`);
   return "download";
 }
