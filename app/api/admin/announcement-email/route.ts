@@ -7,6 +7,7 @@ import {
   parseAnnouncementEmailTemplate,
   sendAnnouncementEmails,
   type AnnouncementAudience,
+  type AnnouncementEmailTemplate,
 } from "@/lib/announcement-email";
 import { listRecentWelcomeEmailLogs } from "@/lib/send-welcome-email";
 
