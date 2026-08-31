@@ -131,6 +131,8 @@ export default function AdminEmailsPanel({ onNotice, onError }: Props) {
   const [strategyCallSaving, setStrategyCallSaving] = useState(false);
   const [suppressInput, setSuppressInput] = useState("");
   const [suppressBusy, setSuppressBusy] = useState(false);
+  const [suppressSearch, setSuppressSearch] = useState("");
+  const [suppressFilter, setSuppressFilter] = useState<"all" | "blocked" | "sendable">("all");
 
   const suppressedSet = useMemo(
     () => new Set((stats?.suppressedEmails ?? []).map((e) => e.toLowerCase())),
@@ -163,6 +165,40 @@ export default function AdminEmailsPanel({ onNotice, onError }: Props) {
     },
     [stats, filterAudience]
   );
+
+  const customerEmailRows = useMemo(() => {
+    const emails = stats?.allEmails ?? [];
+    const nameByEmail = new Map(
+      (stats?.recentRegistrants ?? []).map((r) => [r.email.toLowerCase(), r.name])
+    );
+    const newsletterSet = new Set((stats?.newsletterEmails ?? []).map((e) => e.toLowerCase()));
+    const vipSet = new Set((stats?.vipEmails ?? []).map((e) => e.toLowerCase()));
+    return emails
+      .map((email) => {
+        const key = email.toLowerCase();
+        return {
+          email,
+          name: nameByEmail.get(key) ?? null,
+          newsletter: newsletterSet.has(key),
+          vip: vipSet.has(key),
+          blocked: suppressedSet.has(key),
+        };
+      })
+      .sort((a, b) => a.email.localeCompare(b.email));
+  }, [stats, suppressedSet]);
+
+  const filteredCustomerEmailRows = useMemo(() => {
+    const q = suppressSearch.trim().toLowerCase();
+    return customerEmailRows.filter((row) => {
+      if (suppressFilter === "blocked" && !row.blocked) return false;
+      if (suppressFilter === "sendable" && row.blocked) return false;
+      if (!q) return true;
+      return (
+        row.email.toLowerCase().includes(q) ||
+        (row.name?.toLowerCase().includes(q) ?? false)
+      );
+    });
+  }, [customerEmailRows, suppressFilter, suppressSearch]);
 
   const loadStats = useCallback(async () => {
     setLoading(true);
@@ -198,6 +234,62 @@ export default function AdminEmailsPanel({ onNotice, onError }: Props) {
       setLoading(false);
     }
   }, [onError]);
+
+  const addToDoNotSend = useCallback(
+    async (emails: string[]) => {
+      const list = emails.map((e) => e.trim()).filter(Boolean);
+      if (list.length === 0) return;
+      setSuppressBusy(true);
+      try {
+        const res = await fetch("/api/admin/email-suppression", {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ emails: list }),
+        });
+        const data = await res.json();
+        if (res.ok && data.success) {
+          await loadStats();
+          onNotice?.(
+            `Added ${data.added?.length ?? 0} to do-not-send${data.skipped?.length ? ` (${data.skipped.length} already listed)` : ""}.`
+          );
+        } else {
+          onError?.(data.error || "Could not add emails.");
+        }
+      } catch {
+        onError?.("Could not add emails.");
+      } finally {
+        setSuppressBusy(false);
+      }
+    },
+    [loadStats, onError, onNotice]
+  );
+
+  const removeFromDoNotSend = useCallback(
+    async (email: string) => {
+      setSuppressBusy(true);
+      try {
+        const res = await fetch("/api/admin/email-suppression", {
+          method: "DELETE",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email }),
+        });
+        const data = await res.json();
+        if (res.ok && data.success) {
+          await loadStats();
+          onNotice?.(`Removed ${email} from do-not-send.`);
+        } else {
+          onError?.(data.error || "Could not remove email.");
+        }
+      } catch {
+        onError?.("Could not remove email.");
+      } finally {
+        setSuppressBusy(false);
+      }
+    },
+    [loadStats, onError, onNotice]
+  );
 
   useEffect(() => {
     void loadStats();
@@ -874,58 +966,88 @@ export default function AdminEmailsPanel({ onNotice, onError }: Props) {
             <div>
               <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">Do-not-send list</p>
               <p className="text-xs text-muted-foreground mt-0.5">
-                Emails here are excluded automatically when you pick any audience (including all customers).
+                Browse all customer emails below. Blocked addresses are excluded from every audience when you send.
               </p>
             </div>
-            <div className="flex flex-wrap gap-1.5 max-h-28 overflow-y-auto rounded-md border p-2 bg-white/80 dark:bg-zinc-900/50">
-              {(stats?.suppressedEmails ?? []).length === 0 ? (
-                <span className="text-xs text-muted-foreground">No suppressed emails yet.</span>
+
+            <div className="flex flex-wrap items-end gap-2">
+              <label className="text-xs text-muted-foreground flex flex-col gap-1 flex-1 min-w-[180px]">
+                Search
+                <input
+                  className={inputClass}
+                  value={suppressSearch}
+                  onChange={(e) => setSuppressSearch(e.target.value)}
+                  placeholder="Filter by email or name…"
+                />
+              </label>
+              <label className="text-xs text-muted-foreground flex flex-col gap-1 min-w-[140px]">
+                Show
+                <select
+                  className={inputClass}
+                  value={suppressFilter}
+                  onChange={(e) => setSuppressFilter(e.target.value as "all" | "blocked" | "sendable")}
+                >
+                  <option value="all">All customers ({customerEmailRows.length})</option>
+                  <option value="blocked">Blocked only ({stats?.suppressedCount ?? 0})</option>
+                  <option value="sendable">Sendable only ({customerEmailRows.filter((r) => !r.blocked).length})</option>
+                </select>
+              </label>
+            </div>
+
+            <div className="max-h-80 overflow-y-auto rounded-md border bg-white dark:bg-zinc-900 divide-y divide-zinc-100 dark:divide-zinc-800">
+              {loading ? (
+                <p className="text-xs text-muted-foreground p-3">Loading customers…</p>
+              ) : filteredCustomerEmailRows.length === 0 ? (
+                <p className="text-xs text-muted-foreground p-3">No emails match this filter.</p>
               ) : (
-                (stats?.suppressedEmails ?? []).map((email) => (
-                  <span
-                    key={email}
-                    className="inline-flex items-center gap-1 rounded-full bg-red-100 dark:bg-red-900/40 px-2 py-0.5 text-xs"
+                filteredCustomerEmailRows.map((row) => (
+                  <div
+                    key={row.email}
+                    className={`flex flex-wrap items-center justify-between gap-2 px-3 py-2 text-sm ${
+                      row.blocked ? "bg-red-500/5" : "hover:bg-zinc-50 dark:hover:bg-zinc-800/60"
+                    }`}
                   >
-                    {email}
-                    <button
-                      type="button"
-                      className="px-1"
-                      aria-label={`Remove ${email} from do-not-send`}
-                      disabled={suppressBusy}
-                      onClick={() => void (async () => {
-                        setSuppressBusy(true);
-                        try {
-                          const res = await fetch("/api/admin/email-suppression", {
-                            method: "DELETE",
-                            credentials: "include",
-                            headers: { "Content-Type": "application/json" },
-                            body: JSON.stringify({ email }),
-                          });
-                          const data = await res.json();
-                          if (res.ok && data.success) {
-                            await loadStats();
-                            onNotice?.(`Removed ${email} from do-not-send.`);
-                          } else {
-                            onError?.(data.error || "Could not remove email.");
-                          }
-                        } catch {
-                          onError?.("Could not remove email.");
-                        } finally {
-                          setSuppressBusy(false);
-                        }
-                      })()}
-                    >
-                      ×
-                    </button>
-                  </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="font-medium text-zinc-900 dark:text-zinc-100 break-all">{row.email}</p>
+                      <p className="text-[11px] text-muted-foreground">
+                        {row.name ? `${row.name} · ` : ""}
+                        {row.blocked ? "Blocked" : "Will receive campaigns"}
+                        {row.newsletter ? " · newsletter" : ""}
+                        {row.vip ? " · VIP" : ""}
+                      </p>
+                    </div>
+                    {row.blocked ? (
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        disabled={suppressBusy}
+                        onClick={() => void removeFromDoNotSend(row.email)}
+                      >
+                        Remove from list
+                      </Button>
+                    ) : (
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        className="border-red-500/40 text-red-700 dark:text-red-300 hover:bg-red-500/10"
+                        disabled={suppressBusy}
+                        onClick={() => void addToDoNotSend([row.email])}
+                      >
+                        Add to do-not-send
+                      </Button>
+                    )}
+                  </div>
                 ))
               )}
             </div>
-            <div className="flex flex-wrap items-end gap-2">
+
+            <div className="flex flex-wrap items-end gap-2 pt-1 border-t border-red-500/15">
               <label className="text-xs text-muted-foreground flex flex-col gap-1 flex-1 min-w-[200px]">
-                Add emails (comma or newline separated)
+                Bulk add (comma or newline separated)
                 <textarea
-                  className={`${inputClass} min-h-[72px] w-full`}
+                  className={`${inputClass} min-h-[64px] w-full`}
                   value={suppressInput}
                   onChange={(e) => setSuppressInput(e.target.value)}
                   placeholder="user@example.com, other@example.com"
@@ -936,36 +1058,15 @@ export default function AdminEmailsPanel({ onNotice, onError }: Props) {
                 size="sm"
                 variant="outline"
                 disabled={suppressBusy || !suppressInput.trim()}
-                onClick={() => void (async () => {
+                onClick={() => {
                   const emails = suppressInput
                     .split(/[\n,;]+/)
                     .map((e) => e.trim())
                     .filter(Boolean);
-                  if (emails.length === 0) return;
-                  setSuppressBusy(true);
-                  try {
-                    const res = await fetch("/api/admin/email-suppression", {
-                      method: "POST",
-                      credentials: "include",
-                      headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify({ emails }),
-                    });
-                    const data = await res.json();
-                    if (res.ok && data.success) {
-                      setSuppressInput("");
-                      await loadStats();
-                      onNotice?.(`Added ${data.added?.length ?? 0} to do-not-send${data.skipped?.length ? ` (${data.skipped.length} already listed)` : ""}.`);
-                    } else {
-                      onError?.(data.error || "Could not add emails.");
-                    }
-                  } catch {
-                    onError?.("Could not add emails.");
-                  } finally {
-                    setSuppressBusy(false);
-                  }
-                })()}
+                  void addToDoNotSend(emails).then(() => setSuppressInput(""));
+                }}
               >
-                Add to do-not-send
+                Bulk add
               </Button>
             </div>
           </div>
