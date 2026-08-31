@@ -40,7 +40,15 @@ const SUPPORTED_MEME_CHAINS_AND =
 
 /** Refresh admin-saved copy that still lists older chain sets. */
 function withSupportedChainCopy(text: string): string {
-  return text
+  const deduped = text.replace(
+    /\bSolana, BSC, ETH, Robinhood, or HyperEVM, Robinhood, or HyperEVM\b/gi,
+    SUPPORTED_MEME_CHAINS
+  );
+  if (/Robinhood/i.test(deduped) && /HyperEVM/i.test(deduped)) {
+    return deduped;
+  }
+
+  return deduped
     .replace(
       /\bNovaStaris AI Analysis works on Solana and BSC meme coins\b/gi,
       `NovaStaris AI Analysis works on ${SUPPORTED_MEME_CHAINS_AND} meme coins`
@@ -53,7 +61,7 @@ function withSupportedChainCopy(text: string): string {
     .replace(/\bSolana or BSC\b/gi, SUPPORTED_MEME_CHAINS)
     .replace(/\bSolana \+ BSC\b/g, SUPPORTED_MEME_CHAINS)
     .replace(/\bSolana, BSC, or ETH\b/gi, SUPPORTED_MEME_CHAINS)
-    .replace(/\bSolana, BSC, ETH\b/g, SUPPORTED_MEME_CHAINS)
+    .replace(/\bSolana, BSC, ETH\b(?!, Robinhood)/g, SUPPORTED_MEME_CHAINS)
     .replace(/\bSolana and BSC\b/gi, SUPPORTED_MEME_CHAINS_AND)
     .replace(
       /\bon any Solana, BSC, or ETH meme coin\b/gi,
