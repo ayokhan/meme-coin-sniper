@@ -9,7 +9,7 @@ export const PATH_DEEPDIVE_MEME_EMAIL = {
 Ready for one real action on NovaStaris?
 
 Today: meme coin hunter
-1. Open Go Hunting — scan new Solana / BSC pairs
+1. Open Go Hunting — scan new Robinhood, HyperEVM, Solana, or BSC pairs
 2. Open AI Agent — paste a contract and run analysis
 
 Do those two tabs once. That’s enough for today.

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getSessionAndSubscription } from "@/lib/auth-server";
 import { isOwnerSession } from "@/lib/auth";
-import { runNarrativeScan, type NarrativeTimeframe } from "@/lib/narrative-scanner";
+import { runNarrativeScan, parseNarrativeChain, type NarrativeTimeframe } from "@/lib/narrative-scanner";
 import { prisma } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
@@ -101,8 +101,9 @@ export async function POST(request: Request) {
     const body = await request.json().catch(() => ({}));
     const validTf = new Set(["5m", "15m", "30m", "1h", "4h", "daily", "weekly"]);
     const timeframe: NarrativeTimeframe = validTf.has(body.timeframe) ? body.timeframe : "daily";
+    const chain = parseNarrativeChain(body.chain);
 
-    const result = await runNarrativeScan(timeframe);
+    const result = await runNarrativeScan(timeframe, chain);
 
     if (!isOwner) {
       await prisma.usageAnalysisEvent.create({

@@ -8,6 +8,15 @@ import EarlyCatchPanel from "@/components/EarlyCatchPanel";
 /* ---------- Types ---------- */
 
 type NarrativeTimeframe = "5m" | "15m" | "30m" | "1h" | "4h" | "daily" | "weekly";
+type NarrativeChain = "robinhood" | "hyperevm" | "solana" | "bsc" | "all";
+
+const NARRATIVE_CHAIN_OPTIONS: { id: NarrativeChain; label: string }[] = [
+  { id: "robinhood", label: "Robinhood" },
+  { id: "hyperevm", label: "HyperEVM" },
+  { id: "solana", label: "Solana" },
+  { id: "bsc", label: "BSC" },
+  { id: "all", label: "All chains" },
+];
 
 type TopCoin = {
   name: string;
@@ -30,10 +39,19 @@ type NarrativeItem = {
 
 type ScanResult = {
   timeframe: NarrativeTimeframe;
+  chain?: NarrativeChain;
   narratives: NarrativeItem[];
   scannedAt: string;
   pairsScanned: number;
 };
+
+function analyzeUrlForChain(chain: string, address: string): string {
+  const c = chain.toLowerCase();
+  if (c === "bsc" || c === "bnb") return `/?tab=ai-analysis&chain=bsc&ca=${address}`;
+  if (c === "robinhood") return `/?tab=ai-analysis&chain=robinhood&ca=${address}`;
+  if (c === "hyperevm") return `/?tab=ai-analysis&chain=hyperevm&ca=${address}`;
+  return `/?tab=ai-analysis&ca=${address}`;
+}
 
 /* ---------- Old guide phases (moved to DIY sub-tab) ---------- */
 
@@ -131,9 +149,7 @@ function CoinRow({ coin: c }: { coin: TopCoin }) {
     setTimeout(() => setCopied(false), 1500);
   };
 
-  const analyzeUrl = c.chain === "bsc" || c.chain === "bnb"
-    ? `/?tab=ai-analysis&chain=bsc&ca=${c.address}`
-    : `/?tab=ai-analysis&ca=${c.address}`;
+  const analyzeUrl = analyzeUrlForChain(c.chain, c.address);
 
   return (
     <div className="flex items-center justify-between gap-2 rounded-md bg-zinc-50 dark:bg-zinc-900 border border-zinc-100 dark:border-zinc-800 px-3 py-2">
@@ -302,6 +318,7 @@ export default function NarrativesPanel({ isPaid }: { isPaid?: boolean }) {
   const [subTab, setSubTab] = useState<SubTab>("scanner");
   const [showEarlyCatch, setShowEarlyCatch] = useState(false);
   const [timeframe, setTimeframe] = useState<NarrativeTimeframe>("30m");
+  const [chain, setChain] = useState<NarrativeChain>("robinhood");
   const [result, setResult] = useState<ScanResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -326,7 +343,7 @@ export default function NarrativesPanel({ isPaid }: { isPaid?: boolean }) {
     if (subTab === "early-catch" && !showEarlyCatch) setSubTab("scanner");
   }, [subTab, showEarlyCatch]);
 
-  const scan = useCallback(async (tf: NarrativeTimeframe) => {
+  const scan = useCallback(async (tf: NarrativeTimeframe, scanChain: NarrativeChain) => {
     setLoading(true);
     setError(null);
     setLimitLocked(false);
@@ -337,7 +354,7 @@ export default function NarrativesPanel({ isPaid }: { isPaid?: boolean }) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ timeframe: tf }),
+        body: JSON.stringify({ timeframe: tf, chain: scanChain }),
         signal: controller.signal,
       });
       clearTimeout(timeout);
@@ -409,8 +426,26 @@ export default function NarrativesPanel({ isPaid }: { isPaid?: boolean }) {
         <EarlyCatchPanel />
       ) : (
         <div className="space-y-4">
-          {/* Timeframe + Scan */}
-          <div className="flex flex-wrap items-center gap-2">
+          {/* Chain + Timeframe + Scan */}
+          <div className="space-y-2">
+            <p className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">Chain</p>
+            <div className="flex flex-wrap items-center gap-2">
+              {NARRATIVE_CHAIN_OPTIONS.map((c) => (
+                <Button
+                  key={c.id}
+                  size="sm"
+                  variant={chain === c.id ? "default" : "outline"}
+                  onClick={() => setChain(c.id)}
+                  disabled={loading}
+                >
+                  {c.label}
+                </Button>
+              ))}
+            </div>
+          </div>
+          <div className="space-y-2">
+            <p className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">Timeframe</p>
+            <div className="flex flex-wrap items-center gap-2">
             {(["5m", "15m", "30m", "1h", "4h", "daily", "weekly"] as NarrativeTimeframe[]).map((tf) => (
               <Button
                 key={tf}
@@ -422,9 +457,10 @@ export default function NarrativesPanel({ isPaid }: { isPaid?: boolean }) {
                 {{ "5m": "5 min", "15m": "15 min", "30m": "30 min", "1h": "1 hour", "4h": "4 hours", daily: "24h", weekly: "7 days" }[tf]}
               </Button>
             ))}
-            <Button size="sm" onClick={() => scan(timeframe)} disabled={loading} className="ml-auto">
+            <Button size="sm" onClick={() => scan(timeframe, chain)} disabled={loading} className="ml-auto">
               {result ? "Refresh" : "Scan narratives"}
             </Button>
+            </div>
           </div>
 
           {/* Status */}
@@ -451,7 +487,7 @@ export default function NarrativesPanel({ isPaid }: { isPaid?: boolean }) {
             <>
               <div className="flex items-center justify-between">
                 <p className="text-xs text-muted-foreground">
-                  {result.narratives.length} narrative{result.narratives.length !== 1 ? "s" : ""} · {result.pairsScanned} live pairs · {new Date(result.scannedAt).toLocaleTimeString()}
+                  {result.narratives.length} narrative{result.narratives.length !== 1 ? "s" : ""} · {NARRATIVE_CHAIN_OPTIONS.find((c) => c.id === (result.chain ?? chain))?.label ?? chain} · {result.pairsScanned} live pairs · {new Date(result.scannedAt).toLocaleTimeString()}
                 </p>
               </div>
               <div className="space-y-3">
@@ -474,7 +510,7 @@ export default function NarrativesPanel({ isPaid }: { isPaid?: boolean }) {
             <div className="text-center py-10 space-y-3">
               <p className="text-4xl">🔍</p>
               <p className="text-sm text-muted-foreground max-w-sm mx-auto">
-                Pick a timeframe (start with <strong>30 min</strong>) and hit <strong>Scan narratives</strong> to catch themes forming now — not dead 24h coins.
+                Pick a chain (start with <strong>Robinhood</strong>), a timeframe (start with <strong>30 min</strong>), and hit <strong>Scan narratives</strong> to catch themes forming now — not dead 24h coins.
               </p>
               {!isPaid && (
                 <p className="text-xs text-amber-600 dark:text-amber-400">

@@ -5,6 +5,7 @@ import {
 } from "@/lib/forex-broker-partner-promo";
 import { BLOFIN_PARTNERSHIP_EMAIL } from "@/lib/blofin-partner-promo";
 import { PNL_CALCULATOR_LAUNCH_EMAIL } from "@/lib/pnl-calculator-launch-email";
+import { ROBINHOOD_HYPEREVM_LAUNCH_EMAIL } from "@/lib/robinhood-hyperevm-launch-email";
 import { AFFILIATE_PROGRAM_EMAIL } from "@/lib/referral-program";
 import { WELCOME_EMAIL } from "@/lib/welcome-email";
 import { WHY_TRADERS_EMAIL } from "@/lib/why-traders-email";
@@ -55,6 +56,7 @@ export type AdminEmailPresetId =
   | "forex-rebate"
   | "forex-bots-launch"
   | "pnl-calculator-launch"
+  | "robinhood-hyperevm-launch"
   | "tio-partnership"
   | "vantage-partnership"
   | "assex-partnership"
@@ -361,6 +363,19 @@ export const ADMIN_EMAIL_PRESETS: AdminEmailPreset[] = [
     partnerBrand: "blofin",
     ctaLabel: PNL_CALCULATOR_LAUNCH_EMAIL.ctaLabel,
     ctaUrl: PNL_CALCULATOR_LAUNCH_EMAIL.ctaUrl,
+    defaultAudience: "all",
+  },
+  {
+    id: "robinhood-hyperevm-launch",
+    label: "Robinhood & HyperEVM launch",
+    blurb: "Announce new chain support — Go Hunting + Narratives",
+    subject: ROBINHOOD_HYPEREVM_LAUNCH_EMAIL.subject,
+    body: ROBINHOOD_HYPEREVM_LAUNCH_EMAIL.body,
+    template: "robinhood-hyperevm",
+    includePartnerLogos: false,
+    partnerBrand: "blofin",
+    ctaLabel: ROBINHOOD_HYPEREVM_LAUNCH_EMAIL.ctaLabel,
+    ctaUrl: ROBINHOOD_HYPEREVM_LAUNCH_EMAIL.ctaUrl,
     defaultAudience: "all",
   },
   {

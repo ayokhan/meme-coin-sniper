@@ -14,7 +14,7 @@ import {
 } from "@/lib/admin-email-presets";
 import { buildStrategyCallEmail } from "@/lib/strategy-call";
 import { buildVipTrialInviteEmail } from "@/lib/vip-trial";
-import type { AnnouncementEmailTemplate } from "@/lib/announcement-email";
+import { applyEmailSuppression, type AnnouncementEmailTemplate } from "@/lib/announcement-email";
 import type { PartnerBrandEmail } from "@/lib/partner-logos-email";
 import { ADMIN_EMAIL_DRAFT_STORAGE_KEY } from "@/lib/paid-strategy-call";
 import {
@@ -47,6 +47,8 @@ type EmailStats = {
   inactive7dCount?: number;
   trialCount?: number;
   trialExpiringCount?: number;
+  suppressedEmails?: string[];
+  suppressedCount?: number;
 };
 
 type CampaignRow = {
@@ -127,6 +129,40 @@ export default function AdminEmailsPanel({ onNotice, onError }: Props) {
   const [postcardBusy, setPostcardBusy] = useState(false);
   const [announcementBusy, setAnnouncementBusy] = useState(false);
   const [strategyCallSaving, setStrategyCallSaving] = useState(false);
+  const [suppressInput, setSuppressInput] = useState("");
+  const [suppressBusy, setSuppressBusy] = useState(false);
+
+  const suppressedSet = useMemo(
+    () => new Set((stats?.suppressedEmails ?? []).map((e) => e.toLowerCase())),
+    [stats?.suppressedEmails]
+  );
+
+  const filterAudience = useCallback(
+    (emails: string[]) => applyEmailSuppression(emails, suppressedSet),
+    [suppressedSet]
+  );
+
+  const audienceList = useCallback(
+    (audience: AudienceMode): string[] => {
+      if (!stats) return [];
+      const raw =
+        audience === "newsletter"
+          ? stats.newsletterEmails
+          : audience === "free"
+            ? stats.freeEmails ?? []
+            : audience === "vip"
+              ? stats.vipEmails ?? []
+              : audience === "inactive7d"
+                ? stats.inactive7dEmails ?? []
+                : audience === "trial"
+                  ? stats.trialEmails ?? []
+                  : audience === "trial-expiring"
+                    ? stats.trialExpiringEmails ?? []
+                    : stats.allEmails;
+      return filterAudience(raw);
+    },
+    [stats, filterAudience]
+  );
 
   const loadStats = useCallback(async () => {
     setLoading(true);
@@ -148,6 +184,8 @@ export default function AdminEmailsPanel({ onNotice, onError }: Props) {
           inactive7dCount: s.inactive7dCount,
           trialCount: s.trialCount,
           trialExpiringCount: s.trialExpiringCount,
+          suppressedEmails: Array.isArray(s.suppressedEmails) ? s.suppressedEmails : [],
+          suppressedCount: s.suppressedCount,
         });
         setCampaigns(Array.isArray(data.campaigns) ? (data.campaigns as CampaignRow[]) : []);
         setWelcomeLogs(Array.isArray(data.welcomeLogs) ? (data.welcomeLogs as WelcomeLogRow[]) : []);
@@ -398,44 +436,30 @@ export default function AdminEmailsPanel({ onNotice, onError }: Props) {
   useEffect(() => {
     if (recipientsLocked) return;
     if (!stats || draft.audience === "new") return;
-    const list =
-      draft.audience === "newsletter"
-        ? stats.newsletterEmails
-        : draft.audience === "free"
-          ? stats.freeEmails ?? []
-          : draft.audience === "vip"
-            ? stats.vipEmails ?? []
-            : draft.audience === "inactive7d"
-              ? stats.inactive7dEmails ?? []
-              : draft.audience === "trial"
-                ? stats.trialEmails ?? []
-                : draft.audience === "trial-expiring"
-                  ? stats.trialExpiringEmails ?? []
-                  : stats.allEmails;
-    setRecipients([...list]);
-  }, [draft.audience, stats, recipientsLocked]);
+    setRecipients(audienceList(draft.audience));
+  }, [draft.audience, stats, recipientsLocked, audienceList]);
 
   // When switching to "new" or changing window, select all in window by default
   useEffect(() => {
     if (draft.audience !== "new") return;
-    const emails = windowedNew.map((r) => r.email);
+    const emails = filterAudience(windowedNew.map((r) => r.email));
     setSelectedNewEmails(new Set(emails));
     setRecipients(emails);
-  }, [draft.audience, windowedNew]);
+  }, [draft.audience, windowedNew, filterAudience]);
 
   const toggleNewEmail = (email: string) => {
     setSelectedNewEmails((prev) => {
       const next = new Set(prev);
       if (next.has(email)) next.delete(email);
       else next.add(email);
-      const list = windowedNew.map((r) => r.email).filter((e) => next.has(e));
+      const list = filterAudience(windowedNew.map((r) => r.email).filter((e) => next.has(e)));
       setRecipients(list);
       return next;
     });
   };
 
   const selectAllNew = () => {
-    const emails = windowedNew.map((r) => r.email);
+    const emails = filterAudience(windowedNew.map((r) => r.email));
     setSelectedNewEmails(new Set(emails));
     setRecipients(emails);
   };
@@ -803,6 +827,11 @@ export default function AdminEmailsPanel({ onNotice, onError }: Props) {
               all users with email.
             </p>
           )}
+          {format === "rich" && draft.template === "robinhood-hyperevm" && (
+            <p className="text-xs text-emerald-700 dark:text-emerald-300 rounded-md border border-emerald-500/30 bg-emerald-500/10 px-3 py-2">
+              Robinhood & HyperEVM rich layout is on (green hero, feature card, Open Robinhood Chain CTA). Suggested audience: all users with email.
+            </p>
+          )}
           {format === "rich" && draft.template === "nova-branded" && (
             <p className="text-xs text-teal-700 dark:text-teal-300 rounded-md border border-teal-500/30 bg-teal-500/10 px-3 py-2">
               NovaStaris banner layout is on (brand header + your message + CTA).
@@ -832,13 +861,114 @@ export default function AdminEmailsPanel({ onNotice, onError }: Props) {
               <strong>{stats?.trialCount ?? stats?.trialEmails?.length ?? 0}</strong> on trial ·{" "}
               <strong>{stats?.trialExpiringCount ?? stats?.trialExpiringEmails?.length ?? 0}</strong> trial ending soon ·{" "}
               <strong>{stats?.inactive7dCount ?? stats?.inactive7dEmails?.length ?? 0}</strong> inactive 7d ·{" "}
-              <strong>{stats?.recentRegistrants?.length ?? 0}</strong> new (30d) (
+              <strong>{stats?.recentRegistrants?.length ?? 0}</strong> new (30d) ·{" "}
+              <strong>{stats?.suppressedCount ?? stats?.suppressedEmails?.length ?? 0}</strong> do-not-send (
               <Link href="/admin/customers" className="underline text-teal-700 dark:text-teal-300">
                 Customers
               </Link>
               )
             </p>
           )}
+
+          <div className="rounded-lg border border-red-500/25 bg-red-500/5 p-3 space-y-3">
+            <div>
+              <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">Do-not-send list</p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Emails here are excluded automatically when you pick any audience (including all customers).
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-1.5 max-h-28 overflow-y-auto rounded-md border p-2 bg-white/80 dark:bg-zinc-900/50">
+              {(stats?.suppressedEmails ?? []).length === 0 ? (
+                <span className="text-xs text-muted-foreground">No suppressed emails yet.</span>
+              ) : (
+                (stats?.suppressedEmails ?? []).map((email) => (
+                  <span
+                    key={email}
+                    className="inline-flex items-center gap-1 rounded-full bg-red-100 dark:bg-red-900/40 px-2 py-0.5 text-xs"
+                  >
+                    {email}
+                    <button
+                      type="button"
+                      className="px-1"
+                      aria-label={`Remove ${email} from do-not-send`}
+                      disabled={suppressBusy}
+                      onClick={() => void (async () => {
+                        setSuppressBusy(true);
+                        try {
+                          const res = await fetch("/api/admin/email-suppression", {
+                            method: "DELETE",
+                            credentials: "include",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ email }),
+                          });
+                          const data = await res.json();
+                          if (res.ok && data.success) {
+                            await loadStats();
+                            onNotice?.(`Removed ${email} from do-not-send.`);
+                          } else {
+                            onError?.(data.error || "Could not remove email.");
+                          }
+                        } catch {
+                          onError?.("Could not remove email.");
+                        } finally {
+                          setSuppressBusy(false);
+                        }
+                      })()}
+                    >
+                      ×
+                    </button>
+                  </span>
+                ))
+              )}
+            </div>
+            <div className="flex flex-wrap items-end gap-2">
+              <label className="text-xs text-muted-foreground flex flex-col gap-1 flex-1 min-w-[200px]">
+                Add emails (comma or newline separated)
+                <textarea
+                  className={`${inputClass} min-h-[72px] w-full`}
+                  value={suppressInput}
+                  onChange={(e) => setSuppressInput(e.target.value)}
+                  placeholder="user@example.com, other@example.com"
+                />
+              </label>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                disabled={suppressBusy || !suppressInput.trim()}
+                onClick={() => void (async () => {
+                  const emails = suppressInput
+                    .split(/[\n,;]+/)
+                    .map((e) => e.trim())
+                    .filter(Boolean);
+                  if (emails.length === 0) return;
+                  setSuppressBusy(true);
+                  try {
+                    const res = await fetch("/api/admin/email-suppression", {
+                      method: "POST",
+                      credentials: "include",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ emails }),
+                    });
+                    const data = await res.json();
+                    if (res.ok && data.success) {
+                      setSuppressInput("");
+                      await loadStats();
+                      onNotice?.(`Added ${data.added?.length ?? 0} to do-not-send${data.skipped?.length ? ` (${data.skipped.length} already listed)` : ""}.`);
+                    } else {
+                      onError?.(data.error || "Could not add emails.");
+                    }
+                  } catch {
+                    onError?.("Could not add emails.");
+                  } finally {
+                    setSuppressBusy(false);
+                  }
+                })()}
+              >
+                Add to do-not-send
+              </Button>
+            </div>
+          </div>
 
           <label className="text-xs text-muted-foreground flex flex-col gap-1 max-w-xs">
             Audience
@@ -997,21 +1127,7 @@ export default function AdminEmailsPanel({ onNotice, onError }: Props) {
                     variant="ghost"
                     onClick={() => {
                       if (!stats) return;
-                      const list =
-                        draft.audience === "newsletter"
-                          ? stats.newsletterEmails
-                          : draft.audience === "free"
-                            ? stats.freeEmails ?? []
-                            : draft.audience === "vip"
-                              ? stats.vipEmails ?? []
-                              : draft.audience === "inactive7d"
-                                ? stats.inactive7dEmails ?? []
-                                : draft.audience === "trial"
-                                  ? stats.trialEmails ?? []
-                                  : draft.audience === "trial-expiring"
-                                    ? stats.trialExpiringEmails ?? []
-                                    : stats.allEmails;
-                      setRecipients([...list]);
+                      setRecipients(audienceList(draft.audience));
                     }}
                   >
                     Reset from audience

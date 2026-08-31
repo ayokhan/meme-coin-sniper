@@ -8,13 +8,24 @@ import { CLAUDE_SONNET_MODEL } from "@/lib/anthropic-models";
 import axios from "axios";
 import {
   type DexPair,
+  getMemeRunnerChainPairs,
   getNewSolanaPairsFromWebSocket,
   getVolumeForWindow,
   type SurgeWindow,
 } from "@/lib/api-clients/dexscreener";
+import { GO_HUNTING_DEX_ALLOWLIST } from "@/lib/go-hunting-views";
 import { fetchGoogleNewsHeadlines } from "@/lib/nova-crypto-narratives";
 
 export type NarrativeTimeframe = "5m" | "15m" | "30m" | "1h" | "4h" | "daily" | "weekly";
+export type NarrativeChain = "robinhood" | "hyperevm" | "solana" | "bsc" | "all";
+
+export const NARRATIVE_CHAINS: { id: NarrativeChain; label: string }[] = [
+  { id: "robinhood", label: "Robinhood" },
+  { id: "hyperevm", label: "HyperEVM" },
+  { id: "solana", label: "Solana" },
+  { id: "bsc", label: "BSC" },
+  { id: "all", label: "All chains" },
+];
 
 export type NarrativeItem = {
   name: string;
@@ -28,6 +39,7 @@ export type NarrativeItem = {
 
 export type NarrativeScanResult = {
   timeframe: NarrativeTimeframe;
+  chain: NarrativeChain;
   narratives: NarrativeItem[];
   scannedAt: string;
   pairsScanned: number;
@@ -101,14 +113,12 @@ function isAlivePair(p: DexPair, tf: NarrativeTimeframe): boolean {
 
   if (liq < minLiq) return false;
   if (vol < minVol && txns < 8) return false;
-  // Hard dumps with no buy flow look dead
   if (change <= -70 && txns < 20) return false;
   return true;
 }
 
 function filterPairsForTimeframe(pairs: DexPair[], tf: NarrativeTimeframe): DexPair[] {
   const maxAgeMin = minutesForTimeframe(tf);
-  // Short windows: allow a little slack so we still get a usable sample
   const ageSlack = isShortTf(tf) ? Math.max(maxAgeMin, Math.min(maxAgeMin * 2, 90)) : maxAgeMin;
   const cutoff = Date.now() - ageSlack * 60 * 1000;
 
@@ -134,9 +144,32 @@ function buildPairSummaries(pairs: DexPair[], tf: NarrativeTimeframe, limit = 12
     .join("\n");
 }
 
-async function quickDexSearch(queries: string[]): Promise<DexPair[]> {
+const CHAIN_ALIASES: Record<string, string[]> = {
+  solana: ["solana"],
+  bsc: ["bsc", "bnb"],
+  robinhood: ["robinhood"],
+  hyperevm: ["hyperevm"],
+};
+
+function chainMatches(pairChain: string, target: NarrativeChain): boolean {
+  const c = (pairChain || "").toLowerCase();
+  if (target === "all") return true;
+  const allowed = CHAIN_ALIASES[target] ?? [target];
+  return allowed.some((a) => c === a || c.includes(a));
+}
+
+function filterPairsByChain(pairs: DexPair[], chain: NarrativeChain): DexPair[] {
+  if (chain === "all") return pairs;
+  return pairs.filter((p) => chainMatches(p.chainId || "", chain));
+}
+
+async function quickDexSearch(queries: string[], chains: NarrativeChain[]): Promise<DexPair[]> {
   const seen = new Set<string>();
   const all: DexPair[] = [];
+  const allowedChains = chains.includes("all")
+    ? ["solana", "bsc", "bnb", "robinhood", "hyperevm"]
+    : chains.flatMap((c) => CHAIN_ALIASES[c] ?? [c]);
+
   const results = await Promise.allSettled(
     queries.map((q) =>
       axios.get<{ pairs?: DexPair[] }>("https://api.dexscreener.com/latest/dex/search", {
@@ -149,7 +182,7 @@ async function quickDexSearch(queries: string[]): Promise<DexPair[]> {
     if (r.status !== "fulfilled") continue;
     for (const p of r.value.data?.pairs ?? []) {
       const chain = (p.chainId || "").toLowerCase();
-      if (chain !== "solana" && chain !== "bsc" && chain !== "bnb") continue;
+      if (!allowedChains.some((a) => chain === a || chain.includes(a))) continue;
       if (seen.has(p.pairAddress)) continue;
       seen.add(p.pairAddress);
       all.push(p);
@@ -158,17 +191,20 @@ async function quickDexSearch(queries: string[]): Promise<DexPair[]> {
   return all;
 }
 
-/** HTTP source of recently profiled/boosted tokens (works on serverless without WS). */
-async function fetchLatestProfilePairs(): Promise<DexPair[]> {
+async function fetchLatestProfilePairs(chains: NarrativeChain[]): Promise<DexPair[]> {
+  const allowedChains = chains.includes("all")
+    ? ["solana", "bsc", "bnb", "robinhood", "hyperevm"]
+    : chains.flatMap((c) => CHAIN_ALIASES[c] ?? [c]);
+
   try {
     const [profiles, boosts] = await Promise.all([
       axios.get<{ chainId?: string; tokenAddress?: string }[]>("https://api.dexscreener.com/token-profiles/latest/v1", { timeout: 7000 }).catch(() => ({ data: [] })),
       axios.get<{ chainId?: string; tokenAddress?: string }[]>("https://api.dexscreener.com/token-boosts/latest/v1", { timeout: 7000 }).catch(() => ({ data: [] })),
     ]);
-    const addrs = new Map<string, string>(); // address -> chain
+    const addrs = new Map<string, string>();
     for (const row of [...(profiles.data ?? []), ...(boosts.data ?? [])]) {
       const chain = (row.chainId || "").toLowerCase();
-      if (chain !== "solana" && chain !== "bsc" && chain !== "bnb") continue;
+      if (!allowedChains.some((a) => chain === a || chain.includes(a))) continue;
       if (!row.tokenAddress) continue;
       addrs.set(row.tokenAddress, chain);
     }
@@ -184,7 +220,27 @@ async function fetchLatestProfilePairs(): Promise<DexPair[]> {
   }
 }
 
-async function fetchFreshPairs(tf: NarrativeTimeframe): Promise<DexPair[]> {
+function ageSlackMinutes(tf: NarrativeTimeframe): number {
+  const maxAgeMin = minutesForTimeframe(tf);
+  return isShortTf(tf) ? Math.max(maxAgeMin, Math.min(maxAgeMin * 2, 90)) : maxAgeMin;
+}
+
+async function fetchMemeRunnerPairs(chain: "robinhood" | "hyperevm", tf: NarrativeTimeframe): Promise<DexPair[]> {
+  const dexAllow = GO_HUNTING_DEX_ALLOWLIST[chain].new_pairs;
+  return getMemeRunnerChainPairs({
+    chain,
+    minLiquidity: isShortTf(tf) ? 100 : 300,
+    maxAgeMinutes: ageSlackMinutes(tf),
+    allowedDexIds: dexAllow,
+    searchQueries:
+      chain === "robinhood"
+        ? ["robinhood", "HOOD", "meme", "new token"]
+        : ["hyperevm", "hyperliquid", "meme", "new token"],
+    maxResults: 350,
+  });
+}
+
+async function fetchFreshPairs(tf: NarrativeTimeframe, chain: NarrativeChain): Promise<DexPair[]> {
   const seen = new Set<string>();
   const all: DexPair[] = [];
   const push = (pairs: DexPair[]) => {
@@ -195,36 +251,73 @@ async function fetchFreshPairs(tf: NarrativeTimeframe): Promise<DexPair[]> {
     }
   };
 
-  // Newest Solana pairs (WS) + latest profiles (HTTP) + light search
-  const wsTimeout = isShortTf(tf) ? 7000 : 9000;
-  const [wsPairs, profilePairs, searchPairs] = await Promise.all([
-    getNewSolanaPairsFromWebSocket(wsTimeout).catch(() => [] as DexPair[]),
-    fetchLatestProfilePairs().catch(() => [] as DexPair[]),
-    quickDexSearch(
-      isShortTf(tf)
-        ? ["solana", "pump", "bsc"]
-        : ["meme coin", "pump", "solana", "bsc", "PEPE"]
-    ).catch(() => [] as DexPair[]),
-  ]);
+  const chainsToFetch: NarrativeChain[] =
+    chain === "all" ? ["robinhood", "hyperevm", "solana", "bsc"] : [chain];
 
-  push(wsPairs);
-  push(profilePairs);
-  push(searchPairs);
-  return all;
+  const fetches: Promise<DexPair[]>[] = [];
+
+  for (const c of chainsToFetch) {
+    if (c === "robinhood" || c === "hyperevm") {
+      fetches.push(fetchMemeRunnerPairs(c, tf).catch(() => [] as DexPair[]));
+    }
+  }
+
+  const needsSolanaWs = chainsToFetch.includes("solana") || chain === "all";
+  const needsProfiles = chainsToFetch.some((c) => c === "solana" || c === "bsc" || c === "all");
+  const needsSearch = chainsToFetch.some((c) => c === "solana" || c === "bsc" || c === "all");
+
+  if (needsSolanaWs) {
+    const wsTimeout = isShortTf(tf) ? 7000 : 9000;
+    fetches.push(getNewSolanaPairsFromWebSocket(wsTimeout).catch(() => [] as DexPair[]));
+  }
+
+  if (needsProfiles) {
+    fetches.push(fetchLatestProfilePairs(chainsToFetch).catch(() => [] as DexPair[]));
+  }
+
+  if (needsSearch) {
+    const searchQueries = isShortTf(tf)
+      ? chain === "bsc"
+        ? ["bsc", "fourmeme", "meme"]
+        : chain === "solana"
+          ? ["solana", "pump"]
+          : ["solana", "pump", "bsc", "robinhood", "hyperevm"]
+      : chain === "bsc"
+        ? ["meme coin", "bsc", "PEPE"]
+        : chain === "solana"
+          ? ["meme coin", "pump", "solana"]
+          : ["meme coin", "pump", "solana", "bsc", "robinhood", "hyperevm", "PEPE"];
+    fetches.push(quickDexSearch(searchQueries, chainsToFetch).catch(() => [] as DexPair[]));
+  }
+
+  const results = await Promise.all(fetches);
+  for (const batch of results) push(batch);
+
+  return filterPairsByChain(all, chain);
 }
 
-export async function runNarrativeScan(timeframe: NarrativeTimeframe): Promise<NarrativeScanResult> {
-  const wantHeadlines = !isShortTf(timeframe); // skip news on ultra-short windows (speed)
+export function parseNarrativeChain(value: unknown): NarrativeChain {
+  const v = String(value ?? "").toLowerCase();
+  if (v === "robinhood" || v === "hyperevm" || v === "solana" || v === "bsc" || v === "all") {
+    return v;
+  }
+  return "robinhood";
+}
+
+export async function runNarrativeScan(
+  timeframe: NarrativeTimeframe,
+  chain: NarrativeChain = "robinhood"
+): Promise<NarrativeScanResult> {
+  const wantHeadlines = !isShortTf(timeframe);
 
   const [pairs, headlines] = await Promise.all([
-    fetchFreshPairs(timeframe),
+    fetchFreshPairs(timeframe, chain),
     wantHeadlines
       ? fetchGoogleNewsHeadlines("crypto meme coin trending", 12).catch(() => [])
       : Promise.resolve([] as { title: string }[]),
   ]);
 
   const filtered = filterPairsForTimeframe(pairs, timeframe);
-  // Never dump stale pairs into a short scan — better empty than dead coins
   const working = filtered.length > 0
     ? filtered
     : (!isShortTf(timeframe)
@@ -247,11 +340,20 @@ export async function runNarrativeScan(timeframe: NarrativeTimeframe): Promise<N
     daily: "last 24 hours",
     weekly: "last 7 days",
   };
+  const chainLabel =
+    chain === "all"
+      ? "all supported chains"
+      : chain === "robinhood"
+        ? "Robinhood Chain"
+        : chain === "hyperevm"
+          ? "HyperEVM"
+          : chain.toUpperCase();
   const timeframeLabel = tfLabels[timeframe];
 
   if (working.length === 0) {
     return {
       timeframe,
+      chain,
       narratives: [],
       scannedAt: new Date().toISOString(),
       pairsScanned: 0,
@@ -261,6 +363,7 @@ export async function runNarrativeScan(timeframe: NarrativeTimeframe): Promise<N
 
   const prompt = `You are a meme coin narrative analyst. Identify LIVE narratives from FRESH launches only.
 
+CHAIN: ${chainLabel}
 TIMEFRAME: ${timeframeLabel}
 IMPORTANT: Prefer coins that are young and still moving. Ignore dead/rugged names. Cluster by theme from token NAMES/SYMBOLS.
 
@@ -324,6 +427,7 @@ Sort by heat desc. No markdown.`;
 
   return {
     timeframe,
+    chain,
     narratives,
     scannedAt: new Date().toISOString(),
     pairsScanned: working.length,

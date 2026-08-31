@@ -9,6 +9,11 @@ import {
   PNL_CALCULATOR_URL,
   shouldUseCustomPnlCalculatorIntro,
 } from "@/lib/pnl-calculator-launch-email";
+import {
+  ROBINHOOD_HYPEREVM_LAUNCH_EMAIL,
+  shouldUseCustomRobinhoodHyperevmIntro,
+} from "@/lib/robinhood-hyperevm-launch-email";
+import { filterSuppressedEmails, getSuppressedEmailSet } from "@/lib/email-suppression";
 import type { FuturesWrapItem } from "@/lib/futures-daily-wrap";
 
 export type AnnouncementAudience = "newsletter" | "all";
@@ -21,7 +26,8 @@ export type AnnouncementEmailTemplate =
   | "nova-branded"
   | "why-traders"
   | "futures-morning-brief"
-  | "pnl-calculator";
+  | "pnl-calculator"
+  | "robinhood-hyperevm";
 
 export const ANNOUNCEMENT_EMAIL_TEMPLATES: AnnouncementEmailTemplate[] = [
   "default",
@@ -32,6 +38,7 @@ export const ANNOUNCEMENT_EMAIL_TEMPLATES: AnnouncementEmailTemplate[] = [
   "why-traders",
   "futures-morning-brief",
   "pnl-calculator",
+  "robinhood-hyperevm",
 ];
 
 export function parseAnnouncementEmailTemplate(value: string | null | undefined): AnnouncementEmailTemplate {
@@ -67,6 +74,9 @@ export type AnnouncementEmailStats = {
   inactive7dCount: number;
   trialCount: number;
   trialExpiringCount: number;
+  /** Persistent do-not-send list (excluded from all audiences). */
+  suppressedEmails: string[];
+  suppressedCount: number;
 };
 
 const APP_ORIGIN = (process.env.NEXT_PUBLIC_APP_URL ?? "https://novastaris.ai").replace(/\/$/, "");
@@ -355,7 +365,7 @@ export function buildWhyTradersEmailHtml(args?: {
         <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 22px 0;border-collapse:collapse;">
           <tr>
             <td style="background:#27272a;border-radius:12px;padding:16px 18px;">
-              <p style="margin:0 0 10px 0;font-size:15px;line-height:1.45;color:#f4f4f5;">Hunt new Solana and BSC pairs as they appear</p>
+              <p style="margin:0 0 10px 0;font-size:15px;line-height:1.45;color:#f4f4f5;">Hunt new pairs on Robinhood, HyperEVM, Solana, and BSC as they appear</p>
               <p style="margin:0 0 10px 0;font-size:15px;line-height:1.45;color:#f4f4f5;">Follow wallets that already moved</p>
               <p style="margin:0 0 10px 0;font-size:15px;line-height:1.45;color:#f4f4f5;">Run AI on a contract — buy zone, take profit &amp; stop loss</p>
               <p style="margin:0 0 10px 0;font-size:15px;line-height:1.45;color:#f4f4f5;">Read crypto futures and forex from one desk</p>
@@ -492,6 +502,65 @@ export function buildPnlCalculatorLaunchEmailHtml(args?: {
         </p>
         <p style="margin:14px 0 0 0;font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.45;color:#ccfbf1;">
           Crypto futures + forex · one professional desk
+        </p>
+      </td>
+    </tr>
+    <tr>
+      ${bodyBlock}
+    </tr>`;
+
+  return pnlCalculatorEmailShell(inner);
+}
+
+/** Rich Robinhood + HyperEVM launch email. */
+export function buildRobinhoodHyperevmLaunchEmailHtml(args?: {
+  body?: string;
+  ctaLabel?: string | null;
+  ctaUrl?: string | null;
+}): string {
+  const customBody = (args?.body ?? "").trim();
+  const ctaLabel = args?.ctaLabel?.trim() || ROBINHOOD_HYPEREVM_LAUNCH_EMAIL.ctaLabel;
+  const ctaUrl = absoluteAnnouncementUrl(args?.ctaUrl?.trim() || ROBINHOOD_HYPEREVM_LAUNCH_EMAIL.ctaUrl);
+  const hyperevmLink = absoluteAnnouncementUrl(`${APP_ORIGIN}/?tab=hyperevm`);
+
+  const bodyBlock = customBody
+    ? `<td bgcolor="#18181b" style="padding:28px 28px 8px 28px;background:#18181b;">
+        ${announcementBodyToHtml(customBody)}
+        <div style="margin:8px 0 8px 0;text-align:center;">${pnlCalculatorCtaButtonHtml(ctaLabel, ctaUrl)}</div>
+      </td>`
+    : `<td bgcolor="#18181b" style="padding:28px 28px 8px 28px;background:#18181b;">
+        <p style="margin:0 0 14px 0;font-size:15px;line-height:1.55;color:#e4e4e7;">Hi there,</p>
+        <p style="margin:0 0 18px 0;font-size:15px;line-height:1.55;color:#e4e4e7;">
+          We&apos;ve added <strong style="color:#fafafa;">Robinhood Chain</strong> and <strong style="color:#fafafa;">HyperEVM</strong> to NovaStaris — hunt early meme momentum where your community already trades.
+        </p>
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 18px 0;border-collapse:collapse;">
+          <tr>
+            <td style="background:#27272a;border:1px solid #16a34a;border-radius:12px;padding:16px 18px;">
+              <p style="margin:0 0 10px 0;font-size:13px;font-weight:700;color:#4ade80;text-transform:uppercase;letter-spacing:0.06em;">What&apos;s included</p>
+              <p style="margin:0 0 8px 0;font-size:15px;line-height:1.45;color:#f4f4f5;">Go Hunting on Robinhood Chain — new pairs, final stretch, migrated</p>
+              <p style="margin:0 0 8px 0;font-size:15px;line-height:1.45;color:#f4f4f5;">Go Hunting on HyperEVM — same desk, Hyperliquid ecosystem</p>
+              <p style="margin:0 0 8px 0;font-size:15px;line-height:1.45;color:#f4f4f5;">Narrative Scanner — pick your chain and scan themes forming now</p>
+              <p style="margin:0;font-size:15px;line-height:1.45;color:#f4f4f5;">AI Agent — paste any contract; Robinhood &amp; HyperEVM auto-detected</p>
+            </td>
+          </tr>
+        </table>
+        ${pnlCalculatorCtaButtonHtml(ctaLabel, ctaUrl)}
+        <p style="margin:16px 0 0 0;font-size:13px;line-height:1.5;color:#a1a1aa;text-align:center;">
+          Also try <a href="${hyperevmLink}" style="color:#4ade80;">HyperEVM Go Hunting</a>
+        </p>
+      </td>`;
+
+  const inner = `
+    <tr>
+      <td align="center" bgcolor="#14532d" style="background:#14532d;background-image:linear-gradient(160deg,#0a0a0b 0%,#18181b 55%,#14532d 140%);padding:36px 28px 32px 28px;">
+        <p style="margin:0 0 10px 0;font-family:Arial,Helvetica,sans-serif;font-size:11px;letter-spacing:0.16em;text-transform:uppercase;color:#4ade80;">
+          NEW · ROBINHOOD &amp; HYPEREVM
+        </p>
+        <p style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:26px;line-height:1.25;font-weight:700;color:#ffffff;letter-spacing:-0.02em;">
+          Hunt memes on two new chains
+        </p>
+        <p style="margin:14px 0 0 0;font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.45;color:#bbf7d0;">
+          Go Hunting · Narratives · AI Agent
         </p>
       </td>
     </tr>
@@ -687,6 +756,14 @@ export function buildAnnouncementEmailHtml(args: {
     });
   }
 
+  if (args.template === "robinhood-hyperevm") {
+    return buildRobinhoodHyperevmLaunchEmailHtml({
+      body: shouldUseCustomRobinhoodHyperevmIntro(args.body) ? args.body : undefined,
+      ctaLabel: args.ctaLabel,
+      ctaUrl: args.ctaUrl,
+    });
+  }
+
   if (args.template === "futures-morning-brief") {
     // Prefer structured body from admin; otherwise treat lines as teaser bullets
     const lines = args.body
@@ -803,7 +880,12 @@ async function fetchUserEmails(): Promise<UserEmailRow[]> {
 }
 
 export async function getAnnouncementEmailStats(): Promise<AnnouncementEmailStats> {
-  const users = await fetchUserEmails();
+  const [users, suppressionRows] = await Promise.all([
+    fetchUserEmails(),
+    getSuppressedEmailSet(),
+  ]);
+  const suppressedEmails = [...suppressionRows].sort();
+  const suppressedCount = suppressedEmails.length;
   const cutoff = Date.now() - 30 * 24 * 60 * 60 * 1000;
   const inactiveCutoff = Date.now() - 7 * 24 * 60 * 60 * 1000;
   const now = new Date();
@@ -969,7 +1051,14 @@ export async function getAnnouncementEmailStats(): Promise<AnnouncementEmailStat
     inactive7dCount: inactive7dEmails.length,
     trialCount: trialEmails.length,
     trialExpiringCount: trialExpiringEmails.length,
+    suppressedEmails,
+    suppressedCount,
   };
+}
+
+export function applyEmailSuppression(emails: string[], suppressed: Set<string> | string[]): string[] {
+  const set = suppressed instanceof Set ? suppressed : new Set(suppressed);
+  return filterSuppressedEmails(emails, set);
 }
 
 export function getRecipientsForAudience(
@@ -1057,7 +1146,8 @@ export async function sendAnnouncementEmails(args: {
         template === "why-traders" ||
         template === "nova-branded" ||
         template === "futures-morning-brief" ||
-        template === "pnl-calculator")
+        template === "pnl-calculator" ||
+        template === "robinhood-hyperevm")
     )
   ) {
     throw new Error("Message body is required.");
@@ -1070,6 +1160,9 @@ export async function sendAnnouncementEmails(args: {
     const stats = await getAnnouncementEmailStats();
     recipients = getRecipientsForAudience(stats, audience);
   }
+
+  const suppressed = await getSuppressedEmailSet();
+  recipients = filterSuppressedEmails(recipients, suppressed);
 
   if (recipients.length === 0) throw new Error("No valid recipient emails.");
 

@@ -731,6 +731,18 @@ model ForexPartnerRebatePayout {
   @@index([userId, status, createdAt(sort: Desc)])
 }
 
+/** Admin do-not-send list — excluded from all announcement email audiences. */
+model EmailSuppression {
+  id              String   @id @default(cuid())
+  email           String   @unique
+  reason          String?  // manual | bounce | complaint | user_opt_out
+  note            String?
+  createdByUserId String?
+  createdAt       DateTime @default(now())
+
+  @@index([email])
+}
+
 /** Log of Admin → Emails announcement blasts (avoid double-sending). */
 model AnnouncementEmailCampaign {
   id              String   @id @default(cuid())

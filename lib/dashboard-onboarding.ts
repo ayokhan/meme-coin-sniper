@@ -28,7 +28,7 @@ export const DASHBOARD_PATH_OPTIONS: Array<{
   {
     id: "meme",
     title: "Meme coin hunter",
-    description: "Go Hunting, Trending, and AI analysis on Solana & BSC.",
+    description: "Go Hunting, Trending, and AI analysis on Robinhood, HyperEVM, Solana & BSC.",
     emoji: "🎯",
   },
   {

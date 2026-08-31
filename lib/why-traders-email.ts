@@ -9,7 +9,7 @@ export const WHY_TRADERS_EMAIL = {
 The best traders don't wait for a signal — they trade where it starts.
 
 On NovaStaris you can:
-• Hunt new Solana and BSC pairs as they appear
+• Hunt new Robinhood, HyperEVM, Solana, and BSC pairs as they appear
 • Follow wallets that already moved
 • Run AI on a contract — buy zone, take profit & stop loss
 • Read crypto futures and forex from one desk

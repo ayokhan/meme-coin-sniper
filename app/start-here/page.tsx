@@ -8,7 +8,7 @@ import SiteInstagramFooter from "@/components/SiteInstagramFooter";
 const PATHS = [
   {
     title: "Meme coin hunter",
-    blurb: "Find early Solana & BSC momentum, then run AI contract analysis.",
+    blurb: "Find early Robinhood, HyperEVM, Solana & BSC momentum, then run AI contract analysis.",
     href: "/?tab=new",
     cta: "Open Go Hunting",
     steps: ["Go Hunting / Trending / Surge", "Transactions & Watchlist", "AI Agent for contract analysis"],
