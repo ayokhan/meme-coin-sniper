@@ -39,6 +39,14 @@ const CHAIN_BASE_QUERIES: Record<string, string[]> = {
     'ETH', 'USDC', 'PEPE', 'SHIB', 'MEME', 'DOGE', 'FLOKI', 'TURBO',
     'ethereum', 'uniswap', 'meme coin', 'new token', 'eth meme',
   ],
+  robinhood: [
+    'ETH', 'HOOD', 'ROBINHOOD', 'MEME', 'DOGE', 'SHIB', 'PEPE',
+    'robinhood', 'uniswap', 'meme coin', 'new token', 'robinhood chain',
+  ],
+  hyperevm: [
+    'HYPE', 'WHYPE', 'MEME', 'PEPE', 'DOGE', 'SHIB',
+    'hyperevm', 'hyperswap', 'meme coin', 'new token', 'hyperliquid',
+  ],
 };
 
 function chainMatches(pair: DexPair, dexChainKey: string): boolean {
@@ -49,7 +57,7 @@ function chainMatches(pair: DexPair, dexChainKey: string): boolean {
 
 /** Fetch pairs for a chain via DexScreener search. */
 export async function fetchChainPairsViaSearch(
-  dexChainKey: 'solana' | 'bsc' | 'ethereum',
+  dexChainKey: MemeRunnerChainDexKey,
   extraQueries: string[] = []
 ): Promise<DexPair[]> {
   const queries = [...(CHAIN_BASE_QUERIES[dexChainKey] ?? []), ...extraQueries];
@@ -84,7 +92,7 @@ function normalizeDexIdForFilter(dexId: string): string {
 }
 
 /** Pairs for Meme Runner with launchpad-specific search + dex allowlist. */
-export type MemeRunnerChainDexKey = 'solana' | 'bsc' | 'ethereum';
+export type MemeRunnerChainDexKey = 'solana' | 'bsc' | 'ethereum' | 'robinhood' | 'hyperevm';
 
 export type MemeRunnerDexFetchOptions = {
   chain: MemeRunnerChainDexKey;
@@ -397,10 +405,14 @@ function normalizeEvmAddress(input: string): string {
 }
 
 const ETH_CHAIN_IDS = ["ethereum", "eth"];
+const ROBINHOOD_CHAIN_IDS = ["robinhood"];
+const HYPEREVM_CHAIN_IDS = ["hyperevm"];
+
+export type EvmDexChainKey = "bsc" | "ethereum" | "robinhood" | "hyperevm";
 
 async function getEvmTokenOnChain(
   contractAddress: string,
-  dexChain: "bsc" | "ethereum",
+  dexChain: EvmDexChainKey,
   chainIds: string[]
 ): Promise<DexPair | null> {
   const addrNorm = normalizeEvmAddress(contractAddress);
@@ -444,6 +456,14 @@ export async function getBscToken(contractAddress: string): Promise<DexPair | nu
 
 export async function getEthToken(contractAddress: string): Promise<DexPair | null> {
   return getEvmTokenOnChain(contractAddress, "ethereum", ETH_CHAIN_IDS);
+}
+
+export async function getRobinhoodToken(contractAddress: string): Promise<DexPair | null> {
+  return getEvmTokenOnChain(contractAddress, "robinhood", ROBINHOOD_CHAIN_IDS);
+}
+
+export async function getHyperEvmToken(contractAddress: string): Promise<DexPair | null> {
+  return getEvmTokenOnChain(contractAddress, "hyperevm", HYPEREVM_CHAIN_IDS);
 }
 
 /** Search DexScreener for a token address across chains (for auto-detect). */

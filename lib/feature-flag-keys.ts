@@ -44,6 +44,8 @@ export const FEATURE_FLAG_KEYS = {
   PAGE_TAB_MEME_INTELLIGENCE: 'page_tab_meme_intelligence',
   PAGE_TAB_NOVA_INVESTMENT_AGENT: 'page_tab_nova_investment_agent',
   PAGE_TAB_BSC: 'page_tab_bsc',
+  PAGE_TAB_ROBINHOOD: 'page_tab_robinhood',
+  PAGE_TAB_HYPEREVM: 'page_tab_hyperevm',
   PAGE_TAB_WATCHLIST: 'page_tab_watchlist',
   PAGE_TAB_NOVA_CONNECT: 'page_tab_nova_connect',
   PAGE_TAB_CHRIS_CLAYTON: 'page_tab_chris_clayton',

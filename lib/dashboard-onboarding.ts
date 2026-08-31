@@ -199,6 +199,8 @@ export const URL_TAB_IDS = new Set([
   "nova-plus",
   "nova-investment",
   "bsc",
+  "robinhood",
+  "hyperevm",
   "watchlist",
   "nova-futures-narratives",
   "nova-eagle",

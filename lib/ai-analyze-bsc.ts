@@ -1,6 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { CLAUDE_SONNET_MODEL } from '@/lib/anthropic-models';
-import { getBscToken, getEthToken, extractSocials } from '@/lib/api-clients/dexscreener';
+import { getBscToken, getEthToken, getHyperEvmToken, getRobinhoodToken, extractSocials } from '@/lib/api-clients/dexscreener';
 import {
   checkBscTokenSecurity,
   checkEthTokenSecurity,
@@ -52,24 +52,45 @@ export type AnalysisResult = {
   };
 };
 
+export type EvmAnalysisChain = 'bsc' | 'ethereum' | 'robinhood' | 'hyperevm';
+
+const EVM_CHAIN_LABELS: Record<EvmAnalysisChain, string> = {
+  bsc: 'BSC (Binance Smart Chain)',
+  ethereum: 'Ethereum',
+  robinhood: 'Robinhood Chain',
+  hyperevm: 'HyperEVM',
+};
+
+async function getDexDataForChain(chain: EvmAnalysisChain, contractAddress: string) {
+  if (chain === 'ethereum') return getEthToken(contractAddress);
+  if (chain === 'robinhood') return getRobinhoodToken(contractAddress);
+  if (chain === 'hyperevm') return getHyperEvmToken(contractAddress);
+  return getBscToken(contractAddress);
+}
+
 export async function runAiAnalysisEvm(
   contractAddress: string,
-  chain: 'bsc' | 'ethereum' = 'bsc',
+  chain: EvmAnalysisChain = 'bsc',
   options?: { amountUsd?: number }
 ): Promise<AnalysisResult> {
   if (!process.env.ANTHROPIC_API_KEY) {
     throw new Error('NovaStaris AI Agent is not configured.');
   }
 
-  const chainLabel = chain === 'ethereum' ? 'Ethereum' : 'BSC (Binance Smart Chain)';
+  const chainLabel = EVM_CHAIN_LABELS[chain];
+  const hasGoPlus = chain === 'bsc' || chain === 'ethereum';
   const [dexData, securityData] = await Promise.all([
-    chain === 'ethereum' ? getEthToken(contractAddress) : getBscToken(contractAddress),
-    chain === 'ethereum' ? checkEthTokenSecurity(contractAddress) : checkBscTokenSecurity(contractAddress),
+    getDexDataForChain(chain, contractAddress),
+    hasGoPlus
+      ? chain === 'ethereum'
+        ? checkEthTokenSecurity(contractAddress)
+        : checkBscTokenSecurity(contractAddress)
+      : Promise.resolve(null),
   ]);
 
   if (!dexData) {
     throw new Error(
-      `Token not found on DexScreener (${chain === 'ethereum' ? 'Ethereum' : 'BSC'}). Use the token contract address (0x + 40 hex). If you copied the DexScreener URL, try the token address shown under the token name on the page, or check for typos.`
+      `Token not found on DexScreener (${chainLabel}). Use the token contract address (0x + 40 hex). If you copied the DexScreener URL, try the token address shown under the token name on the page, or check for typos.`
     );
   }
 

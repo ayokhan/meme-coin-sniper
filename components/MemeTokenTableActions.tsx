@@ -41,7 +41,7 @@ export const memeTableExtLinkQuietClass =
 
 type Props = {
   contractAddress: string;
-  chain?: "solana" | "bsc";
+  chain?: "solana" | "bsc" | "robinhood" | "hyperevm";
   /**
    * default — Analyze + Copy ID (colored)
    * quiet — Analyze only (Copy/Share/ext live in More menu on Go Hunting)

@@ -186,6 +186,8 @@ export const en = {
     "nova-store": "Nova Store",
     "realtor-os": "Realtor OS",
     bsc: "BSC",
+    robinhood: "Robinhood",
+    hyperevm: "HyperEVM",
     watchlist: "Watchlist",
     "chris-clayton": "Online Boss Strategy",
   },

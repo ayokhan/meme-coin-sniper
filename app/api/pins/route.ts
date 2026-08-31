@@ -14,7 +14,7 @@ function isValidBscAddress(address: string): boolean {
 
 function validateAddressByChain(contractAddress: string, chain: string): { ok: boolean; error?: string } {
   const addr = contractAddress.trim();
-  if (chain === 'bsc' || chain === 'ethereum') {
+  if (chain === 'bsc' || chain === 'ethereum' || chain === 'robinhood' || chain === 'hyperevm') {
     if (!isValidBscAddress(addr)) return { ok: false, error: 'Invalid EVM address. Use 0x followed by 40 hex characters.' };
   } else {
     if (!isValidSolanaAddress(addr)) return { ok: false, error: 'Invalid Solana address.' };
@@ -66,7 +66,15 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: false, error: 'Missing contractAddress.' }, { status: 400 });
     }
     const chain =
-      body.chain === 'bsc' ? 'bsc' : body.chain === 'ethereum' ? 'ethereum' : 'solana';
+      body.chain === 'bsc'
+        ? 'bsc'
+        : body.chain === 'ethereum'
+          ? 'ethereum'
+          : body.chain === 'robinhood'
+            ? 'robinhood'
+            : body.chain === 'hyperevm'
+              ? 'hyperevm'
+              : 'solana';
     const validation = validateAddressByChain(contractAddress, chain);
     if (!validation.ok) {
       return NextResponse.json({ success: false, error: validation.error }, { status: 400 });

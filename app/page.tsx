@@ -261,6 +261,8 @@ type TabId =
   | "nova-plus"
   | "nova-investment"
   | "bsc"
+  | "robinhood"
+  | "hyperevm"
   | "watchlist"
   | "nova-futures-narratives"
   | "nova-eagle"
@@ -272,6 +274,20 @@ type TabId =
   | "nova-job-agent"
   | "realtor-os"
   | "nova-store";
+type MemeDeskEvmTab = "bsc" | "robinhood" | "hyperevm";
+const MEME_DESK_EVM_TABS = new Set<TabId>(["bsc", "robinhood", "hyperevm"]);
+function isMemeDeskEvmTab(tab: TabId): tab is MemeDeskEvmTab {
+  return MEME_DESK_EVM_TABS.has(tab);
+}
+const EVM_AGENT_FORCE_MODES: MemeAgentChainMode[] = ["bsc", "ethereum", "robinhood", "hyperevm"];
+function isEvmForceMode(mode: MemeAgentChainMode): boolean {
+  return EVM_AGENT_FORCE_MODES.includes(mode);
+}
+const EVM_DESK_API: Record<MemeDeskEvmTab, string> = {
+  bsc: "/api/new-pairs-bsc",
+  robinhood: "/api/new-pairs-robinhood",
+  hyperevm: "/api/new-pairs-hyperevm",
+};
 type TopTabFilter = "all" | "core" | "pro" | "vip" | "bots";
 const PAID_TABS: TabId[] = ["surge", "transactions", "futures", "trending-perps", "perp-radar", "narratives", "ct", "wallets", "coach-calls", "nova-forecast", "nova-pulse", "nova-forex", "nova-forex-bot", "nova-plus", "nova-connect"];
 /** Platform: surge, transactions, ai-analysis, futures. VIP-only: ct, wallets, coach-calls, nova-forecast. BSC + Watchlist are free for all. */
@@ -308,6 +324,8 @@ const TAB_ID_TO_PAGE_FLAG_KEY: Record<TabId, string> = {
   "nova-plus": "page_tab_nova_plus",
   "nova-investment": "page_tab_nova_investment_agent",
   bsc: "page_tab_bsc",
+  robinhood: "page_tab_robinhood",
+  hyperevm: "page_tab_hyperevm",
   watchlist: "page_tab_watchlist",
   "nova-futures-narratives": "page_tab_futures",
   "nova-eagle": "page_tab_futures",
@@ -346,6 +364,8 @@ const TAB_VISIBILITY_ORDER: TabId[] = [
   "nova-plus",
   "nova-investment",
   "bsc",
+  "robinhood",
+  "hyperevm",
   "watchlist",
   "nova-futures-narratives",
   "nova-eagle",
@@ -359,7 +379,7 @@ const TAB_VISIBILITY_ORDER: TabId[] = [
   "nova-store",
 ];
 const WATCHLIST_STORAGE_KEY = "novastaris_watchlist";
-type WatchlistItem = { contractAddress: string; chain?: "solana" | "bsc"; symbol?: string; name?: string };
+type WatchlistItem = { contractAddress: string; chain?: "solana" | "bsc" | "robinhood" | "hyperevm"; symbol?: string; name?: string };
 
 function NovaConnectFeedAuthorAvatar({
   messageId,
@@ -635,7 +655,7 @@ function Dashboard() {
 
   const matchesTopTabFilter = (tab: TabId) => {
     if (topTabFilter === "all") return true;
-    const coreTabs: TabId[] = ["new", "trending", "daily-wrap", "bsc", "watchlist", "nova-connect", "trading-university", "nova-store", "pnl-calculator"];
+    const coreTabs: TabId[] = ["new", "trending", "daily-wrap", "bsc", "robinhood", "hyperevm", "watchlist", "nova-connect", "trading-university", "nova-store", "pnl-calculator"];
     const proTabs: TabId[] = ["surge", "transactions", "ai-analysis", "futures", "trending-perps", "perp-radar", "narratives"];
     const vipTabs: TabId[] = ["ct", "wallets", "coach-calls", "nova-forecast", "nova-pulse", "nova-forex", "nova-plus", "nova-investment", "nova-futures-narratives", "nova-eagle", "crypto-buddie", "meme-intelligence", "chris-clayton", "nova-job-agent"];
     const botTabs: TabId[] = ["trading-bot", "polymarket-bot", "prop-firm-bot", "nova-forex-bot", "nova-ultimate"];
@@ -846,6 +866,8 @@ function Dashboard() {
   const [memeSortDir, setMemeSortDir] = useState<MemeTableSortDir>("desc");
   type BscGoHuntingView = "new_pairs" | "final_stretch" | "migrated" | "trending";
   const [bscGoHuntingView, setBscGoHuntingView] = useState<BscGoHuntingView>("new_pairs");
+  const [robinhoodGoHuntingView, setRobinhoodGoHuntingView] = useState<GoHuntingView>("new_pairs");
+  const [hyperevmGoHuntingView, setHyperevmGoHuntingView] = useState<GoHuntingView>("new_pairs");
   const [aiAnalysisChain, setAiAnalysisChain] = useState<MemeAgentChainMode>("auto");
   const [aiAnalysisResolvedChain, setAiAnalysisResolvedChain] = useState<MemeAgentChain | null>(null);
   type AiAgentSubTab = "meme" | "chart";
@@ -946,7 +968,7 @@ function Dashboard() {
       localStorage.setItem(WATCHLIST_STORAGE_KEY, JSON.stringify(next));
     } catch {}
   };
-  const toggleWatchlist = (t: Token, chain: "solana" | "bsc") => {
+  const toggleWatchlist = (t: Token, chain: "solana" | "bsc" | "robinhood" | "hyperevm") => {
     const key = `${t.contractAddress}:${chain}`;
     const inList = watchlist.some((w) => `${w.contractAddress}:${w.chain ?? "solana"}` === key);
     if (inList) {
@@ -955,7 +977,7 @@ function Dashboard() {
       persistWatchlist([...watchlist, { contractAddress: t.contractAddress, chain, symbol: t.symbol, name: t.name ?? undefined }]);
     }
   };
-  const isInWatchlist = (contractAddress: string, chain: "solana" | "bsc") =>
+  const isInWatchlist = (contractAddress: string, chain: "solana" | "bsc" | "robinhood" | "hyperevm") =>
     watchlist.some((w) => w.contractAddress === contractAddress && (w.chain ?? "solana") === chain);
   const dismissOnboarding = () => {
     setOnboardingDismissed(true);
@@ -1841,6 +1863,14 @@ function Dashboard() {
     if (bsc === "new_pairs" || bsc === "final_stretch" || bsc === "migrated" || bsc === "trending") {
       setBscGoHuntingView(bsc);
     }
+    const rh = params.get("robinhood");
+    if (rh === "new_pairs" || rh === "final_stretch" || rh === "migrated") {
+      setRobinhoodGoHuntingView(rh);
+    }
+    const hevm = params.get("hyperevm");
+    if (hevm === "new_pairs" || hevm === "final_stretch" || hevm === "migrated") {
+      setHyperevmGoHuntingView(hevm);
+    }
     const wallet = params.get("wallet");
     if (
       wallet === "meme" ||
@@ -2110,6 +2140,8 @@ function Dashboard() {
     params.set("tab", activeTab);
     if (activeTab === "new") params.set("goHunting", goHuntingView);
     if (activeTab === "bsc") params.set("bsc", bscGoHuntingView);
+    if (activeTab === "robinhood") params.set("robinhood", robinhoodGoHuntingView);
+    if (activeTab === "hyperevm") params.set("hyperevm", hyperevmGoHuntingView);
     if (activeTab === "wallets") params.set("wallet", walletTrackerView);
     if (activeTab === "futures") params.set("futures", futuresView);
     if (activeTab === "ai-analysis") params.set("agent", aiAgentSubTab);
@@ -2123,6 +2155,8 @@ function Dashboard() {
     activeTab,
     goHuntingView,
     bscGoHuntingView,
+    robinhoodGoHuntingView,
+    hyperevmGoHuntingView,
     walletTrackerView,
     futuresView,
     aiAgentSubTab,
@@ -2140,6 +2174,8 @@ function Dashboard() {
     params.set("tab", activeTab);
     if (activeTab === "new") params.set("goHunting", goHuntingView);
     if (activeTab === "bsc") params.set("bsc", bscGoHuntingView);
+    if (activeTab === "robinhood") params.set("robinhood", robinhoodGoHuntingView);
+    if (activeTab === "hyperevm") params.set("hyperevm", hyperevmGoHuntingView);
     if (activeTab === "wallets") params.set("wallet", walletTrackerView);
     if (activeTab === "futures") params.set("futures", futuresView);
     if (activeTab === "ai-analysis") params.set("agent", aiAgentSubTab);
@@ -2157,6 +2193,8 @@ function Dashboard() {
     activeTab,
     goHuntingView,
     bscGoHuntingView,
+    robinhoodGoHuntingView,
+    hyperevmGoHuntingView,
     walletTrackerView,
     futuresView,
     aiAgentSubTab,
@@ -2239,8 +2277,16 @@ function Dashboard() {
       setActiveTab("ai-analysis");
       setAiAgentSubTab("meme");
       setAiAnalysisCa(ca);
-      setAiAnalysisChain(chain === "bsc" || chain === "ethereum" || chain === "solana" ? chain : "auto");
-      setAiAnalysisResolvedChain(chain === "bsc" || chain === "ethereum" || chain === "solana" ? chain : null);
+      setAiAnalysisChain(
+        chain === "bsc" || chain === "ethereum" || chain === "robinhood" || chain === "hyperevm" || chain === "solana"
+          ? chain
+          : "auto"
+      );
+      setAiAnalysisResolvedChain(
+        chain === "bsc" || chain === "ethereum" || chain === "robinhood" || chain === "hyperevm" || chain === "solana"
+          ? chain
+          : null
+      );
       setAiAnalysisResult(null);
       setAiAnalysisError(null);
       window.scrollTo({ top: 0, behavior: "smooth" });
@@ -2419,6 +2465,25 @@ function Dashboard() {
           setLastFetched(new Date());
         } else {
           setError(data.error ?? "Failed to load BSC tokens");
+        }
+        if (showLoading) setLoading(false);
+        return;
+      }
+      if (tab === "robinhood" || tab === "hyperevm") {
+        const view = tab === "robinhood" ? robinhoodGoHuntingView : hyperevmGoHuntingView;
+        const url = `${EVM_DESK_API[tab]}?view=${view}&maxAgeMinutes=120&limit=150`;
+        const res = await fetch(url, marketFetchInit);
+        const data = await res.json();
+        if (res.status === 429 && data.limitReached) {
+          setError(data.error || "Go Hunting refresh limit reached. Upgrade to VIP for unlimited refresh.");
+          if (showLoading) setLoading(false);
+          return;
+        }
+        if (data.success) {
+          setTokens(data.tokens ?? []);
+          setLastFetched(new Date());
+        } else {
+          setError(data.error ?? `Failed to load ${tab === "robinhood" ? "Robinhood" : "HyperEVM"} tokens`);
         }
         if (showLoading) setLoading(false);
         return;
@@ -2697,7 +2762,7 @@ function Dashboard() {
     if (activeTab === "wallets") {
       if (walletTrackerView === "meme") fetchTrackedWallets();
     }
-  }, [activeTab, isPaid, isVip, goHuntingView, bscGoHuntingView, walletTrackerView, canAccessCtScanEffective, canAccessMemeCoinsTraderEffective]);
+  }, [activeTab, isPaid, isVip, goHuntingView, bscGoHuntingView, robinhoodGoHuntingView, hyperevmGoHuntingView, walletTrackerView, canAccessCtScanEffective, canAccessMemeCoinsTraderEffective]);
 
   useEffect(() => {
     if (activeTab === "surge") fetchTokens("surge");
@@ -3496,7 +3561,7 @@ function Dashboard() {
 
     const isMarketRefreshTab =
       activeTab === "new" ||
-      activeTab === "bsc" ||
+      isMemeDeskEvmTab(activeTab) ||
       activeTab === "trending" ||
       activeTab === "surge" ||
       activeTab === "transactions";
@@ -3904,7 +3969,7 @@ function Dashboard() {
         const tb = (b.txnsBuys24h ?? 0) + (b.txnsSells24h ?? 0);
         return tb - ta;
       });
-    } else if (activeTab === "new" || activeTab === "trending" || activeTab === "bsc" || activeTab === "surge") {
+    } else if (activeTab === "new" || activeTab === "trending" || isMemeDeskEvmTab(activeTab) || activeTab === "surge") {
       base = sortMemeTokens(tokens, memeSortKey, memeSortDir);
     }
     const seen = new Set<string>();
@@ -4150,6 +4215,14 @@ function Dashboard() {
     t.pairAddress
       ? `https://dexscreener.com/bsc/${t.pairAddress}`
       : `https://dexscreener.com/bsc/${t.contractAddress}`;
+  const dexUrlEvmDesk = (t: Token, chain: MemeDeskEvmTab) =>
+    t.pairAddress
+      ? `https://dexscreener.com/${chain}/${t.pairAddress}`
+      : dexscreenerTokenUrl(t.contractAddress, chain);
+  const memeDeskWatchlistChain = (tab: TabId): "solana" | "bsc" | "robinhood" | "hyperevm" =>
+    tab === "bsc" ? "bsc" : tab === "robinhood" ? "robinhood" : tab === "hyperevm" ? "hyperevm" : "solana";
+  const isMemeTableTab = (tab: TabId) =>
+    tab === "new" || tab === "trending" || isMemeDeskEvmTab(tab) || tab === "surge";
   const bscScanUrl = (t: Token) => `https://bscscan.com/token/${t.contractAddress}`;
   const pumpFunUrl = (t: Token) => `https://pump.fun/coin/${t.contractAddress}`;
   const gmgnUrl = (t: Token) => `https://gmgn.ai/sol/token/${encodeURIComponent(t.contractAddress)}`;
@@ -4814,7 +4887,7 @@ function Dashboard() {
                   </TabsTrigger>
                 )}
               </TabsList>
-              {(showTopTab("bsc") || showTopTab("watchlist") || showTopTab("chris-clayton") || showTopTab("trading-university") || showTopTab("nova-job-agent") || showTopTab("nova-store") || showTopTab("realtor-os")) && (
+              {(showTopTab("bsc") || showTopTab("robinhood") || showTopTab("hyperevm") || showTopTab("watchlist") || showTopTab("chris-clayton") || showTopTab("trading-university") || showTopTab("nova-job-agent") || showTopTab("nova-store") || showTopTab("realtor-os")) && (
                 <div className="w-full shrink-0 border-t border-zinc-200/80 dark:border-zinc-700/80 pt-3">
                   <p className="mb-2 px-1 text-[11px] font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
                     {t("more")}
@@ -4844,6 +4917,12 @@ function Dashboard() {
                     )}
                     {showTopTab("bsc") && (
                       <TabsTrigger value="bsc" className={DASHBOARD_TOP_TAB_TRIGGER_CLASS}>{t("tabs.bsc")}</TabsTrigger>
+                    )}
+                    {showTopTab("robinhood") && (
+                      <TabsTrigger value="robinhood" className={DASHBOARD_TOP_TAB_TRIGGER_CLASS}>{t("tabs.robinhood")}</TabsTrigger>
+                    )}
+                    {showTopTab("hyperevm") && (
+                      <TabsTrigger value="hyperevm" className={DASHBOARD_TOP_TAB_TRIGGER_CLASS}>{t("tabs.hyperevm")}</TabsTrigger>
                     )}
                     {showTopTab("watchlist") && (
                       <TabsTrigger value="watchlist" className={`${DASHBOARD_TOP_TAB_TRIGGER_CLASS} gap-1.5`}>
@@ -5147,11 +5226,63 @@ function Dashboard() {
                 </span>
               </div>
             )}
+            {activeTab === "robinhood" && (
+              <div className="mx-3 sm:mx-6 mb-4 sm:mb-5 rounded-lg border border-zinc-200/80 dark:border-zinc-700/80 bg-zinc-50/80 dark:bg-zinc-800/50 p-3">
+                <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                  <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">{t("common.view")}</span>
+                  <div className="flex flex-wrap items-center gap-2">
+                    {(["new_pairs", "final_stretch", "migrated"] as const).map((v) => (
+                      <button
+                        key={v}
+                        type="button"
+                        onClick={() => setRobinhoodGoHuntingView(v)}
+                        className={`px-3 py-1.5 min-h-[36px] rounded-md text-sm font-medium transition-colors ${
+                          robinhoodGoHuntingView === v
+                            ? "bg-cyan-500 text-white dark:bg-cyan-600"
+                            : "bg-zinc-200/80 dark:bg-zinc-700/80 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-300/80 dark:hover:bg-zinc-600/80"
+                        }`}
+                      >
+                        {v === "new_pairs" ? t("ui.newPairs") : v === "final_stretch" ? t("ui.finalStretch") : t("ui.migrated")}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <span className="mt-2 block text-xs text-muted-foreground">
+                  Robinhood Chain meme coins on Uniswap. Hunt early momentum, then run AI analysis on any pick.
+                </span>
+              </div>
+            )}
+            {activeTab === "hyperevm" && (
+              <div className="mx-3 sm:mx-6 mb-4 sm:mb-5 rounded-lg border border-zinc-200/80 dark:border-zinc-700/80 bg-zinc-50/80 dark:bg-zinc-800/50 p-3">
+                <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                  <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">{t("common.view")}</span>
+                  <div className="flex flex-wrap items-center gap-2">
+                    {(["new_pairs", "final_stretch", "migrated"] as const).map((v) => (
+                      <button
+                        key={v}
+                        type="button"
+                        onClick={() => setHyperevmGoHuntingView(v)}
+                        className={`px-3 py-1.5 min-h-[36px] rounded-md text-sm font-medium transition-colors ${
+                          hyperevmGoHuntingView === v
+                            ? "bg-cyan-500 text-white dark:bg-cyan-600"
+                            : "bg-zinc-200/80 dark:bg-zinc-700/80 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-300/80 dark:hover:bg-zinc-600/80"
+                        }`}
+                      >
+                        {v === "new_pairs" ? t("ui.newPairs") : v === "final_stretch" ? t("ui.finalStretch") : t("ui.migrated")}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <span className="mt-2 block text-xs text-muted-foreground">
+                  HyperEVM meme coins on HyperSwap and other DEXs. Hunt early momentum, then run AI analysis on any pick.
+                </span>
+              </div>
+            )}
             {(activeTab === "new" ||
               activeTab === "trending" ||
               activeTab === "surge" ||
               activeTab === "transactions" ||
-              activeTab === "bsc") &&
+              isMemeDeskEvmTab(activeTab)) &&
               !memeQuotaExhausted && (
                 <MemeTableAnalyzeHint
                   tier={isGuest ? "guest" : isVip ? "vip" : "free"}
@@ -5269,13 +5400,13 @@ function Dashboard() {
                       <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-emerald-300/60 dark:border-emerald-700/60 bg-emerald-50/90 dark:bg-emerald-950/40 px-3 py-1.5 text-sm">
                         <span className="font-semibold text-emerald-700 dark:text-emerald-300">VIP</span>
                         <span className="text-emerald-800/90 dark:text-emerald-200/90">
-                          Unlimited {aiAgentSubTab === "meme" ? "Meme Coins Agent (Solana, BSC, ETH)" : "Chart Analysis"} uses.
+                          Unlimited {aiAgentSubTab === "meme" ? "Meme Coins Agent (Solana, BSC, ETH, Robinhood, HyperEVM)" : "Chart Analysis"} uses.
                         </span>
                       </div>
                     );
                   }
                   const featureLabel =
-                    aiAgentSubTab === "meme" ? "Meme Coins Agent (Solana, BSC, ETH)" : "Chart Analysis";
+                    aiAgentSubTab === "meme" ? "Meme Coins Agent (Solana, BSC, ETH, Robinhood, HyperEVM)" : "Chart Analysis";
                   const windowLabel = (w: "daily" | "weekly" | "monthly") =>
                     w === "daily" ? "Daily" : w === "weekly" ? "Weekly" : "Monthly";
                   const resetHint = (w: "daily" | "weekly" | "monthly") =>
@@ -5323,7 +5454,7 @@ function Dashboard() {
                   }
                   return (
                     <p className="mb-4 text-sm text-muted-foreground">
-                      Free plan: {usageParts.join(" · ")} — Solana, BSC, and ETH share the same limits.{" "}
+                      Free plan: {usageParts.join(" · ")} — all supported chains share the same limits.{" "}
                       <Link href="/subscribe" className="text-cyan-600 dark:text-cyan-400 hover:underline">{t("nav.upgradeVip")}</Link> for unlimited.
                     </p>
                   );
@@ -5348,7 +5479,7 @@ function Dashboard() {
                       setAiAnalysisCa(v);
                       const fmt = detectMemeContractFormat(v);
                       if (
-                        (fmt === "solana" && (aiAnalysisChain === "bsc" || aiAnalysisChain === "ethereum")) ||
+                        (fmt === "solana" && isEvmForceMode(aiAnalysisChain)) ||
                         (fmt === "evm" && aiAnalysisChain === "solana")
                       ) {
                         setAiAnalysisChain("auto");
@@ -5408,7 +5539,7 @@ function Dashboard() {
                   </details>
                 )}
                 <p className="text-sm text-muted-foreground mb-3">
-                  Paste any Solana mint or EVM 0x contract. We detect the chain from the address and the live DexScreener pool (BSC first, then ETH). Robinhood, Base, and other EVMs are not analyzed yet. Optional amount helps size risk vs liquidity.
+                  Paste any Solana mint or EVM 0x contract. We detect the chain from the live DexScreener pool (Robinhood & HyperEVM first, then BSC, then ETH). Optional amount helps size risk vs liquidity.
                 </p>
                 <div className="flex flex-wrap gap-2 items-end">
                   <div className="flex-1 min-w-[200px]">
@@ -5416,7 +5547,7 @@ function Dashboard() {
                     <input
                       id="ai-ca"
                       type="text"
-                      placeholder="Solana mint or 0x contract (BSC / ETH)"
+                      placeholder="Solana mint or 0x contract"
                       value={aiAnalysisCa}
                       onChange={(e) => {
                         const v = e.target.value;
@@ -5424,7 +5555,7 @@ function Dashboard() {
                         setAiAnalysisError(null);
                         const fmt = detectMemeContractFormat(v);
                         if (
-                          (fmt === "solana" && (aiAnalysisChain === "bsc" || aiAnalysisChain === "ethereum")) ||
+                          (fmt === "solana" && isEvmForceMode(aiAnalysisChain)) ||
                           (fmt === "evm" && aiAnalysisChain === "solana")
                         ) {
                           setAiAnalysisChain("auto");
@@ -5473,9 +5604,9 @@ function Dashboard() {
                     fmt === "solana"
                       ? "Detected: Solana mint"
                       : fmt === "evm"
-                        ? aiAnalysisResolvedChain === "bsc" || aiAnalysisResolvedChain === "ethereum"
+                        ? aiAnalysisResolvedChain && aiAnalysisResolvedChain !== "solana"
                           ? `Detected: EVM · analyzed as ${memeAgentChainLabel(aiAnalysisResolvedChain)}`
-                          : "Detected: EVM — we'll use the live BSC or ETH pool"
+                          : "Detected: EVM — we'll use the live pool on Robinhood, HyperEVM, BSC, or ETH"
                         : aiAnalysisCa.trim()
                           ? "Paste a Solana mint or 0x contract"
                           : null;
@@ -5488,6 +5619,8 @@ function Dashboard() {
                       {modeBtn("auto", "Auto")}
                       {fmt !== "solana" && (
                         <>
+                          {modeBtn("robinhood", "Force Robinhood")}
+                          {modeBtn("hyperevm", "Force HyperEVM")}
                           {modeBtn("bsc", "Force BSC")}
                           {modeBtn("ethereum", "Force ETH")}
                         </>
@@ -9791,12 +9924,16 @@ function Dashboard() {
               ) : (
               <div className="flex flex-col items-center justify-center py-16 text-muted-foreground text-sm text-center px-6">
                 <p className="font-semibold text-zinc-700 dark:text-zinc-300">
-                  {activeTab === "bsc" ? "No BSC tokens in this view." : activeTab === "ct" ? "No CT tokens yet." : activeTab === "surge" ? "No surge tokens right now." : activeTab === "transactions" ? "No transaction data yet." : activeTab === "trending" ? "No trending tokens right now." : "No tokens yet."}
+                  {activeTab === "bsc" ? "No BSC tokens in this view." : activeTab === "robinhood" ? "No Robinhood Chain tokens in this view." : activeTab === "hyperevm" ? "No HyperEVM tokens in this view." : activeTab === "ct" ? "No CT tokens yet." : activeTab === "surge" ? "No surge tokens right now." : activeTab === "transactions" ? "No transaction data yet." : activeTab === "trending" ? "No trending tokens right now." : "No tokens yet."}
                 </p>
                 <p className="mt-2">
                   {activeTab === "bsc"
                     ? "BSC Go Hunting: new pairs, final stretch, migrated, or trending. Try another view or refresh."
-                    : activeTab === "ct"
+                    : activeTab === "robinhood"
+                      ? "Robinhood Chain Go Hunting: new pairs, final stretch, or migrated. Try another view or refresh."
+                      : activeTab === "hyperevm"
+                        ? "HyperEVM Go Hunting: new pairs, final stretch, or migrated. Try another view or refresh."
+                        : activeTab === "ct"
                     ? "Run \"Scan Twitter\" to find coins mentioned by 3+ tracked KOLs."
                     : activeTab === "surge"
                       ? `Surge shows coins with high volume in the selected window (${surgeWindow}). 5m/15m/30m estimated from 1h. Live from DexScreener, up to 80 coins.`
@@ -9809,7 +9946,11 @@ function Dashboard() {
                 <p className="mt-4 text-xs max-w-md text-zinc-500 dark:text-zinc-400">
                   {activeTab === "bsc"
                     ? "BSC meme coins on PancakeSwap and other DEXs. Auto-refreshes every 60s."
-                    : activeTab === "surge"
+                    : activeTab === "robinhood"
+                      ? "Robinhood Chain meme coins on Uniswap. Auto-refreshes on your plan interval."
+                      : activeTab === "hyperevm"
+                        ? "HyperEVM meme coins on HyperSwap and other DEXs. Auto-refreshes on your plan interval."
+                        : activeTab === "surge"
                     ? `Surge: volume in last ${surgeWindow}. List auto-refreshes every 60s.`
                     : activeTab === "transactions"
                       ? "Sorted by total transactions (buys + sells) descending."
@@ -9915,10 +10056,10 @@ function Dashboard() {
                     {renderMemeSortHead("score", "Score")}
                     {activeTab === "surge" && <TableHead className="text-right font-semibold text-zinc-700 dark:text-zinc-300">Vol ({surgeWindow})</TableHead>}
                     {activeTab === "surge" && <TableHead className="text-right font-semibold text-zinc-700 dark:text-zinc-300">TXNS</TableHead>}
-                    {(activeTab === "new" || activeTab === "trending" || activeTab === "bsc" || activeTab === "surge") && renderMemeSortHead("pct5m", "5m")}
-                    {(activeTab === "new" || activeTab === "trending" || activeTab === "bsc" || activeTab === "surge") && renderMemeSortHead("pct1h", "1h")}
-                    {(activeTab === "new" || activeTab === "trending" || activeTab === "bsc" || activeTab === "surge") && renderMemeSortHead("pct6h", "6h")}
-                    {(activeTab === "new" || activeTab === "trending" || activeTab === "bsc" || activeTab === "surge") && renderMemeSortHead("pct24h", "24h")}
+                    {isMemeTableTab(activeTab) && renderMemeSortHead("pct5m", "5m")}
+                    {isMemeTableTab(activeTab) && renderMemeSortHead("pct1h", "1h")}
+                    {isMemeTableTab(activeTab) && renderMemeSortHead("pct6h", "6h")}
+                    {isMemeTableTab(activeTab) && renderMemeSortHead("pct24h", "24h")}
                     {renderMemeSortHead("age", "Age")}
                     {renderMemeSortHead("liquidity", "Liq")}
                     {renderMemeSortHead("price", "Price")}
@@ -9994,16 +10135,16 @@ function Dashboard() {
                           )}
                         </TableCell>
                       )}
-                      {(activeTab === "new" || activeTab === "trending" || activeTab === "bsc" || activeTab === "surge") && (
+                      {isMemeTableTab(activeTab) && (
                         <TableCell className={`text-right font-mono text-xs font-medium ${pctCls(tok.pct5m)}`}>{fmtPct(tok.pct5m)}</TableCell>
                       )}
-                      {(activeTab === "new" || activeTab === "trending" || activeTab === "bsc" || activeTab === "surge") && (
+                      {isMemeTableTab(activeTab) && (
                         <TableCell className={`text-right font-mono text-xs font-medium ${pctCls(tok.pct1h)}`}>{fmtPct(tok.pct1h)}</TableCell>
                       )}
-                      {(activeTab === "new" || activeTab === "trending" || activeTab === "bsc" || activeTab === "surge") && (
+                      {isMemeTableTab(activeTab) && (
                         <TableCell className={`text-right font-mono text-xs font-medium ${pctCls(tok.pct6h)}`}>{fmtPct(tok.pct6h)}</TableCell>
                       )}
-                      {(activeTab === "new" || activeTab === "trending" || activeTab === "bsc" || activeTab === "surge") && (
+                      {isMemeTableTab(activeTab) && (
                         <TableCell className={`text-right font-mono text-xs font-medium ${pctCls(tok.pct24h)}`}>{fmtPct(tok.pct24h)}</TableCell>
                       )}
                       <TableCell className="text-right tabular-nums text-muted-foreground text-xs">
@@ -10025,15 +10166,15 @@ function Dashboard() {
                         >
                           <button
                             type="button"
-                            onClick={() => toggleWatchlist(tok, activeTab === "bsc" ? "bsc" : "solana")}
-                            className={`inline-flex items-center ${activeTab === "new" ? "p-0.5" : "rounded-md px-2 py-1"} text-xs font-medium transition-colors ${isInWatchlist(tok.contractAddress, activeTab === "bsc" ? "bsc" : "solana") ? "text-amber-500 hover:text-amber-600 dark:text-amber-400 dark:hover:text-amber-300" : "text-zinc-500 hover:text-amber-500 dark:text-zinc-400 dark:hover:text-amber-400"}`}
-                            title={isInWatchlist(tok.contractAddress, activeTab === "bsc" ? "bsc" : "solana") ? "Remove from watchlist" : "Add to watchlist"}
+                            onClick={() => toggleWatchlist(tok, memeDeskWatchlistChain(activeTab))}
+                            className={`inline-flex items-center ${activeTab === "new" ? "p-0.5" : "rounded-md px-2 py-1"} text-xs font-medium transition-colors ${isInWatchlist(tok.contractAddress, memeDeskWatchlistChain(activeTab)) ? "text-amber-500 hover:text-amber-600 dark:text-amber-400 dark:hover:text-amber-300" : "text-zinc-500 hover:text-amber-500 dark:text-zinc-400 dark:hover:text-amber-400"}`}
+                            title={isInWatchlist(tok.contractAddress, memeDeskWatchlistChain(activeTab)) ? "Remove from watchlist" : "Add to watchlist"}
                           >
-                            <Star className={`h-3.5 w-3.5 ${isInWatchlist(tok.contractAddress, activeTab === "bsc" ? "bsc" : "solana") ? "fill-current" : ""}`} />
+                            <Star className={`h-3.5 w-3.5 ${isInWatchlist(tok.contractAddress, memeDeskWatchlistChain(activeTab)) ? "fill-current" : ""}`} />
                           </button>
                           <MemeTokenTableActions
                             contractAddress={tok.contractAddress}
-                            chain={activeTab === "bsc" ? "bsc" : "solana"}
+                            chain={memeDeskWatchlistChain(activeTab)}
                             variant={activeTab === "new" ? "quiet" : "default"}
                           />
                           {activeTab === "new" ? (
@@ -10097,7 +10238,7 @@ function Dashboard() {
                           <button
                             type="button"
                             onClick={() => {
-                              const url = activeTab === "bsc" ? dexUrlBsc(tok) : dexUrl(tok);
+                              const url = isMemeDeskEvmTab(activeTab) ? dexUrlEvmDesk(tok, activeTab) : dexUrl(tok);
                               navigator.clipboard.writeText(url).then(() => {
                                 setCopiedTokenId(tok.id);
                                 setTimeout(() => setCopiedTokenId(null), 2000);
@@ -10118,11 +10259,15 @@ function Dashboard() {
                               </>
                             )}
                           </button>
-                          {activeTab === "bsc" ? (
+                          {isMemeDeskEvmTab(activeTab) ? (
                             <>
-                              <a href={dexUrlBsc(tok)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center rounded-md bg-zinc-100 dark:bg-zinc-800 px-2 py-1 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:bg-cyan-100 dark:hover:bg-cyan-900/50 hover:text-cyan-700 dark:hover:text-cyan-300 transition-colors">Dex</a>
-                              <a href={fomoUrl(tok, "bsc")} target="_blank" rel="noopener noreferrer" className="inline-flex items-center rounded-md bg-zinc-100 dark:bg-zinc-800 px-2 py-1 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:bg-cyan-100 dark:hover:bg-cyan-900/50 hover:text-cyan-700 dark:hover:text-cyan-300 transition-colors">FOMO</a>
-                              <a href={bscScanUrl(tok)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center rounded-md bg-zinc-100 dark:bg-zinc-800 px-2 py-1 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:bg-cyan-100 dark:hover:bg-cyan-900/50 hover:text-cyan-700 dark:hover:text-cyan-300 transition-colors">BscScan</a>
+                              <a href={dexUrlEvmDesk(tok, activeTab)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center rounded-md bg-zinc-100 dark:bg-zinc-800 px-2 py-1 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:bg-cyan-100 dark:hover:bg-cyan-900/50 hover:text-cyan-700 dark:hover:text-cyan-300 transition-colors">Dex</a>
+                              {activeTab === "bsc" && (
+                                <a href={fomoUrl(tok, "bsc")} target="_blank" rel="noopener noreferrer" className="inline-flex items-center rounded-md bg-zinc-100 dark:bg-zinc-800 px-2 py-1 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:bg-cyan-100 dark:hover:bg-cyan-900/50 hover:text-cyan-700 dark:hover:text-cyan-300 transition-colors">FOMO</a>
+                              )}
+                              {activeTab === "bsc" && (
+                                <a href={bscScanUrl(tok)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center rounded-md bg-zinc-100 dark:bg-zinc-800 px-2 py-1 text-xs font-medium text-zinc-700 dark:text-zinc-300 hover:bg-cyan-100 dark:hover:bg-cyan-900/50 hover:text-cyan-700 dark:hover:text-cyan-300 transition-colors">BscScan</a>
+                              )}
                             </>
                           ) : (
                             <>

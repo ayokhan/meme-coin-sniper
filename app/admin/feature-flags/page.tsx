@@ -365,6 +365,14 @@ const FLAG_LABELS: Record<string, { label: string; description: string }> = {
     label: "Tab: BSC",
     description: "Show/hide the BSC tab in the main GUI.",
   },
+  page_tab_robinhood: {
+    label: "Tab: Robinhood Chain",
+    description: "Show/hide the Robinhood Chain meme desk tab in the main GUI.",
+  },
+  page_tab_hyperevm: {
+    label: "Tab: HyperEVM",
+    description: "Show/hide the HyperEVM meme desk tab in the main GUI.",
+  },
   page_tab_watchlist: {
     label: "Tab: Watchlist",
     description: "Show/hide the Watchlist tab in the main GUI.",

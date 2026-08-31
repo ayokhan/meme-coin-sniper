@@ -26,6 +26,8 @@ export type DashboardTabId =
   | "nova-plus"
   | "nova-investment"
   | "bsc"
+  | "robinhood"
+  | "hyperevm"
   | "watchlist"
   | "nova-futures-narratives"
   | "nova-eagle"
@@ -63,6 +65,8 @@ export const DASHBOARD_TAB_ORDER: DashboardTabId[] = [
   "nova-plus",
   "nova-investment",
   "bsc",
+  "robinhood",
+  "hyperevm",
   "watchlist",
   "nova-futures-narratives",
   "nova-eagle",
@@ -101,6 +105,8 @@ export const TAB_SHORT_LABELS: Record<DashboardTabId, string> = {
   "nova-plus": "Nova+",
   "nova-investment": "Invest",
   bsc: "BSC",
+  robinhood: "Robinhood",
+  hyperevm: "HyperEVM",
   watchlist: "Watchlist",
   "nova-futures-narratives": "Fut Narr.",
   "nova-eagle": "Eagle",

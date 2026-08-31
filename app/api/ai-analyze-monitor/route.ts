@@ -56,7 +56,12 @@ export async function POST(request: Request) {
       typeof body.amountUsd === 'number' && Number.isFinite(body.amountUsd) && body.amountUsd > 0 ? body.amountUsd : undefined;
 
     const mode: MemeAgentChainMode =
-      body.chain === 'bsc' || body.chain === 'ethereum' || body.chain === 'solana' || body.chain === 'auto'
+      body.chain === 'bsc' ||
+      body.chain === 'ethereum' ||
+      body.chain === 'robinhood' ||
+      body.chain === 'hyperevm' ||
+      body.chain === 'solana' ||
+      body.chain === 'auto'
         ? body.chain
         : 'auto';
     const resolved = await resolveMemeAgentContract(contract, mode);

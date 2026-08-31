@@ -13,7 +13,16 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
 function parseChainMode(raw: unknown): MemeAgentChainMode {
-  if (raw === "solana" || raw === "bsc" || raw === "ethereum" || raw === "auto") return raw;
+  if (
+    raw === "solana" ||
+    raw === "bsc" ||
+    raw === "ethereum" ||
+    raw === "robinhood" ||
+    raw === "hyperevm" ||
+    raw === "auto"
+  ) {
+    return raw;
+  }
   return "auto";
 }
 

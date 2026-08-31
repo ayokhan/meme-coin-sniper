@@ -50,7 +50,16 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: false, error: 'Pin not found.' }, { status: 404 });
     }
 
-    const chain = pin.chain === 'bsc' ? 'bsc' : pin.chain === 'ethereum' ? 'ethereum' : 'solana';
+    const chain =
+      pin.chain === 'bsc'
+        ? 'bsc'
+        : pin.chain === 'ethereum'
+          ? 'ethereum'
+          : pin.chain === 'robinhood'
+            ? 'robinhood'
+            : pin.chain === 'hyperevm'
+              ? 'hyperevm'
+              : 'solana';
     const result =
       chain === 'solana'
         ? await runAiAnalysis(contractAddress)

@@ -1,6 +1,6 @@
 /** Client-safe Solana vs EVM CA format helpers (no DexScreener). */
 
-export type MemeAgentChain = "solana" | "bsc" | "ethereum";
+export type MemeAgentChain = "solana" | "bsc" | "ethereum" | "robinhood" | "hyperevm";
 export type MemeAgentChainMode = MemeAgentChain | "auto";
 export type MemeContractFormat = "solana" | "evm" | "invalid";
 
@@ -19,6 +19,7 @@ const CHAIN_LABEL: Record<string, string> = {
   avalanche: "Avalanche",
   monad: "Monad",
   robinhood: "Robinhood Chain",
+  hyperevm: "HyperEVM",
   hyperliquid: "Hyperliquid",
 };
 

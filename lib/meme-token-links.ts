@@ -1,17 +1,27 @@
 /** External meme-token deep links used in Go Hunting tables and related rows. */
 
-export type MemeLinkChain = "solana" | "sol" | "bsc" | "eth" | "ethereum";
+export type MemeLinkChain = "solana" | "sol" | "bsc" | "eth" | "ethereum" | "robinhood" | "hyperevm";
 
 export function memeLinkChainFromStored(chain?: string | null): MemeLinkChain {
   if (chain === "bsc" || chain === "bnb") return "bsc";
   if (chain === "eth" || chain === "ethereum") return "ethereum";
+  if (chain === "robinhood") return "robinhood";
+  if (chain === "hyperevm") return "hyperevm";
   return "solana";
 }
 
 export function dexscreenerTokenUrl(contractAddress: string, chain: string = "solana"): string {
   const ca = encodeURIComponent(contractAddress.trim());
   const slug =
-    chain === "bsc" || chain === "bnb" ? "bsc" : chain === "eth" || chain === "ethereum" ? "ethereum" : "solana";
+    chain === "bsc" || chain === "bnb"
+      ? "bsc"
+      : chain === "eth" || chain === "ethereum"
+        ? "ethereum"
+        : chain === "robinhood"
+          ? "robinhood"
+          : chain === "hyperevm"
+            ? "hyperevm"
+            : "solana";
   return `https://dexscreener.com/${slug}/${ca}`;
 }
 

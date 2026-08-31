@@ -34,6 +34,8 @@ export const PRODUCT_VISIBILITY_FLAG_ROWS: ProductVisibilityFlagRow[] = [
   { tabId: "meme-intelligence", flagKey: "page_tab_meme_intelligence", label: "Meme Intelligence" },
   { tabId: "nova-investment", flagKey: "page_tab_nova_investment_agent", label: "Investment Agent" },
   { tabId: "bsc", flagKey: "page_tab_bsc", label: "BSC" },
+  { tabId: "robinhood", flagKey: "page_tab_robinhood", label: "Robinhood Chain" },
+  { tabId: "hyperevm", flagKey: "page_tab_hyperevm", label: "HyperEVM" },
   { tabId: "watchlist", flagKey: "page_tab_watchlist", label: "Watchlist" },
   { tabId: "nova-connect", flagKey: "page_tab_nova_connect", label: "NovaConnect" },
   { tabId: "chris-clayton", flagKey: "page_tab_chris_clayton", label: "Online Boss Strategy" },
