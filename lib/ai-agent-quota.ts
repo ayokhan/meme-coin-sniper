@@ -12,7 +12,7 @@ const FEATURE_FLAG_BY_TYPE: Record<AiAgentFeature, string> = {
 };
 
 const FEATURE_LABEL: Record<AiAgentFeature, string> = {
-  meme_agent: "Meme Coins Agent (Solana, BSC, ETH)",
+  meme_agent: "Meme Coins Agent (Solana, BSC, ETH, Robinhood, HyperEVM)",
   chart_analysis: "NovaStaris AI Chart Analysis",
 };
 

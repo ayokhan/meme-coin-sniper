@@ -99,7 +99,7 @@ export const DEFAULT_ENTER_LANDING: EnterLandingConfig = {
       id: "meme",
       enabled: true,
       title: "Meme desk",
-      line: "Hunt early Solana & BSC momentum, then paste a Solana, BSC, or ETH contract into AI Agent.",
+      line: "Hunt early momentum on Solana, BSC, Robinhood, or HyperEVM — then paste any contract into AI Agent.",
       cta: "Enter Go Hunting",
       href: "/?tab=new",
       gate: "open",

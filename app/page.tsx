@@ -4919,10 +4919,16 @@ function Dashboard() {
                       <TabsTrigger value="bsc" className={DASHBOARD_TOP_TAB_TRIGGER_CLASS}>{t("tabs.bsc")}</TabsTrigger>
                     )}
                     {showTopTab("robinhood") && (
-                      <TabsTrigger value="robinhood" className={DASHBOARD_TOP_TAB_TRIGGER_CLASS}>{t("tabs.robinhood")}</TabsTrigger>
+                      <TabsTrigger value="robinhood" className={`${DASHBOARD_TOP_TAB_TRIGGER_CLASS} gap-1.5`}>
+                        <span>{t("tabs.robinhood")}</span>
+                        <TopTabNewPill show={isNewTopTab("robinhood")} />
+                      </TabsTrigger>
                     )}
                     {showTopTab("hyperevm") && (
-                      <TabsTrigger value="hyperevm" className={DASHBOARD_TOP_TAB_TRIGGER_CLASS}>{t("tabs.hyperevm")}</TabsTrigger>
+                      <TabsTrigger value="hyperevm" className={`${DASHBOARD_TOP_TAB_TRIGGER_CLASS} gap-1.5`}>
+                        <span>{t("tabs.hyperevm")}</span>
+                        <TopTabNewPill show={isNewTopTab("hyperevm")} />
+                      </TabsTrigger>
                     )}
                     {showTopTab("watchlist") && (
                       <TabsTrigger value="watchlist" className={`${DASHBOARD_TOP_TAB_TRIGGER_CLASS} gap-1.5`}>

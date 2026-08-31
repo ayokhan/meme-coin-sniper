@@ -114,7 +114,7 @@ export default function AiAgentOnboardingPanel({
       {step === 2 && (
         <div className="space-y-3">
           <p className="text-sm text-zinc-700 dark:text-zinc-300">
-            Run Analyze (or use the form below). We&apos;ll pick Solana, BSC, or ETH from the contract.
+            Run Analyze (or use the form below). We&apos;ll detect Solana, BSC, ETH, Robinhood, or HyperEVM from the contract.
           </p>
           <div className="flex flex-wrap gap-2 items-end">
             <div className="flex-1 min-w-[200px]">
