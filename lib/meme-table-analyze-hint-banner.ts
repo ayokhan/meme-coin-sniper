@@ -23,10 +23,10 @@ export const DEFAULT_MEME_TABLE_HINT_BANNER: MemeTableAnalyzeHintBannerConfig = 
   headline: "Don't get rugged",
   guestTitle: "Analyze before you ape",
   guestBody:
-    "Sign in, then tap the purple Analyze button on any row — or open AI Agent to paste a contract.",
+    "Sign in, then tap the purple Analyze button on any row — works on Solana, BSC, ETH, Robinhood, and HyperEVM meme coins.",
   freeTitle: "Scan a row, then Analyze",
   freeBody:
-    "Tap the purple Analyze button on any pair. Prefer pasting a contract? Use Open AI Agent.",
+    "Tap the purple Analyze button on any pair — Solana, BSC, ETH, Robinhood, and HyperEVM. Or open AI Agent to paste a contract.",
   vipTitle: "Unlimited AI on every row",
   vipBody:
     "Tap the purple Analyze button on any row — unlimited Meme Agent. Or open AI Agent to paste a Solana, BSC, ETH, Robinhood, or HyperEVM contract.",
@@ -35,16 +35,29 @@ export const DEFAULT_MEME_TABLE_HINT_BANNER: MemeTableAnalyzeHintBannerConfig = 
 const SUPPORTED_MEME_CHAINS =
   "Solana, BSC, ETH, Robinhood, or HyperEVM";
 
+const SUPPORTED_MEME_CHAINS_AND =
+  "Solana, BSC, ETH, Robinhood, and HyperEVM";
+
 /** Refresh admin-saved copy that still lists older chain sets. */
 function withSupportedChainCopy(text: string): string {
   return text
+    .replace(
+      /\bNovaStaris AI Analysis works on Solana and BSC meme coins\b/gi,
+      `NovaStaris AI Analysis works on ${SUPPORTED_MEME_CHAINS_AND} meme coins`
+    )
+    .replace(
+      /\bworks on Solana and BSC meme coins\b/gi,
+      `works on ${SUPPORTED_MEME_CHAINS_AND} meme coins`
+    )
+    .replace(/\bSolana and BSC meme coins\b/gi, `${SUPPORTED_MEME_CHAINS_AND} meme coins`)
     .replace(/\bSolana or BSC\b/gi, SUPPORTED_MEME_CHAINS)
     .replace(/\bSolana \+ BSC\b/g, SUPPORTED_MEME_CHAINS)
     .replace(/\bSolana, BSC, or ETH\b/gi, SUPPORTED_MEME_CHAINS)
     .replace(/\bSolana, BSC, ETH\b/g, SUPPORTED_MEME_CHAINS)
+    .replace(/\bSolana and BSC\b/gi, SUPPORTED_MEME_CHAINS_AND)
     .replace(
       /\bon any Solana, BSC, or ETH meme coin\b/gi,
-      "on any Solana, BSC, ETH, Robinhood, or HyperEVM meme coin"
+      `on any ${SUPPORTED_MEME_CHAINS_AND} meme coin`
     );
 }
 
