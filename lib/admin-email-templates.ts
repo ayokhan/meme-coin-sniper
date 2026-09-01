@@ -57,13 +57,13 @@ export async function listAdminEmailTemplates(): Promise<{
     where: { status: { in: ["active", "archived"] } },
     orderBy: { updatedAt: "desc" },
   });
-  const mapped = rows.map(toRow);
+  const mapped = rows.map((r: Record<string, unknown>) => toRow(r));
   const archivedPresetIds = mapped
-    .filter((r) => r.status === "archived" && r.sourcePresetId)
-    .map((r) => r.sourcePresetId as string);
+    .filter((r: AdminEmailTemplateRow) => r.status === "archived" && r.sourcePresetId)
+    .map((r: AdminEmailTemplateRow) => r.sourcePresetId as string);
   return {
-    active: mapped.filter((r) => r.status === "active" && !r.sourcePresetId),
-    archived: mapped.filter((r) => r.status === "archived"),
+    active: mapped.filter((r: AdminEmailTemplateRow) => r.status === "active" && !r.sourcePresetId),
+    archived: mapped.filter((r: AdminEmailTemplateRow) => r.status === "archived"),
     archivedPresetIds,
   };
 }
