@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Bot, ExternalLink, Loader2, Play, RefreshCw, ShieldAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import type { GmgnVipBotConfigView } from "@/lib/gmgn-vip-bot-config";
 import { GMGN_BOT_DISPLAY_NAME } from "@/lib/gmgn-client-types";
 import { GMGN_BOT_RULES_PATH, validateGmgnWalletAddress, walletHintForChains } from "@/lib/gmgn-vip-bot-rules";
 
