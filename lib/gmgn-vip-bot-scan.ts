@@ -7,6 +7,7 @@ import {
 } from "@/lib/gmgn-client";
 import { touchGmgnBotRun } from "@/lib/gmgn-vip-bot-config";
 import { GMGN_BOT_DEFAULTS } from "@/lib/gmgn-vip-bot-rules";
+import { tokenContractAddress, tokenLiquidityUsd, tokenMomentum1h } from "@/lib/gmgn-token-metrics";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const db = prisma as any;
@@ -34,8 +35,7 @@ export type GmgnScanResult = {
 };
 
 function tokenAddress(t: GmgnTrendingToken): string | null {
-  const addr = (t.address ?? t.token_address ?? "").trim();
-  return addr || null;
+  return tokenContractAddress(t);
 }
 
 function pickSymbol(t: GmgnTrendingToken): string {
@@ -65,7 +65,15 @@ function buildScanMessage(
     if (errChain?.error) return errChain.error;
     return "No trending tokens returned from GMGN.";
   }
-  return `Checked ${result.scanned} tokens — 0 matched filters (${result.filtered} filtered out, ${result.duplicates} recent duplicates). Try lowering min liquidity (now $${result.minLiquidityUsd.toLocaleString()}) or min 1h momentum (now +${result.minMomentum1hPct}%).`;
+  const chainBits = result.chains
+    .filter((c) => c.fetched > 0 || c.error)
+    .map((c) =>
+      c.error
+        ? `${c.chain}: error`
+        : `${c.chain}: ${c.fetched} scanned, ${c.created} new`
+    );
+  const chainSuffix = chainBits.length ? ` (${chainBits.join(" · ")})` : "";
+  return `Checked ${result.scanned} tokens — 0 matched filters (${result.filtered} filtered out, ${result.duplicates} recent duplicates)${chainSuffix}. Try lowering min liquidity (now $${result.minLiquidityUsd.toLocaleString()}) or min 1h momentum (now +${result.minMomentum1hPct}%).`;
 }
 
 export async function scanGmgnVipBot(params: {
@@ -90,12 +98,10 @@ export async function scanGmgnVipBot(params: {
   const minMom = params.minMomentum1hPct;
 
   if (openSlots <= 0) {
-    await touchGmgnBotRun(params.userId, null);
     const base = { created: 0, scanned: 0, filtered: 0, duplicates: 0, openSlots: 0, chains };
-    return {
-      ...base,
-      message: buildScanMessage({ ...base, minLiquidityUsd: minLiq, minMomentum1hPct: minMom }),
-    };
+    const msg = buildScanMessage({ ...base, minLiquidityUsd: minLiq, minMomentum1hPct: minMom });
+    await touchGmgnBotRun(params.userId, msg);
+    return { ...base, message: msg };
   }
 
   if (!params.chains.length) {
@@ -130,14 +136,14 @@ export async function scanGmgnVipBot(params: {
         const addr = tokenAddress(tok);
         if (!addr) continue;
 
-        const liq = Number(tok.liquidity ?? 0);
-        const ch1h = Number(tok.price_change_percent1h ?? tok.price_change_percent ?? 0);
+        const liq = tokenLiquidityUsd(tok);
+        const mom = tokenMomentum1h(tok);
         if (liq > 0 && liq < minLiq) {
           filtered += 1;
           summary.filteredLiquidity += 1;
           continue;
         }
-        if (ch1h < minMom) {
+        if (mom.known && mom.value < minMom) {
           filtered += 1;
           summary.filteredMomentum += 1;
           continue;
@@ -158,6 +164,7 @@ export async function scanGmgnVipBot(params: {
         }
 
         summary.passed += 1;
+        const ch1h = mom.known ? mom.value : 0;
         await db.gmgnVipBotSignal.create({
           data: {
             userId: params.userId,
@@ -167,7 +174,9 @@ export async function scanGmgnVipBot(params: {
             name: pickName(tok),
             action: "buy",
             status: "pending",
-            reason: `GMGN 1h trending +${ch1h.toFixed(1)}%${liq ? ` · liq $${Math.round(liq).toLocaleString()}` : ""}`,
+            reason: mom.known
+              ? `GMGN 1h trending +${ch1h.toFixed(1)}%${liq ? ` · liq $${Math.round(liq).toLocaleString()}` : ""}`
+              : `GMGN 1h trending${liq ? ` · liq $${Math.round(liq).toLocaleString()}` : ""}`,
           },
         });
         created += 1;
@@ -185,10 +194,8 @@ export async function scanGmgnVipBot(params: {
     }
   }
 
-  await touchGmgnBotRun(params.userId, null);
   const base = { created, scanned, filtered, duplicates, openSlots, chains };
-  return {
-    ...base,
-    message: buildScanMessage({ ...base, minLiquidityUsd: minLiq, minMomentum1hPct: minMom }),
-  };
+  const message = buildScanMessage({ ...base, minLiquidityUsd: minLiq, minMomentum1hPct: minMom });
+  await touchGmgnBotRun(params.userId, message);
+  return { ...base, message };
 }

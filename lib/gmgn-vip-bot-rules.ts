@@ -4,7 +4,7 @@ export const GMGN_BOT_RULES_PATH = "/gmgn-vip-bot-rules";
 
 export const GMGN_BOT_DEFAULTS = {
   minLiquidityUsd: 15_000,
-  minMomentum1hPct: 5,
+  minMomentum1hPct: 0,
   maxOpenTrades: 3,
   maxTradeUsd: 25,
   maxDailyLossUsd: 100,

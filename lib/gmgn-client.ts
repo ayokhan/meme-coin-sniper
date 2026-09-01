@@ -25,8 +25,18 @@ export async function fetchGmgnTrending(
   limit = 15
 ): Promise<GmgnTrendingToken[]> {
   const client = createGmgnOpenApiClient(creds);
-  const data = await client.getTrendingSwaps(chain, "1h", { limit });
-  const list = Array.isArray(data?.rank) ? data.rank : [];
+  const data = await client.getTrendingSwaps(chain, "1h", {
+    limit,
+    order_by: "volume",
+    direction: "desc",
+  });
+  const payload =
+    data && typeof data === "object" && !Array.isArray((data as { rank?: unknown }).rank)
+      ? ((data as { data?: { rank?: unknown[] } }).data ?? data)
+      : data;
+  const list = Array.isArray((payload as { rank?: unknown[] })?.rank)
+    ? (payload as { rank: unknown[] }).rank
+    : [];
   return list as GmgnTrendingToken[];
 }
 

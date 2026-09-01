@@ -205,8 +205,9 @@ export default function GmgnVipBotPanel() {
       const data = await res.json();
       if (!data.success) {
         setError(data.error ?? "Scan failed.");
-      } else if (typeof data.message === "string") {
-        setScanNotice(data.message);
+      } else {
+        if (typeof data.message === "string") setScanNotice(data.message);
+        if (data.created > 0) setSaveNotice(`Scan complete — ${data.created} new signal(s).`);
       }
       await load();
     } catch {
@@ -618,8 +619,21 @@ export default function GmgnVipBotPanel() {
           <CardTitle className="text-base">Signals</CardTitle>
         </CardHeader>
         <CardContent>
+          {scanNotice && (
+            <p className="text-sm text-violet-800 dark:text-violet-200 bg-violet-50 dark:bg-violet-950/40 rounded-md px-3 py-2 mb-3">
+              Last scan: {scanNotice}
+            </p>
+          )}
+          {!scanNotice && config.lastError && (
+            <p className="text-sm text-violet-800 dark:text-violet-200 bg-violet-50 dark:bg-violet-950/40 rounded-md px-3 py-2 mb-3">
+              Last scan: {config.lastError}
+            </p>
+          )}
           {signals.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No signals yet. Run Scan now — results appear here when tokens pass your filters.</p>
+            <p className="text-sm text-muted-foreground">
+              No signals yet. Run Scan now — enable Solana and/or BSC for best results. If scan says tokens were filtered,
+              lower min liquidity or min 1h momentum in trading rules and save.
+            </p>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
