@@ -29,6 +29,8 @@ export type GmgnVipBotConfigView = {
   walletAddresses: string[];
   hasCredentials: boolean;
   credentialsFromServer: boolean;
+  /** True when a GMGN private key is available for swap signing. */
+  hasTradeSigningKey: boolean;
   apiKeyMask: string | null;
   lastRunAt: string | null;
   lastError: string | null;
@@ -52,6 +54,8 @@ function toView(row: Record<string, unknown>): GmgnVipBotConfigView {
   const serverCreds = resolveServerGmgnCredentials();
   const hasUserKey = !!apiKey;
   const hasCredentials = hasUserKey || !!serverCreds?.apiKey;
+  const userPrivateKey = decryptField(row.gmgnPrivateKeyEnc as string | null);
+  const hasTradeSigningKey = !!(userPrivateKey || serverCreds?.privateKey);
   const walletAddresses = parseWalletAddresses(row.walletAddresses, (row.walletAddress as string | null) ?? null);
   return {
     enabled: !!row.enabled && !ownerForceOff,
@@ -75,6 +79,7 @@ function toView(row: Record<string, unknown>): GmgnVipBotConfigView {
       null,
     hasCredentials,
     credentialsFromServer: hasCredentials && !hasUserKey,
+    hasTradeSigningKey,
     apiKeyMask: maskSecret(apiKey),
     lastRunAt: row.lastRunAt ? (row.lastRunAt as Date).toISOString() : null,
     lastError: (row.lastError as string | null) ?? null,

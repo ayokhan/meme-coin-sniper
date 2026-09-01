@@ -23,17 +23,10 @@ export async function executeGmgnVipBotSignal(
   const fromAddress = resolveWalletForChain(chain, config.walletAddresses);
 
   if (!creds?.privateKey || !fromAddress) {
-    await db.gmgnVipBotSignal.update({
-      where: { id: signalId },
-      data: {
-        status: "failed",
-        reason: `Wallet for ${chain.toUpperCase()} + GMGN private key required for live trades.`,
-      },
-    });
-    return {
-      ok: false,
-      error: `Add a ${chain === "sol" ? "Solana" : "EVM"} wallet for ${chain.toUpperCase()} trades.`,
-    };
+    const hint = !fromAddress
+      ? `Add an EVM wallet (0x…) bound to GMGN for ${chain.toUpperCase()} trades.`
+      : "GMGN private key required to sign swaps — add it in credentials or set GMGN_PRIVATE_KEY.";
+    return { ok: false, error: hint };
   }
 
   const amountIn =

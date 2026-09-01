@@ -278,7 +278,7 @@ export default function GmgnVipBotPanel() {
     });
   };
 
-  const showCredentialFields = !config.credentialsFromServer;
+  const showCredentialFields = !config.credentialsFromServer || !config.hasTradeSigningKey;
 
   return (
     <div className="space-y-4">
@@ -544,7 +544,10 @@ export default function GmgnVipBotPanel() {
         <CardContent className="space-y-3 text-sm">
           {config.credentialsFromServer ? (
             <p className="text-xs text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 rounded-md px-3 py-2">
-              GMGN credentials are active for your account. Add your GMGN-bound wallet address(es) above to trade.
+              GMGN API key is active for your account.{" "}
+              {config.hasTradeSigningKey
+                ? "Add your GMGN-bound wallet address(es) above to trade."
+                : "Add GMGN_PRIVATE_KEY in Vercel (or paste your private key below) plus your EVM wallet to execute swaps."}
             </p>
           ) : (
             <>

@@ -6,6 +6,7 @@ import { getGmgnVipBotAccess } from "@/lib/vip-futures-addon-access";
 import { getGmgnVipBotConfigView, resolveUserGmgnCredentials } from "@/lib/gmgn-vip-bot-config";
 import { scanGmgnVipBot } from "@/lib/gmgn-vip-bot-scan";
 import { executeGmgnVipBotSignal } from "@/lib/gmgn-vip-bot-execute";
+import { resolveWalletForChain } from "@/lib/gmgn-vip-bot-rules";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const db = prisma as any;
@@ -41,13 +42,18 @@ export async function POST() {
       minMomentum1hPct: config.minMomentum1hPct,
     });
 
-    if (config.tradingMode === "auto" && result.created > 0) {
-      const pending = await db.gmgnVipBotSignal.findMany({
-        where: { userId: access.userId, status: "pending" },
-        orderBy: { createdAt: "asc" },
-      });
-      for (const sig of pending) {
-        await executeGmgnVipBotSignal(access.userId, session, sig.id);
+    if (config.tradingMode === "auto" && result.created > 0 && creds.privateKey) {
+      const canExecuteAny = config.chains.some((chain) =>
+        resolveWalletForChain(chain, config.walletAddresses)
+      );
+      if (canExecuteAny) {
+        const pending = await db.gmgnVipBotSignal.findMany({
+          where: { userId: access.userId, status: "pending" },
+          orderBy: { createdAt: "asc" },
+        });
+        for (const sig of pending) {
+          await executeGmgnVipBotSignal(access.userId, session, sig.id);
+        }
       }
     }
 
