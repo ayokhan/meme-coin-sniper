@@ -8223,7 +8223,7 @@ function Dashboard() {
                   return (
                     <div className="flex flex-col items-center justify-center py-20 px-6 text-center max-w-lg mx-auto">
                       <p className="text-sm text-zinc-600 dark:text-zinc-400">
-                        GMGN Trenching Bot is not enabled yet. Owner can turn it on in Admin → Feature flags (Off / Owner only / All VIP).
+                        GMGN VIP Bot is not enabled yet. Owner can turn it on in Admin → Feature flags (Off / Owner only / All VIP).
                       </p>
                     </div>
                   );
@@ -8231,7 +8231,7 @@ function Dashboard() {
                 if (status !== "authenticated") {
                   return (
                     <GuestLockedFeatureCard
-                      title="GMGN Trenching Bot"
+                      title="GMGN VIP Bot"
                       body="Sign in with a VIP account to use the GMGN meme trading bot."
                     />
                   );
@@ -8239,7 +8239,7 @@ function Dashboard() {
                 if (!isVip && !isOwner) {
                   return (
                     <div className="flex flex-col items-center justify-center py-20 px-6 text-center max-w-lg mx-auto">
-                      <p className="text-sm text-zinc-600 dark:text-zinc-400">VIP subscription required for GMGN Trenching Bot.</p>
+                      <p className="text-sm text-zinc-600 dark:text-zinc-400">VIP subscription required for GMGN VIP Bot.</p>
                       <a href="/subscribe" className="mt-4 text-cyan-600 underline text-sm">Upgrade to VIP</a>
                     </div>
                   );

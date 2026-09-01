@@ -171,7 +171,7 @@ export const en = {
     "prop-firm-bot": "Nova Prop Firm Challenge",
     "nova-forex-bot": "Nova Forex Bots",
     "nova-ultimate": "Nova Ultimate",
-    "gmgn-vip-bot": "GMGN Trench",
+    "gmgn-vip-bot": "GMGN VIP Bot",
     ct: "CT Scan",
     wallets: "Wallet Tracker",
     "coach-calls": "Coach Calls + Telegram Signals",

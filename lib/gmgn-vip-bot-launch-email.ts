@@ -2,10 +2,10 @@ const APP_ORIGIN = (process.env.NEXT_PUBLIC_APP_URL ?? "https://novastaris.ai").
 export const GMGN_VIP_BOT_TAB_URL = `${APP_ORIGIN}/?tab=gmgn-vip-bot`;
 export const GMGN_VIP_BOT_RULES_URL = `${APP_ORIGIN}/gmgn-vip-bot-rules`;
 
-const BOT_NAME = "GMGN Trenching Bot";
+const BOT_NAME = "GMGN VIP Bot";
 
 export const GMGN_VIP_BOT_LAUNCH_EMAIL = {
-  subject: "VIP only: GMGN Trenching Bot — semi-auto trending trades on Solana, BSC & Robinhood",
+  subject: "VIP only: GMGN VIP Bot — semi-auto trending trades on Solana, BSC & Robinhood",
   body: `Hi there,
 
 We've launched the ${BOT_NAME} on NovaStaris — it scans GMGN 1-hour trending on Solana, BSC, and Robinhood, then surfaces signals you can approve (semi-auto) or let run automatically when you're ready.

@@ -18,4 +18,4 @@ export type GmgnTrendingToken = {
 };
 
 /** User-facing product name for the GMGN bot tab and panels. */
-export const GMGN_BOT_DISPLAY_NAME = "GMGN Trenching Bot";
+export const GMGN_BOT_DISPLAY_NAME = "GMGN VIP Bot";

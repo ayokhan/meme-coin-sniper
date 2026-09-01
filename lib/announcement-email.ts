@@ -597,7 +597,7 @@ export function buildGmgnVipBotLaunchEmailHtml(args?: {
     : `<td bgcolor="#18181b" style="padding:28px 28px 8px 28px;background:#18181b;">
         <p style="margin:0 0 14px 0;font-size:15px;line-height:1.55;color:#e4e4e7;">Hi there,</p>
         <p style="margin:0 0 18px 0;font-size:15px;line-height:1.55;color:#e4e4e7;">
-          The <strong style="color:#fafafa;">GMGN Trenching Bot</strong> is live — scan 1h trending on Solana, BSC, and Robinhood, approve signals in semi-auto, or run full auto when you&apos;re ready.
+          The <strong style="color:#fafafa;">GMGN VIP Bot</strong> is live — scan 1h trending on Solana, BSC, and Robinhood, approve signals in semi-auto, or run full auto when you&apos;re ready.
         </p>
         <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 18px 0;border-collapse:collapse;">
           <tr>

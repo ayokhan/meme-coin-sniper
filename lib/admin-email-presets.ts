@@ -382,7 +382,7 @@ export const ADMIN_EMAIL_PRESETS: AdminEmailPreset[] = [
   },
   {
     id: "gmgn-vip-bot-launch",
-    label: "GMGN Trenching Bot launch",
+    label: "GMGN VIP Bot launch",
     blurb: "One-time VIP announcement — semi-auto trending bot + setup checklist",
     subject: GMGN_VIP_BOT_LAUNCH_EMAIL.subject,
     body: GMGN_VIP_BOT_LAUNCH_EMAIL.body,

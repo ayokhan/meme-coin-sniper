@@ -99,7 +99,7 @@ export const TAB_SHORT_LABELS: Record<DashboardTabId, string> = {
   "prop-firm-bot": "Prop Firm",
   "nova-forex-bot": "FX Bots",
   "nova-ultimate": "Ultimate",
-  "gmgn-vip-bot": "GMGN Trench",
+  "gmgn-vip-bot": "GMGN VIP Bot",
   "coach-calls": "Coach",
   "nova-forecast": "Forecast",
   "nova-pulse": "Pulse",
