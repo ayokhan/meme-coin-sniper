@@ -22,9 +22,7 @@ export async function POST() {
     }
 
     const config = await getGmgnVipBotConfigView(access.userId);
-    if (!config.enabled) {
-      return NextResponse.json({ success: false, error: "Enable the bot first." }, { status: 400 });
-    }
+    // Manual Scan now works even when the bot toggle is off (cron still requires enabled).
 
     const creds = await resolveUserGmgnCredentials(access.userId, session);
     if (!creds?.apiKey) {

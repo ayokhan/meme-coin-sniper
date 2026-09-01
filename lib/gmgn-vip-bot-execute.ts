@@ -2,6 +2,7 @@ import type { Session } from "next-auth";
 import { prisma } from "@/lib/db";
 import { executeGmgnSwap, type GmgnChain } from "@/lib/gmgn-client";
 import { getGmgnVipBotConfigView, resolveUserGmgnCredentials } from "@/lib/gmgn-vip-bot-config";
+import { resolveWalletForChain } from "@/lib/gmgn-vip-bot-rules";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const db = prisma as any;
@@ -18,15 +19,23 @@ export async function executeGmgnVipBotSignal(
   }
 
   const creds = await resolveUserGmgnCredentials(userId, session);
-  if (!creds?.privateKey || !config.walletAddress) {
+  const chain = sig.chain as GmgnChain;
+  const fromAddress = resolveWalletForChain(chain, config.walletAddresses);
+
+  if (!creds?.privateKey || !fromAddress) {
     await db.gmgnVipBotSignal.update({
       where: { id: signalId },
-      data: { status: "failed", reason: "Wallet address + GMGN private key required for live trades." },
+      data: {
+        status: "failed",
+        reason: `Wallet for ${chain.toUpperCase()} + GMGN private key required for live trades.`,
+      },
     });
-    return { ok: false, error: "Wallet + GMGN private key required." };
+    return {
+      ok: false,
+      error: `Add a ${chain === "sol" ? "Solana" : "EVM"} wallet for ${chain.toUpperCase()} trades.`,
+    };
   }
 
-  const chain = sig.chain as GmgnChain;
   const amountIn =
     chain === "sol"
       ? String(Math.max(0.01, config.maxTradeUsd / 150))
@@ -36,7 +45,7 @@ export async function executeGmgnVipBotSignal(
     const swap = await executeGmgnSwap({
       chain,
       creds,
-      fromAddress: config.walletAddress,
+      fromAddress,
       baseToken: sig.tokenAddress,
       amountIn,
       slippagePct: config.slippagePct,

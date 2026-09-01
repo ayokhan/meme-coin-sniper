@@ -50,7 +50,15 @@ export async function POST(request: Request) {
       ? (body.chains.filter((c) => typeof c === "string") as GmgnChain[])
       : undefined;
 
-    if (body.walletAddress != null && String(body.walletAddress).trim()) {
+    if (body.walletAddresses != null && Array.isArray(body.walletAddresses)) {
+      for (const w of body.walletAddresses) {
+        if (typeof w !== "string" || !w.trim()) continue;
+        const walletCheck = validateGmgnWalletAddress(w);
+        if (!walletCheck.ok) {
+          return NextResponse.json({ success: false, error: walletCheck.error }, { status: 400 });
+        }
+      }
+    } else if (body.walletAddress != null && String(body.walletAddress).trim()) {
       const walletCheck = validateGmgnWalletAddress(String(body.walletAddress));
       if (!walletCheck.ok) {
         return NextResponse.json({ success: false, error: walletCheck.error }, { status: 400 });
@@ -69,6 +77,9 @@ export async function POST(request: Request) {
       slippagePct: body.slippagePct != null ? Number(body.slippagePct) : undefined,
       stopLossPct: body.stopLossPct != null ? Number(body.stopLossPct) : undefined,
       takeProfitPct: body.takeProfitPct != null ? Number(body.takeProfitPct) : undefined,
+      walletAddresses: Array.isArray(body.walletAddresses)
+        ? body.walletAddresses.filter((w): w is string => typeof w === "string")
+        : undefined,
       walletAddress: body.walletAddress != null ? String(body.walletAddress) : undefined,
       gmgnApiKey: body.gmgnApiKey != null ? String(body.gmgnApiKey) : undefined,
       gmgnPrivateKey: body.gmgnPrivateKey != null ? String(body.gmgnPrivateKey) : undefined,

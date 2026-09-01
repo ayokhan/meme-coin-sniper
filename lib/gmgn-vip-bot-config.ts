@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/db";
 import { decryptField, encryptField, maskSecret } from "@/lib/field-encryption";
 import { resolveServerGmgnCredentials, type GmgnChain, type GmgnCredentials } from "@/lib/gmgn-client";
-import { GMGN_BOT_DEFAULTS } from "@/lib/gmgn-vip-bot-rules";
+import { GMGN_BOT_DEFAULTS, parseWalletAddresses, resolveWalletForChain } from "@/lib/gmgn-vip-bot-rules";
 import { isOwnerSession } from "@/lib/auth";
 import type { Session } from "next-auth";
 
@@ -26,6 +26,7 @@ export type GmgnVipBotConfigView = {
   stopLossPct: number;
   takeProfitPct: number;
   walletAddress: string | null;
+  walletAddresses: string[];
   hasCredentials: boolean;
   credentialsFromServer: boolean;
   apiKeyMask: string | null;
@@ -51,6 +52,7 @@ function toView(row: Record<string, unknown>): GmgnVipBotConfigView {
   const serverCreds = resolveServerGmgnCredentials();
   const hasUserKey = !!apiKey;
   const hasCredentials = hasUserKey || !!serverCreds?.apiKey;
+  const walletAddresses = parseWalletAddresses(row.walletAddresses, (row.walletAddress as string | null) ?? null);
   return {
     enabled: !!row.enabled && !ownerForceOff,
     ownerForceOff,
@@ -64,7 +66,13 @@ function toView(row: Record<string, unknown>): GmgnVipBotConfigView {
     slippagePct: Number(row.slippagePct) || GMGN_BOT_DEFAULTS.slippagePct,
     stopLossPct: Number(row.stopLossPct) || GMGN_BOT_DEFAULTS.stopLossPct,
     takeProfitPct: Number(row.takeProfitPct) || GMGN_BOT_DEFAULTS.takeProfitPct,
-    walletAddress: (row.walletAddress as string | null) ?? null,
+    walletAddresses,
+    walletAddress:
+      resolveWalletForChain("sol", walletAddresses) ??
+      resolveWalletForChain("bsc", walletAddresses) ??
+      walletAddresses[0] ??
+      (row.walletAddress as string | null) ??
+      null,
     hasCredentials,
     credentialsFromServer: hasCredentials && !hasUserKey,
     apiKeyMask: maskSecret(apiKey),
@@ -118,6 +126,7 @@ export async function updateGmgnVipBotConfig(
     stopLossPct: number;
     takeProfitPct: number;
     walletAddress: string | null;
+    walletAddresses: string[];
     gmgnApiKey: string | null;
     gmgnPrivateKey: string | null;
     clearCredentials: boolean;
@@ -137,7 +146,15 @@ export async function updateGmgnVipBotConfig(
   if (patch.slippagePct !== undefined) data.slippagePct = patch.slippagePct;
   if (patch.stopLossPct !== undefined) data.stopLossPct = patch.stopLossPct;
   if (patch.takeProfitPct !== undefined) data.takeProfitPct = patch.takeProfitPct;
-  if (patch.walletAddress !== undefined) data.walletAddress = patch.walletAddress?.trim() || null;
+  if (patch.walletAddresses !== undefined) {
+    const list = patch.walletAddresses.map((w) => w.trim()).filter(Boolean);
+    data.walletAddresses = list;
+    data.walletAddress = list[0] ?? null;
+  } else if (patch.walletAddress !== undefined) {
+    const one = patch.walletAddress?.trim() || null;
+    data.walletAddress = one;
+    data.walletAddresses = one ? [one] : [];
+  }
 
   if (patch.clearCredentials) {
     data.gmgnApiKeyEnc = null;

@@ -11,6 +11,28 @@ import { GMGN_BOT_DEFAULTS } from "@/lib/gmgn-vip-bot-rules";
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const db = prisma as any;
 
+export type GmgnScanChainSummary = {
+  chain: GmgnChain;
+  fetched: number;
+  passed: number;
+  filteredLiquidity: number;
+  filteredMomentum: number;
+  duplicates: number;
+  created: number;
+  error?: string;
+};
+
+export type GmgnScanResult = {
+  created: number;
+  scanned: number;
+  filtered: number;
+  duplicates: number;
+  openSlots: number;
+  message: string;
+  chains: GmgnScanChainSummary[];
+  error?: string;
+};
+
 function tokenAddress(t: GmgnTrendingToken): string | null {
   const addr = (t.address ?? t.token_address ?? "").trim();
   return addr || null;
@@ -24,6 +46,28 @@ function pickName(t: GmgnTrendingToken): string {
   return (t.name ?? t.symbol ?? "Token").slice(0, 64);
 }
 
+function buildScanMessage(
+  result: Omit<GmgnScanResult, "message"> & { minLiquidityUsd: number; minMomentum1hPct: number }
+): string {
+  if (result.error) return result.error;
+  if (result.openSlots <= 0) {
+    return "No open signal slots. Raise max open trades or approve/reject pending signals.";
+  }
+  if (result.created > 0) {
+    return `Created ${result.created} signal${result.created === 1 ? "" : "s"} from ${result.scanned} trending tokens.`;
+  }
+  if (result.scanned === 0) {
+    const emptyChains = result.chains.filter((c) => !c.error && c.fetched === 0).map((c) => c.chain);
+    if (emptyChains.length) {
+      return `GMGN returned no trending tokens for ${emptyChains.join(", ")}. Try Solana/BSC or scan again later.`;
+    }
+    const errChain = result.chains.find((c) => c.error);
+    if (errChain?.error) return errChain.error;
+    return "No trending tokens returned from GMGN.";
+  }
+  return `Checked ${result.scanned} tokens — 0 matched filters (${result.filtered} filtered out, ${result.duplicates} recent duplicates). Try lowering min liquidity (now $${result.minLiquidityUsd.toLocaleString()}) or min 1h momentum (now +${result.minMomentum1hPct}%).`;
+}
+
 export async function scanGmgnVipBot(params: {
   userId: string;
   creds: GmgnCredentials;
@@ -31,36 +75,73 @@ export async function scanGmgnVipBot(params: {
   maxOpenTrades: number;
   minLiquidityUsd: number;
   minMomentum1hPct: number;
-}): Promise<{ created: number; scanned: number; error?: string }> {
+}): Promise<GmgnScanResult> {
   const openCount = await db.gmgnVipBotSignal.count({
     where: { userId: params.userId, status: { in: ["pending", "approved"] } },
   });
-  const slots = Math.max(0, params.maxOpenTrades - openCount);
-  if (slots <= 0) {
-    await touchGmgnBotRun(params.userId, null);
-    return { created: 0, scanned: 0 };
-  }
+  const openSlots = Math.max(0, params.maxOpenTrades - openCount);
 
   let created = 0;
   let scanned = 0;
-
+  let filtered = 0;
+  let duplicates = 0;
+  const chains: GmgnScanChainSummary[] = [];
   const minLiq = Math.max(0, params.minLiquidityUsd);
   const minMom = params.minMomentum1hPct;
 
+  if (openSlots <= 0) {
+    await touchGmgnBotRun(params.userId, null);
+    const base = { created: 0, scanned: 0, filtered: 0, duplicates: 0, openSlots: 0, chains };
+    return {
+      ...base,
+      message: buildScanMessage({ ...base, minLiquidityUsd: minLiq, minMomentum1hPct: minMom }),
+    };
+  }
+
+  if (!params.chains.length) {
+    const base = { created: 0, scanned: 0, filtered: 0, duplicates: 0, openSlots, chains };
+    return {
+      ...base,
+      error: "Select at least one chain to scan.",
+      message: "Select at least one chain to scan.",
+    };
+  }
+
   for (const chain of params.chains) {
-    if (created >= slots) break;
+    if (created >= openSlots) break;
+    const summary: GmgnScanChainSummary = {
+      chain,
+      fetched: 0,
+      passed: 0,
+      filteredLiquidity: 0,
+      filteredMomentum: 0,
+      duplicates: 0,
+      created: 0,
+    };
+    chains.push(summary);
+
     try {
       const trending = await fetchGmgnTrending(chain, params.creds, GMGN_BOT_DEFAULTS.trendingLimit);
+      summary.fetched = trending.length;
+
       for (const tok of trending) {
-        if (created >= slots) break;
+        if (created >= openSlots) break;
         scanned += 1;
         const addr = tokenAddress(tok);
         if (!addr) continue;
 
         const liq = Number(tok.liquidity ?? 0);
         const ch1h = Number(tok.price_change_percent1h ?? tok.price_change_percent ?? 0);
-        if (liq > 0 && liq < minLiq) continue;
-        if (ch1h < minMom) continue;
+        if (liq > 0 && liq < minLiq) {
+          filtered += 1;
+          summary.filteredLiquidity += 1;
+          continue;
+        }
+        if (ch1h < minMom) {
+          filtered += 1;
+          summary.filteredMomentum += 1;
+          continue;
+        }
 
         const dup = await db.gmgnVipBotSignal.findFirst({
           where: {
@@ -70,8 +151,13 @@ export async function scanGmgnVipBot(params: {
             createdAt: { gte: new Date(Date.now() - GMGN_BOT_DEFAULTS.dedupeHours * 60 * 60 * 1000) },
           },
         });
-        if (dup) continue;
+        if (dup) {
+          duplicates += 1;
+          summary.duplicates += 1;
+          continue;
+        }
 
+        summary.passed += 1;
         await db.gmgnVipBotSignal.create({
           data: {
             userId: params.userId,
@@ -85,14 +171,24 @@ export async function scanGmgnVipBot(params: {
           },
         });
         created += 1;
+        summary.created += 1;
       }
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Scan failed";
+      summary.error = msg;
       await touchGmgnBotRun(params.userId, msg);
-      return { created, scanned, error: msg };
+      const base = { created, scanned, filtered, duplicates, openSlots, chains, error: msg };
+      return {
+        ...base,
+        message: buildScanMessage({ ...base, minLiquidityUsd: minLiq, minMomentum1hPct: minMom }),
+      };
     }
   }
 
   await touchGmgnBotRun(params.userId, null);
-  return { created, scanned };
+  const base = { created, scanned, filtered, duplicates, openSlots, chains };
+  return {
+    ...base,
+    message: buildScanMessage({ ...base, minLiquidityUsd: minLiq, minMomentum1hPct: minMom }),
+  };
 }

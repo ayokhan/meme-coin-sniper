@@ -106,11 +106,12 @@ export default function GmgnVipBotRulesPage() {
             </section>
 
             <section>
-              <h2 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">Wallet address</h2>
+              <h2 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">Wallet addresses</h2>
               <p className="text-sm">
-                Enter the <strong>on-chain wallet</strong> bound to your GMGN API key in GMGN → API Management. Solana
-                addresses are base58 (32–44 characters). BSC and Robinhood use EVM <code>0x…</code> addresses. This is
-                not your NovaStaris login email.
+                Add one or more <strong>on-chain wallets</strong> bound to your GMGN API key in GMGN → API Management.
+                Solana addresses are base58 (32–44 characters). BSC and Robinhood use EVM <code>0x…</code> addresses.
+                If you trade both Solana and EVM chains, add both wallets — the bot picks the matching address per chain
+                when executing. This is not your NovaStaris login email.
               </p>
             </section>
 

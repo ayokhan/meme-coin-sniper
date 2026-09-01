@@ -1548,6 +1548,8 @@ model GmgnVipBotUserConfig {
   stopLossPct     Float     @default(20)
   takeProfitPct   Float     @default(50)
   walletAddress   String?
+  /** JSON string[] — Solana + EVM wallets; chain-matched on execute */
+  walletAddresses Json      @default("[]")
   /** AES-GCM encrypted GMGN API key (user-owned). */
   gmgnApiKeyEnc   String?
   /** AES-GCM encrypted Ed25519/RSA private key for swap signing. */

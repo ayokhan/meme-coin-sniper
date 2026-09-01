@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
-import { Bot, ExternalLink, Loader2, Play, RefreshCw, ShieldAlert } from "lucide-react";
+import { Bot, ExternalLink, Loader2, Play, Plus, RefreshCw, ShieldAlert, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { GmgnVipBotConfigView } from "@/lib/gmgn-vip-bot-config";
@@ -65,7 +65,7 @@ type SettingsDraft = {
   enabled: boolean;
   tradingMode: "semi_auto" | "auto";
   chains: string[];
-  walletAddress: string;
+  walletAddresses: string[];
 };
 
 type RulesDraft = {
@@ -85,7 +85,7 @@ function configToDrafts(c: GmgnVipBotConfigView): { settings: SettingsDraft; rul
       enabled: c.enabled,
       tradingMode: c.tradingMode,
       chains: [...c.chains],
-      walletAddress: c.walletAddress ?? "",
+      walletAddresses: c.walletAddresses.length ? [...c.walletAddresses] : [""],
     },
     rules: {
       maxTradeUsd: c.maxTradeUsd,
@@ -112,6 +112,7 @@ export default function GmgnVipBotPanel() {
   const [settingsDraft, setSettingsDraft] = useState<SettingsDraft | null>(null);
   const [rulesDraft, setRulesDraft] = useState<RulesDraft | null>(null);
   const [saveNotice, setSaveNotice] = useState<string | null>(null);
+  const [scanNotice, setScanNotice] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setError(null);
@@ -171,9 +172,9 @@ export default function GmgnVipBotPanel() {
 
   const saveSettings = async () => {
     if (!settingsDraft) return;
-    const trimmedWallet = settingsDraft.walletAddress.trim();
-    if (trimmedWallet) {
-      const check = validateGmgnWalletAddress(trimmedWallet);
+    const cleaned = settingsDraft.walletAddresses.map((w) => w.trim()).filter(Boolean);
+    for (const w of cleaned) {
+      const check = validateGmgnWalletAddress(w);
       if (!check.ok) {
         setWalletError(check.error);
         setError(check.error);
@@ -185,7 +186,7 @@ export default function GmgnVipBotPanel() {
       enabled: settingsDraft.enabled,
       tradingMode: settingsDraft.tradingMode,
       chains: settingsDraft.chains,
-      walletAddress: trimmedWallet || null,
+      walletAddresses: cleaned,
     });
   };
 
@@ -198,11 +199,14 @@ export default function GmgnVipBotPanel() {
   const runScan = async () => {
     setBusy("scan");
     setError(null);
+    setScanNotice(null);
     try {
       const res = await fetch("/api/gmgn-vip-bot/scan", { method: "POST" });
       const data = await res.json();
       if (!data.success) {
         setError(data.error ?? "Scan failed.");
+      } else if (typeof data.message === "string") {
+        setScanNotice(data.message);
       }
       await load();
     } catch {
@@ -360,23 +364,65 @@ export default function GmgnVipBotPanel() {
               </div>
             </div>
 
-            <label className="block">
-              <span className="font-medium">Wallet address (GMGN-bound)</span>
-              <input
-                type="text"
-                className={`mt-1 w-full rounded-md border bg-white dark:bg-zinc-900 px-2 py-1.5 font-mono text-xs ${
-                  walletError ? "border-red-400 dark:border-red-700" : "border-zinc-300 dark:border-zinc-600"
-                }`}
-                placeholder="Solana base58 or EVM 0x… — not your email"
-                value={settingsDraft.walletAddress}
-                onChange={(e) => {
-                  setSettingsDraft((d) => (d ? { ...d, walletAddress: e.target.value } : d));
-                  if (walletError) setWalletError(null);
-                }}
-              />
+            <div>
+              <div className="flex items-center justify-between gap-2 mb-2">
+                <p className="font-medium">Wallet addresses (GMGN-bound)</p>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className="h-7 text-xs"
+                  onClick={() =>
+                    setSettingsDraft((d) => (d ? { ...d, walletAddresses: [...d.walletAddresses, ""] } : d))
+                  }
+                >
+                  <Plus className="h-3 w-3 mr-1" />
+                  Add wallet
+                </Button>
+              </div>
+              <div className="space-y-2">
+                {settingsDraft.walletAddresses.map((wallet, idx) => (
+                  <div key={idx} className="flex gap-2">
+                    <input
+                      type="text"
+                      className={`flex-1 rounded-md border bg-white dark:bg-zinc-900 px-2 py-1.5 font-mono text-xs ${
+                        walletError ? "border-red-400 dark:border-red-700" : "border-zinc-300 dark:border-zinc-600"
+                      }`}
+                      placeholder={idx === 0 ? "Solana base58 or EVM 0x… — not your email" : "Another GMGN-bound wallet"}
+                      value={wallet}
+                      onChange={(e) => {
+                        setSettingsDraft((d) => {
+                          if (!d) return d;
+                          const next = [...d.walletAddresses];
+                          next[idx] = e.target.value;
+                          return { ...d, walletAddresses: next };
+                        });
+                        if (walletError) setWalletError(null);
+                      }}
+                    />
+                    {settingsDraft.walletAddresses.length > 1 && (
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        className="shrink-0 px-2"
+                        onClick={() =>
+                          setSettingsDraft((d) => {
+                            if (!d) return d;
+                            const next = d.walletAddresses.filter((_, i) => i !== idx);
+                            return { ...d, walletAddresses: next.length ? next : [""] };
+                          })
+                        }
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
+                ))}
+              </div>
               <p className="text-xs text-muted-foreground mt-1">{walletHintForChains(settingsDraft.chains)}</p>
               {walletError && <p className="text-xs text-red-600 dark:text-red-400 mt-1">{walletError}</p>}
-            </label>
+            </div>
 
             <Button size="sm" disabled={busy === "save"} onClick={() => void saveSettings()}>
               {busy === "save" ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}
@@ -398,6 +444,11 @@ export default function GmgnVipBotPanel() {
 
             {config.lastError && (
               <p className="text-xs text-amber-700 dark:text-amber-300">Last run: {config.lastError}</p>
+            )}
+            {scanNotice && (
+              <p className="text-xs text-violet-800 dark:text-violet-200 bg-violet-50 dark:bg-violet-950/40 rounded-md px-3 py-2">
+                {scanNotice}
+              </p>
             )}
           </CardContent>
         </Card>
@@ -492,7 +543,7 @@ export default function GmgnVipBotPanel() {
         <CardContent className="space-y-3 text-sm">
           {config.credentialsFromServer ? (
             <p className="text-xs text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 rounded-md px-3 py-2">
-              GMGN credentials are active for your account. Add your GMGN-bound wallet address above to trade.
+              GMGN credentials are active for your account. Add your GMGN-bound wallet address(es) above to trade.
             </p>
           ) : (
             <>
@@ -568,7 +619,7 @@ export default function GmgnVipBotPanel() {
         </CardHeader>
         <CardContent>
           {signals.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No signals yet. Enable the bot and run Scan now.</p>
+            <p className="text-sm text-muted-foreground">No signals yet. Run Scan now — results appear here when tokens pass your filters.</p>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
