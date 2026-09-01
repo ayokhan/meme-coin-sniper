@@ -1,10 +1,12 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
-import { Bot, Loader2, Play, RefreshCw, ShieldAlert } from "lucide-react";
+import { Bot, ExternalLink, Loader2, Play, RefreshCw, ShieldAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { GmgnVipBotConfigView } from "@/lib/gmgn-vip-bot-config";
+import { GMGN_BOT_RULES_PATH, validateGmgnWalletAddress, walletHintForChains } from "@/lib/gmgn-vip-bot-rules";
 
 type SignalRow = {
   id: string;
@@ -24,6 +26,40 @@ const CHAINS = [
   { id: "robinhood", label: "Robinhood" },
 ] as const;
 
+function NumField({
+  label,
+  value,
+  min,
+  max,
+  step,
+  disabled,
+  onSave,
+}: {
+  label: string;
+  value: number;
+  min: number;
+  max: number;
+  step?: number;
+  disabled?: boolean;
+  onSave: (v: number) => void;
+}) {
+  return (
+    <label className="block">
+      <span className="font-medium">{label}</span>
+      <input
+        type="number"
+        className="mt-1 w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-900 px-2 py-1.5"
+        value={value}
+        min={min}
+        max={max}
+        step={step ?? 1}
+        disabled={disabled}
+        onChange={(e) => onSave(Number(e.target.value))}
+      />
+    </label>
+  );
+}
+
 export default function GmgnVipBotPanel() {
   const [config, setConfig] = useState<GmgnVipBotConfigView | null>(null);
   const [signals, setSignals] = useState<SignalRow[]>([]);
@@ -32,6 +68,7 @@ export default function GmgnVipBotPanel() {
   const [error, setError] = useState<string | null>(null);
   const [apiKey, setApiKey] = useState("");
   const [privateKey, setPrivateKey] = useState("");
+  const [walletError, setWalletError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setError(null);
@@ -78,6 +115,22 @@ export default function GmgnVipBotPanel() {
     } finally {
       setBusy(null);
     }
+  };
+
+  const saveWallet = async (raw: string) => {
+    const trimmed = raw.trim();
+    if (!trimmed) {
+      setWalletError(null);
+      await saveConfig({ walletAddress: null });
+      return;
+    }
+    const check = validateGmgnWalletAddress(trimmed);
+    if (!check.ok) {
+      setWalletError(check.error);
+      return;
+    }
+    setWalletError(null);
+    await saveConfig({ walletAddress: trimmed });
   };
 
   const runScan = async () => {
@@ -154,6 +207,8 @@ export default function GmgnVipBotPanel() {
     void saveConfig({ chains: [...set] });
   };
 
+  const showCredentialFields = !config.credentialsFromServer;
+
   return (
     <div className="space-y-4">
       <div className="rounded-xl border border-violet-300/50 dark:border-violet-700/50 bg-gradient-to-br from-violet-50/90 to-fuchsia-50/70 dark:from-violet-950/40 dark:to-fuchsia-950/30 px-4 py-4">
@@ -163,7 +218,11 @@ export default function GmgnVipBotPanel() {
             <h2 className="text-lg font-bold text-zinc-900 dark:text-zinc-100">GMGN VIP Meme Bot</h2>
             <p className="text-sm text-zinc-600 dark:text-zinc-400 mt-1">
               Scans GMGN trending on Solana, BSC, and Robinhood. Semi-auto shows signals for your approval; auto executes
-              when credentials and wallet are set. Not financial advice — meme trading is high risk.
+              when credentials and wallet are set. Not financial advice — meme trading is high risk.{" "}
+              <Link href={GMGN_BOT_RULES_PATH} className="text-violet-700 dark:text-violet-300 underline inline-flex items-center gap-0.5">
+                Trading rules
+                <ExternalLink className="h-3 w-3" />
+              </Link>
             </p>
           </div>
         </div>
@@ -232,26 +291,19 @@ export default function GmgnVipBotPanel() {
             </div>
 
             <label className="block">
-              <span className="font-medium">Max trade (USD est.)</span>
-              <input
-                type="number"
-                className="mt-1 w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-900 px-2 py-1.5"
-                value={config.maxTradeUsd}
-                min={5}
-                max={500}
-                onChange={(e) => void saveConfig({ maxTradeUsd: Number(e.target.value) })}
-              />
-            </label>
-
-            <label className="block">
               <span className="font-medium">Wallet address (GMGN-bound)</span>
               <input
                 type="text"
-                className="mt-1 w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-900 px-2 py-1.5 font-mono text-xs"
-                placeholder="Your GMGN trading wallet"
+                className={`mt-1 w-full rounded-md border bg-white dark:bg-zinc-900 px-2 py-1.5 font-mono text-xs ${
+                  walletError ? "border-red-400 dark:border-red-700" : "border-zinc-300 dark:border-zinc-600"
+                }`}
+                placeholder="Solana base58 or EVM 0x… — not your email"
                 defaultValue={config.walletAddress ?? ""}
-                onBlur={(e) => void saveConfig({ walletAddress: e.target.value.trim() || null })}
+                key={config.walletAddress ?? "empty"}
+                onBlur={(e) => void saveWallet(e.target.value)}
               />
+              <p className="text-xs text-muted-foreground mt-1">{walletHintForChains(config.chains)}</p>
+              {walletError && <p className="text-xs text-red-600 dark:text-red-400 mt-1">{walletError}</p>}
             </label>
 
             <div className="flex flex-wrap gap-2 pt-1">
@@ -275,54 +327,167 @@ export default function GmgnVipBotPanel() {
 
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-base">GMGN credentials</CardTitle>
+            <CardTitle className="text-base">Trading rules (your config)</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3 text-sm">
-            <p className="text-muted-foreground text-xs">
-              Paste from{" "}
-              <a href="https://gmgn.ai/ai?tab=api_management" target="_blank" rel="noopener noreferrer" className="underline">
-                GMGN API Management
-              </a>
-              . Stored encrypted. Owner can also use server env <code className="text-xs">GMGN_API_KEY</code>.
+            <p className="text-xs text-muted-foreground">
+              Saved per account. Full explanation on the{" "}
+              <Link href={GMGN_BOT_RULES_PATH} className="underline">
+                rules page
+              </Link>
+              .
             </p>
-            {config.apiKeyMask && (
-              <p className="text-xs">
-                Saved API key: <span className="font-mono">{config.apiKeyMask}</span>
-              </p>
-            )}
-            <input
-              type="password"
-              placeholder="GMGN API key (gmgn_…)"
-              className="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-900 px-2 py-1.5 font-mono text-xs"
-              value={apiKey}
-              onChange={(e) => setApiKey(e.target.value)}
-            />
-            <textarea
-              placeholder="GMGN private key (PEM, for trading only)"
-              className="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-900 px-2 py-1.5 font-mono text-xs min-h-[80px]"
-              value={privateKey}
-              onChange={(e) => setPrivateKey(e.target.value)}
-            />
-            <div className="flex flex-wrap gap-2">
-              <Button
-                size="sm"
-                disabled={!!busy || (!apiKey.trim() && !privateKey.trim())}
-                onClick={() =>
-                  void saveConfig({
-                    ...(apiKey.trim() ? { gmgnApiKey: apiKey.trim() } : {}),
-                    ...(privateKey.trim() ? { gmgnPrivateKey: privateKey.trim() } : {}),
-                  })
-                }
-              >
-                Save credentials
-              </Button>
-              <Button size="sm" variant="outline" disabled={!!busy} onClick={() => void saveConfig({ clearCredentials: true })}>
-                Clear
-              </Button>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <NumField
+                label="Max trade (USD est.)"
+                value={config.maxTradeUsd}
+                min={5}
+                max={500}
+                disabled={busy === "save"}
+                onSave={(v) => void saveConfig({ maxTradeUsd: v })}
+              />
+              <NumField
+                label="Max open trades"
+                value={config.maxOpenTrades}
+                min={1}
+                max={10}
+                disabled={busy === "save"}
+                onSave={(v) => void saveConfig({ maxOpenTrades: v })}
+              />
+              <NumField
+                label="Min liquidity (USD)"
+                value={config.minLiquidityUsd}
+                min={0}
+                max={1_000_000}
+                step={1000}
+                disabled={busy === "save"}
+                onSave={(v) => void saveConfig({ minLiquidityUsd: v })}
+              />
+              <NumField
+                label="Min 1h momentum (%)"
+                value={config.minMomentum1hPct}
+                min={0}
+                max={100}
+                step={0.5}
+                disabled={busy === "save"}
+                onSave={(v) => void saveConfig({ minMomentum1hPct: v })}
+              />
+              <NumField
+                label="Slippage (%)"
+                value={config.slippagePct}
+                min={1}
+                max={50}
+                disabled={busy === "save"}
+                onSave={(v) => void saveConfig({ slippagePct: v })}
+              />
+              <NumField
+                label="Max daily loss (USD)"
+                value={config.maxDailyLossUsd}
+                min={10}
+                max={10_000}
+                disabled={busy === "save"}
+                onSave={(v) => void saveConfig({ maxDailyLossUsd: v })}
+              />
+              <NumField
+                label="Stop loss (%)"
+                value={config.stopLossPct}
+                min={5}
+                max={90}
+                disabled={busy === "save"}
+                onSave={(v) => void saveConfig({ stopLossPct: v })}
+              />
+              <NumField
+                label="Take profit (%)"
+                value={config.takeProfitPct}
+                min={10}
+                max={500}
+                disabled={busy === "save"}
+                onSave={(v) => void saveConfig({ takeProfitPct: v })}
+              />
             </div>
+            <p className="text-xs text-amber-700 dark:text-amber-300">
+              Stop loss, take profit, and max daily loss are saved now; automated exits are planned in a future update.
+            </p>
           </CardContent>
         </Card>
       </div>
+
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base">GMGN credentials</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3 text-sm">
+          {config.credentialsFromServer ? (
+            <p className="text-xs text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 rounded-md px-3 py-2">
+              GMGN credentials are active for your account. Add your GMGN-bound wallet address above to trade.
+            </p>
+          ) : (
+            <>
+              <p className="text-muted-foreground text-xs">
+                Paste from{" "}
+                <a
+                  href="https://gmgn.ai/ai?tab=api_management"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="underline"
+                >
+                  GMGN API Management
+                </a>
+                . Stored encrypted on NovaStaris.
+              </p>
+              {config.apiKeyMask && (
+                <p className="text-xs">
+                  Saved API key: <span className="font-mono">{config.apiKeyMask}</span>
+                </p>
+              )}
+              {showCredentialFields && (
+                <>
+                  <input
+                    type="password"
+                    placeholder="GMGN API key (gmgn_…)"
+                    className="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-900 px-2 py-1.5 font-mono text-xs"
+                    value={apiKey}
+                    onChange={(e) => setApiKey(e.target.value)}
+                  />
+                  <textarea
+                    placeholder="GMGN private key (PEM, for trading only)"
+                    className="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-900 px-2 py-1.5 font-mono text-xs min-h-[80px]"
+                    value={privateKey}
+                    onChange={(e) => setPrivateKey(e.target.value)}
+                  />
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      size="sm"
+                      disabled={!!busy || (!apiKey.trim() && !privateKey.trim())}
+                      onClick={() =>
+                        void saveConfig({
+                          ...(apiKey.trim() ? { gmgnApiKey: apiKey.trim() } : {}),
+                          ...(privateKey.trim() ? { gmgnPrivateKey: privateKey.trim() } : {}),
+                        })
+                      }
+                    >
+                      Save credentials
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={!!busy}
+                      onClick={() => void saveConfig({ clearCredentials: true })}
+                    >
+                      Clear
+                    </Button>
+                  </div>
+                </>
+              )}
+            </>
+          )}
+          {config.hasCredentials && !config.credentialsFromServer && (
+            <Button size="sm" variant="outline" disabled={!!busy} onClick={() => void testConnection()}>
+              Test GMGN connection
+            </Button>
+          )}
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader className="pb-2">

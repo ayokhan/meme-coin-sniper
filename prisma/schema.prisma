@@ -1517,6 +1517,8 @@ model GmgnVipBotUserConfig {
   maxTradeUsd     Float     @default(25)
   maxDailyLossUsd Float     @default(100)
   maxOpenTrades   Int       @default(3)
+  minLiquidityUsd Float     @default(15000)
+  minMomentum1hPct Float    @default(5)
   slippagePct     Float     @default(15)
   stopLossPct     Float     @default(20)
   takeProfitPct   Float     @default(50)

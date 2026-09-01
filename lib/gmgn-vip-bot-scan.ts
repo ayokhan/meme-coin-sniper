@@ -6,6 +6,7 @@ import {
   type GmgnTrendingToken,
 } from "@/lib/gmgn-client";
 import { touchGmgnBotRun } from "@/lib/gmgn-vip-bot-config";
+import { GMGN_BOT_DEFAULTS } from "@/lib/gmgn-vip-bot-rules";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const db = prisma as any;
@@ -28,6 +29,8 @@ export async function scanGmgnVipBot(params: {
   creds: GmgnCredentials;
   chains: GmgnChain[];
   maxOpenTrades: number;
+  minLiquidityUsd: number;
+  minMomentum1hPct: number;
 }): Promise<{ created: number; scanned: number; error?: string }> {
   const openCount = await db.gmgnVipBotSignal.count({
     where: { userId: params.userId, status: { in: ["pending", "approved"] } },
@@ -41,10 +44,13 @@ export async function scanGmgnVipBot(params: {
   let created = 0;
   let scanned = 0;
 
+  const minLiq = Math.max(0, params.minLiquidityUsd);
+  const minMom = params.minMomentum1hPct;
+
   for (const chain of params.chains) {
     if (created >= slots) break;
     try {
-      const trending = await fetchGmgnTrending(chain, params.creds, 20);
+      const trending = await fetchGmgnTrending(chain, params.creds, GMGN_BOT_DEFAULTS.trendingLimit);
       for (const tok of trending) {
         if (created >= slots) break;
         scanned += 1;
@@ -53,15 +59,15 @@ export async function scanGmgnVipBot(params: {
 
         const liq = Number(tok.liquidity ?? 0);
         const ch1h = Number(tok.price_change_percent1h ?? tok.price_change_percent ?? 0);
-        if (liq > 0 && liq < 15_000) continue;
-        if (ch1h < 5) continue;
+        if (liq > 0 && liq < minLiq) continue;
+        if (ch1h < minMom) continue;
 
         const dup = await db.gmgnVipBotSignal.findFirst({
           where: {
             userId: params.userId,
             tokenAddress: addr,
             chain,
-            createdAt: { gte: new Date(Date.now() - 6 * 60 * 60 * 1000) },
+            createdAt: { gte: new Date(Date.now() - GMGN_BOT_DEFAULTS.dedupeHours * 60 * 60 * 1000) },
           },
         });
         if (dup) continue;

@@ -29,7 +29,7 @@ export async function POST() {
     const creds = await resolveUserGmgnCredentials(access.userId, session);
     if (!creds?.apiKey) {
       return NextResponse.json(
-        { success: false, error: "Add your GMGN API key in bot settings (or set GMGN_API_KEY on the server for owner)." },
+        { success: false, error: "Add your GMGN API key and private key in bot settings." },
         { status: 400 }
       );
     }
@@ -39,6 +39,8 @@ export async function POST() {
       creds,
       chains: config.chains,
       maxOpenTrades: config.maxOpenTrades,
+      minLiquidityUsd: config.minLiquidityUsd,
+      minMomentum1hPct: config.minMomentum1hPct,
     });
 
     if (config.tradingMode === "auto" && result.created > 0) {

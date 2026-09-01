@@ -10,6 +10,7 @@ import {
   type GmgnTradingMode,
 } from "@/lib/gmgn-vip-bot-config";
 import type { GmgnChain } from "@/lib/gmgn-client";
+import { validateGmgnWalletAddress } from "@/lib/gmgn-vip-bot-rules";
 
 export const dynamic = "force-dynamic";
 
@@ -49,6 +50,13 @@ export async function POST(request: Request) {
       ? (body.chains.filter((c) => typeof c === "string") as GmgnChain[])
       : undefined;
 
+    if (body.walletAddress != null && String(body.walletAddress).trim()) {
+      const walletCheck = validateGmgnWalletAddress(String(body.walletAddress));
+      if (!walletCheck.ok) {
+        return NextResponse.json({ success: false, error: walletCheck.error }, { status: 400 });
+      }
+    }
+
     const config = await updateGmgnVipBotConfig(access.userId, {
       enabled: typeof body.enabled === "boolean" ? body.enabled : undefined,
       tradingMode: body.tradingMode === "auto" || body.tradingMode === "semi_auto" ? (body.tradingMode as GmgnTradingMode) : undefined,
@@ -56,6 +64,8 @@ export async function POST(request: Request) {
       maxTradeUsd: body.maxTradeUsd != null ? Number(body.maxTradeUsd) : undefined,
       maxDailyLossUsd: body.maxDailyLossUsd != null ? Number(body.maxDailyLossUsd) : undefined,
       maxOpenTrades: body.maxOpenTrades != null ? Number(body.maxOpenTrades) : undefined,
+      minLiquidityUsd: body.minLiquidityUsd != null ? Number(body.minLiquidityUsd) : undefined,
+      minMomentum1hPct: body.minMomentum1hPct != null ? Number(body.minMomentum1hPct) : undefined,
       slippagePct: body.slippagePct != null ? Number(body.slippagePct) : undefined,
       stopLossPct: body.stopLossPct != null ? Number(body.stopLossPct) : undefined,
       takeProfitPct: body.takeProfitPct != null ? Number(body.takeProfitPct) : undefined,
