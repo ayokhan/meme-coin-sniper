@@ -11,6 +11,7 @@ import {
 } from "@/lib/gmgn-vip-bot-config";
 import type { GmgnChain } from "@/lib/gmgn-client";
 import { getServerEgressIpv4 } from "@/lib/gmgn-egress-ip";
+import { validateGmgnPrivateKey } from "@/lib/gmgn-private-key";
 import { validateGmgnWalletAddress } from "@/lib/gmgn-vip-bot-rules";
 
 export const dynamic = "force-dynamic";

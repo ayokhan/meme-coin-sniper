@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { executeGmgnSwap, type GmgnChain } from "@/lib/gmgn-client";
 import { getGmgnVipBotConfigView, resolveUserGmgnCredentials } from "@/lib/gmgn-vip-bot-config";
 import { formatGmgnIpBlockedError, parseGmgnBlockedIp } from "@/lib/gmgn-egress-ip";
+import { resolveWalletForChain } from "@/lib/gmgn-vip-bot-rules";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const db = prisma as any;
