@@ -107,6 +107,16 @@ export const FEATURE_FLAG_KEYS = {
   NOVA_MEME_PRICE_FACTOR: 'nova_meme_price_factor',
   /** VIP: Meme Runner — multi-chain trenches scanner (SOL, BSC, ETH). Default OFF until admin enables. */
   NOVA_MEME_RUNNER: 'nova_meme_runner',
+  /**
+   * VIP: GMGN meme trading bot (SOL, BSC, Robinhood via GMGN OpenAPI).
+   * Pair with NOVA_GMGN_VIP_BOT_OWNER_ONLY for Off / Owner / All VIP.
+   */
+  NOVA_GMGN_VIP_BOT: 'nova_gmgn_vip_bot',
+  NOVA_GMGN_VIP_BOT_OWNER_ONLY: 'nova_gmgn_vip_bot_owner_only',
+  /** Server cron: auto-scan + auto-execute for users in auto mode. Default OFF. */
+  NOVA_GMGN_VIP_BOT_CRON: 'nova_gmgn_vip_bot_cron',
+  /** Top-level GMGN VIP Bot tab. Default OFF until admin enables. */
+  PAGE_TAB_GMGN_VIP_BOT: 'page_tab_gmgn_vip_bot',
   /** UVIP: Nova Perp Wallet Analyst Agent subtab under Wallet Tracker. Default OFF until admin enables. */
   NOVA_PERP_WALLET_ANALYST: 'nova_perp_wallet_analyst',
   /** VIP: Meme Leaderboard subtab under Wallet Tracker (free-API meme trader rankings). Default OFF until admin enables. */

@@ -218,7 +218,7 @@ export async function getNovaForexScalpAgentAccess(session: Session | null): Pro
  * - Master ON + ownerOnly ON → only the owner session passes.
  * - Master ON + ownerOnly OFF → any VIP/Coach/owner session passes.
  */
-async function assertTriStateFlag(
+export async function assertTriStateFlag(
   session: Session | null,
   masterKey: string,
   ownerOnlyKey: string,
@@ -246,6 +246,15 @@ export async function getNovaForexBotAccess(session: Session | null): Promise<Vi
     FEATURE_FLAG_KEYS.NOVA_FOREX_BOT,
     FEATURE_FLAG_KEYS.NOVA_FOREX_BOT_OWNER_ONLY,
     "Nova Forex Bot is not available on your account yet. Contact support if you need access."
+  );
+}
+
+export async function getGmgnVipBotAccess(session: Session | null): Promise<VipFuturesAddonAccess> {
+  return assertTriStateFlag(
+    session,
+    FEATURE_FLAG_KEYS.NOVA_GMGN_VIP_BOT,
+    FEATURE_FLAG_KEYS.NOVA_GMGN_VIP_BOT_OWNER_ONLY,
+    "GMGN VIP Bot is not available on your account yet. Contact support if you need access."
   );
 }
 

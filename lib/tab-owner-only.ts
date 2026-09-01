@@ -24,6 +24,7 @@ export const OWNER_ONLY_MANAGED_TABS = [
   "prop-firm-bot",
   "nova-forex-bot",
   "nova-ultimate",
+  "gmgn-vip-bot",
   "ct",
   "wallets",
   "coach-calls",

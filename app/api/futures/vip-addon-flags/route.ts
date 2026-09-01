@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { getFeatureFlag, FEATURE_FLAG_KEYS } from "@/lib/feature-flags";
-import { getNovaForexBotAccess, getNovaForexScalpBotAccess, getCryptoBuddieAccess } from "@/lib/vip-futures-addon-access";
+import { getGmgnVipBotAccess, getNovaForexBotAccess, getNovaForexScalpBotAccess, getCryptoBuddieAccess } from "@/lib/vip-futures-addon-access";
 
 export const dynamic = "force-dynamic";
 
@@ -11,7 +11,7 @@ export async function GET() {
   try {
     // Session read kept for parity/auditing, but visibility is flag-driven for all users.
     const session = await getServerSession(authOptions);
-    const [novaEagle, cryptoBuddieAccess, novaLiquidationMap, novaFuturesNarratives, novaMemeIntelligence, novaQMemes, novaSmartMemes, topMemeCoins, memePriceFactor, memeRunner, novaScalpAgent, novaPulsePnlCalculator, novaQFib, novaExtra, novaPatternDetector, novaForexAgent, novaForexFib, novaForexScalpAgent, novaForexBotAccess, novaForexScalpBotAccess] = await Promise.all([
+    const [novaEagle, cryptoBuddieAccess, novaLiquidationMap, novaFuturesNarratives, novaMemeIntelligence, novaQMemes, novaSmartMemes, topMemeCoins, memePriceFactor, memeRunner, novaScalpAgent, novaPulsePnlCalculator, novaQFib, novaExtra, novaPatternDetector, novaForexAgent, novaForexFib, novaForexScalpAgent, novaForexBotAccess, novaForexScalpBotAccess, gmgnVipBotAccess] = await Promise.all([
       getFeatureFlag(FEATURE_FLAG_KEYS.NOVA_EAGLE),
       getCryptoBuddieAccess(session),
       getFeatureFlag(FEATURE_FLAG_KEYS.NOVA_LIQUIDATION_MAP),
@@ -32,11 +32,13 @@ export async function GET() {
       getFeatureFlag(FEATURE_FLAG_KEYS.NOVA_FOREX_SCALP_AGENT),
       getNovaForexBotAccess(session),
       getNovaForexScalpBotAccess(session),
+      getGmgnVipBotAccess(session),
     ]);
     const novaForexBot = novaForexBotAccess.ok;
     const novaForexScalpBot = novaForexScalpBotAccess.ok;
+    const gmgnVipBot = gmgnVipBotAccess.ok;
     const cryptoBuddie = cryptoBuddieAccess.ok;
-    return NextResponse.json({ success: true, novaEagle, cryptoBuddie, novaLiquidationMap, novaFuturesNarratives, novaMemeIntelligence, novaQMemes, novaSmartMemes, topMemeCoins, memePriceFactor, memeRunner, novaScalpAgent, novaPulsePnlCalculator, novaQFib, novaExtra, novaPatternDetector, novaForexAgent, novaForexFib, novaForexScalpAgent, novaForexBot, novaForexScalpBot });
+    return NextResponse.json({ success: true, novaEagle, cryptoBuddie, novaLiquidationMap, novaFuturesNarratives, novaMemeIntelligence, novaQMemes, novaSmartMemes, topMemeCoins, memePriceFactor, memeRunner, novaScalpAgent, novaPulsePnlCalculator, novaQFib, novaExtra, novaPatternDetector, novaForexAgent, novaForexFib, novaForexScalpAgent, novaForexBot, novaForexScalpBot, gmgnVipBot });
   } catch (e) {
     const message = e instanceof Error ? e.message : "Failed to read flags";
     return NextResponse.json({ success: false, error: message }, { status: 500 });

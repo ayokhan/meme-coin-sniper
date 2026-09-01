@@ -23,6 +23,7 @@ export const PRODUCT_VISIBILITY_FLAG_ROWS: ProductVisibilityFlagRow[] = [
   { tabId: "trading-bot", flagKey: "page_tab_trading_bot", label: "AI Trading Bots" },
   { tabId: "prop-firm-bot", flagKey: "page_tab_prop_firm_bot", label: "Prop Firm Challenge" },
   { tabId: "nova-ultimate", flagKey: "page_tab_nova_ultimate", label: "Nova Ultimate" },
+  { tabId: "gmgn-vip-bot", flagKey: "page_tab_gmgn_vip_bot", label: "GMGN VIP Bot" },
   { tabId: "ct", flagKey: "page_tab_ct", label: "CT Scan" },
   { tabId: "wallets", flagKey: "page_tab_wallets", label: "Wallet Tracker" },
   { tabId: "coach-calls", flagKey: "page_tab_coach_calls", label: "Coach Calls" },

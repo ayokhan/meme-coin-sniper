@@ -143,6 +143,7 @@ import { loadNovaQSession, writeNovaQSession } from "@/lib/nova-q-watch";
 import { normalizeNovaQSymbol } from "@/lib/nova-q-symbol";
 import NovaForexAgentPanel from "@/components/NovaForexAgentPanel";
 import NovaForexBotsPanel from "@/components/NovaForexBotsPanel";
+import GmgnVipBotPanel from "@/components/GmgnVipBotPanel";
 import TradingUniversityPanel from "@/components/TradingUniversityPanel";
 import NovaJobAgentPanel from "@/components/NovaJobAgentPanel";
 import RealtorOsPanel from "@/components/RealtorOsPanel";
@@ -253,6 +254,7 @@ type TabId =
   | "prop-firm-bot"
   | "nova-forex-bot"
   | "nova-ultimate"
+  | "gmgn-vip-bot"
   | "coach-calls"
   | "nova-forecast"
   | "nova-pulse"
@@ -291,7 +293,7 @@ const EVM_DESK_API: Record<MemeDeskEvmTab, string> = {
 type TopTabFilter = "all" | "core" | "pro" | "vip" | "bots";
 const PAID_TABS: TabId[] = ["surge", "transactions", "futures", "trending-perps", "perp-radar", "narratives", "ct", "wallets", "coach-calls", "nova-forecast", "nova-pulse", "nova-forex", "nova-forex-bot", "nova-plus", "nova-connect"];
 /** Platform: surge, transactions, ai-analysis, futures. VIP-only: ct, wallets, coach-calls, nova-forecast. BSC + Watchlist are free for all. */
-const VIP_ONLY_TABS: TabId[] = ["ct", "wallets", "coach-calls", "nova-forecast", "nova-pulse", "nova-forex", "nova-forex-bot", "nova-plus", "nova-investment", "nova-futures-narratives", "nova-eagle", "crypto-buddie", "meme-intelligence"];
+const VIP_ONLY_TABS: TabId[] = ["ct", "wallets", "coach-calls", "nova-forecast", "nova-pulse", "nova-forex", "nova-forex-bot", "gmgn-vip-bot", "nova-plus", "nova-investment", "nova-futures-narratives", "nova-eagle", "crypto-buddie", "meme-intelligence"];
 /** Main dashboard top nav — flex-none overrides default TabsTrigger flex-1 so wrapped tabs do not overlap. */
 const DASHBOARD_TOP_TABS_LIST_CLASS =
   "!flex !h-auto !min-h-0 w-full flex-wrap content-start items-start gap-x-2 gap-y-2 p-3 sm:p-3.5 rounded-xl border border-zinc-200/80 dark:border-zinc-700/80 bg-gradient-to-br from-zinc-50/95 via-white/90 to-zinc-100/80 dark:from-zinc-900/95 dark:via-zinc-800/90 dark:to-zinc-900/80 shadow-inner [&_[role=tab]]:!h-auto [&_[role=tab]]:flex-none [&_[role=tab]]:grow-0 [&_[role=tab]]:shrink-0 [&_[role=tab]]:inline-flex [&_[role=tab]]:items-center [&_[role=tab]]:gap-1.5 [&_[role=tab]]:whitespace-nowrap [&_[role=tab]]:leading-normal [&_[role=tab]]:transition-all [&_[role=tab]]:duration-150 [&_[role=tab][data-state=active]]:shadow-md";
@@ -314,6 +316,7 @@ const TAB_ID_TO_PAGE_FLAG_KEY: Record<TabId, string> = {
   /** Visibility is overridden by Nova Forex Bot / Scalper feature flags (Off / Owner only / All VIP). */
   "nova-forex-bot": "page_tab_nova_forex",
   "nova-ultimate": "page_tab_nova_ultimate",
+  "gmgn-vip-bot": "page_tab_gmgn_vip_bot",
   ct: "page_tab_ct",
   wallets: "page_tab_wallets",
   "coach-calls": "page_tab_coach_calls",
@@ -354,6 +357,7 @@ const TAB_VISIBILITY_ORDER: TabId[] = [
   "prop-firm-bot",
   "nova-forex-bot",
   "nova-ultimate",
+  "gmgn-vip-bot",
   "ct",
   "wallets",
   "coach-calls",
@@ -646,6 +650,9 @@ function Dashboard() {
     if (tab === "nova-forex-bot") {
       return !!(vipFuturesAddons?.novaForexBot || vipFuturesAddons?.novaForexScalpBot);
     }
+    if (tab === "gmgn-vip-bot") {
+      return isTabPageEnabled(tab) && !!vipFuturesAddons?.gmgnVipBot;
+    }
     if (tab === "nova-connect") return novaConnectEnabled && isTabPageEnabled(tab);
     if (tab === "chris-clayton") return isOwner && isTabPageEnabled(tab);
     if (tab === "realtor-os") return isOwner && isTabPageEnabled(tab);
@@ -658,7 +665,7 @@ function Dashboard() {
     const coreTabs: TabId[] = ["new", "trending", "daily-wrap", "bsc", "robinhood", "hyperevm", "watchlist", "nova-connect", "trading-university", "nova-store", "pnl-calculator"];
     const proTabs: TabId[] = ["surge", "transactions", "ai-analysis", "futures", "trending-perps", "perp-radar", "narratives"];
     const vipTabs: TabId[] = ["ct", "wallets", "coach-calls", "nova-forecast", "nova-pulse", "nova-forex", "nova-plus", "nova-investment", "nova-futures-narratives", "nova-eagle", "crypto-buddie", "meme-intelligence", "chris-clayton", "nova-job-agent"];
-    const botTabs: TabId[] = ["trading-bot", "polymarket-bot", "prop-firm-bot", "nova-forex-bot", "nova-ultimate"];
+    const botTabs: TabId[] = ["trading-bot", "polymarket-bot", "prop-firm-bot", "nova-forex-bot", "nova-ultimate", "gmgn-vip-bot"];
     if (topTabFilter === "core") return coreTabs.includes(tab);
     if (topTabFilter === "pro") return proTabs.includes(tab);
     if (topTabFilter === "vip") return vipTabs.includes(tab);
@@ -1261,6 +1268,7 @@ function Dashboard() {
     novaForexScalpAgent: boolean;
     novaForexBot: boolean;
     novaForexScalpBot: boolean;
+    gmgnVipBot: boolean;
   } | null>(null);
   const [showNovaPerpWalletAnalyst, setShowNovaPerpWalletAnalyst] = useState(false);
   const [showMemeLeaderboard, setShowMemeLeaderboard] = useState(false);
@@ -1292,6 +1300,7 @@ function Dashboard() {
           novaForexScalpAgent: !!d.novaForexScalpAgent,
           novaForexBot: !!d.novaForexBot,
           novaForexScalpBot: !!d.novaForexScalpBot,
+          gmgnVipBot: !!d.gmgnVipBot,
         });
       })
       .catch(() => {
@@ -1312,6 +1321,7 @@ function Dashboard() {
             novaForexScalpAgent: false,
             novaForexBot: false,
             novaForexScalpBot: false,
+            gmgnVipBot: false,
           });
         }
       });
@@ -1847,7 +1857,7 @@ function Dashboard() {
     const tab = params.get("tab");
     // Nova Forex Bots / PnL Calculator visibility depends on vipFuturesAddons. If we mark the URL
     // "ready" before those flags load, the sync effect rewrites ?tab=… to Go Hunting and the deep link is lost.
-    if ((tab === "nova-forex-bot" || tab === "pnl-calculator") && vipFuturesAddons === null) return;
+    if ((tab === "nova-forex-bot" || tab === "pnl-calculator" || tab === "gmgn-vip-bot") && vipFuturesAddons === null) return;
     if (tab && URL_TAB_IDS.has(tab) && isTabVisibleInGui(tab as TabId)) {
       setActiveTab(tab as TabId);
     }
@@ -2426,7 +2436,7 @@ function Dashboard() {
       if (status === "authenticated") fetchPinnedTokens();
       return;
     }
-    if (tab === "futures" || tab === "daily-wrap" || tab === "trading-bot" || tab === "polymarket-bot" || tab === "prop-firm-bot" || tab === "nova-forex-bot" || tab === "nova-ultimate" || tab === "watchlist" || tab === "trading-university" || tab === "nova-job-agent" || tab === "realtor-os" || tab === "nova-store" || tab === "nova-investment" || tab === "coach-calls" || tab === "nova-forecast" || tab === "nova-pulse" || tab === "nova-forex" || tab === "nova-plus" || tab === "nova-futures-narratives" || tab === "nova-eagle" || tab === "crypto-buddie" || tab === "meme-intelligence" || tab === "chris-clayton" || tab === "nova-connect") {
+    if (tab === "futures" || tab === "daily-wrap" || tab === "trading-bot" || tab === "polymarket-bot" || tab === "prop-firm-bot" || tab === "nova-forex-bot" || tab === "nova-ultimate" || tab === "gmgn-vip-bot" || tab === "watchlist" || tab === "trading-university" || tab === "nova-job-agent" || tab === "realtor-os" || tab === "nova-store" || tab === "nova-investment" || tab === "coach-calls" || tab === "nova-forecast" || tab === "nova-pulse" || tab === "nova-forex" || tab === "nova-plus" || tab === "nova-futures-narratives" || tab === "nova-eagle" || tab === "crypto-buddie" || tab === "meme-intelligence" || tab === "chris-clayton" || tab === "nova-connect") {
       if (showLoading) setLoading(false);
       return;
     }
@@ -3547,7 +3557,7 @@ function Dashboard() {
 
   // Auto-refresh: Go Hunting / Trending / Surge share VIP daily limit; auto off unless admin enables.
   useEffect(() => {
-    if (activeTab === "ai-analysis" || activeTab === "daily-wrap" || activeTab === "futures" || activeTab === "trending-perps" || activeTab === "perp-radar" || activeTab === "narratives" || activeTab === "trading-bot" || activeTab === "polymarket-bot" || activeTab === "prop-firm-bot" || activeTab === "nova-forex-bot" || activeTab === "nova-ultimate" || activeTab === "nova-forecast" || activeTab === "nova-pulse" || activeTab === "pnl-calculator" || activeTab === "nova-forex" || activeTab === "nova-plus" || activeTab === "nova-investment" || activeTab === "watchlist" || activeTab === "nova-futures-narratives" || activeTab === "nova-eagle" || activeTab === "crypto-buddie" || activeTab === "meme-intelligence" || activeTab === "trading-university" || activeTab === "nova-job-agent" || activeTab === "realtor-os" || activeTab === "nova-store") return;
+    if (activeTab === "ai-analysis" || activeTab === "daily-wrap" || activeTab === "futures" || activeTab === "trending-perps" || activeTab === "perp-radar" || activeTab === "narratives" || activeTab === "trading-bot" || activeTab === "polymarket-bot" || activeTab === "prop-firm-bot" || activeTab === "nova-forex-bot" || activeTab === "nova-ultimate" || activeTab === "gmgn-vip-bot" || activeTab === "nova-forecast" || activeTab === "nova-pulse" || activeTab === "pnl-calculator" || activeTab === "nova-forex" || activeTab === "nova-plus" || activeTab === "nova-investment" || activeTab === "watchlist" || activeTab === "nova-futures-narratives" || activeTab === "nova-eagle" || activeTab === "crypto-buddie" || activeTab === "meme-intelligence" || activeTab === "trading-university" || activeTab === "nova-job-agent" || activeTab === "realtor-os" || activeTab === "nova-store") return;
     if (activeTab === "wallets") {
       const interval = setInterval(() => {
         if (typeof document !== "undefined" && document.visibilityState === "hidden") return;
@@ -4829,6 +4839,9 @@ function Dashboard() {
                 {isTabVisibleInGui("nova-ultimate") && matchesTopTabFilter("nova-ultimate") && (
                   <TabsTrigger value="nova-ultimate" className="!h-auto flex-none grow-0 rounded-md border border-zinc-200 dark:border-zinc-600 px-3.5 py-2 sm:py-2 min-h-[40px] text-sm font-medium shrink-0 data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600"><Flame className="inline-block h-5 w-5 flame-hot-tab shrink-0 animate-flame-flicker" aria-hidden />{t("tabs.nova-ultimate")}</TabsTrigger>
                 )}
+                {isTabVisibleInGui("gmgn-vip-bot") && matchesTopTabFilter("gmgn-vip-bot") && (
+                  <TabsTrigger value="gmgn-vip-bot" className="!h-auto flex-none grow-0 rounded-md border border-zinc-200 dark:border-zinc-600 px-3.5 py-2 sm:py-2 min-h-[40px] text-sm font-medium shrink-0 data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-violet-600 data-[state=active]:text-white dark:data-[state=active]:bg-violet-700"><Flame className="inline-block h-5 w-5 flame-hot-tab shrink-0 animate-flame-flicker" aria-hidden />{t("tabs.gmgn-vip-bot")}</TabsTrigger>
+                )}
                 {showTopTab("ct") && (
                   <TabsTrigger value="ct" className="!h-auto flex-none grow-0 rounded-md border border-zinc-200 dark:border-zinc-600 px-3.5 py-2 sm:py-2 min-h-[40px] text-sm font-medium shrink-0 data-[state=inactive]:bg-white/70 data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:bg-zinc-700/70 dark:data-[state=inactive]:text-zinc-200 data-[state=inactive]:hover:bg-zinc-200/80 dark:data-[state=inactive]:hover:bg-zinc-600/80 data-[state=active]:border-transparent data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600">{t("tabs.ct")}</TabsTrigger>
                 )}
@@ -5296,7 +5309,7 @@ function Dashboard() {
                   variant={activeTab === "new" ? "memeDesk" : "default"}
                 />
               )}
-            {loading && activeTab !== "ai-analysis" && activeTab !== "futures" && activeTab !== "trading-bot" && activeTab !== "polymarket-bot" && activeTab !== "prop-firm-bot" && activeTab !== "nova-forex-bot" && activeTab !== "nova-ultimate" && tokensForDisplay.length === 0 ? (
+            {loading && activeTab !== "ai-analysis" && activeTab !== "futures" && activeTab !== "trading-bot" && activeTab !== "polymarket-bot" && activeTab !== "prop-firm-bot" && activeTab !== "nova-forex-bot" && activeTab !== "nova-ultimate" && activeTab !== "gmgn-vip-bot" && tokensForDisplay.length === 0 ? (
               <div className="mx-3 sm:mx-6 overflow-x-auto px-2 py-8 sm:py-10">
                 <Table>
                   <TableHeader>
@@ -8204,6 +8217,39 @@ function Dashboard() {
                   onSubTabChange={setForexBotSubTab}
                 />
               </div>
+            ) : activeTab === "gmgn-vip-bot" ? (
+              (() => {
+                if (!vipFuturesAddons?.gmgnVipBot) {
+                  return (
+                    <div className="flex flex-col items-center justify-center py-20 px-6 text-center max-w-lg mx-auto">
+                      <p className="text-sm text-zinc-600 dark:text-zinc-400">
+                        GMGN VIP Bot is not enabled yet. Owner can turn it on in Admin → Feature flags (Off / Owner only / All VIP).
+                      </p>
+                    </div>
+                  );
+                }
+                if (status !== "authenticated") {
+                  return (
+                    <GuestLockedFeatureCard
+                      title="GMGN VIP Bot"
+                      body="Sign in with a VIP account to use the GMGN meme trading bot."
+                    />
+                  );
+                }
+                if (!isVip && !isOwner) {
+                  return (
+                    <div className="flex flex-col items-center justify-center py-20 px-6 text-center max-w-lg mx-auto">
+                      <p className="text-sm text-zinc-600 dark:text-zinc-400">VIP subscription required for GMGN VIP Bot.</p>
+                      <a href="/subscribe" className="mt-4 text-cyan-600 underline text-sm">Upgrade to VIP</a>
+                    </div>
+                  );
+                }
+                return (
+                  <div className="mx-3 sm:mx-6 mb-6 sm:mb-8">
+                    <GmgnVipBotPanel />
+                  </div>
+                );
+              })()
             ) : activeTab === "nova-ultimate" ? (
               (() => {
                 const novaUltimateOnDemand = !!(session?.user as { novaUltimateOnDemand?: boolean } | undefined)?.novaUltimateOnDemand;

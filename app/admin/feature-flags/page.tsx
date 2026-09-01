@@ -153,6 +153,11 @@ const FLAG_GROUPS: { id: string; title: string; match: (key: string) => boolean 
     match: (k) => k === "nova_crypto_buddie" || k === "nova_crypto_buddie_owner_only",
   },
   {
+    id: "gmgn-vip-bot",
+    title: "GMGN VIP Meme Bot",
+    match: (k) => k.startsWith("nova_gmgn_vip_bot"),
+  },
+  {
     id: "wallet-subs",
     title: "Wallet Tracker agents",
     match: (k) =>
@@ -611,6 +616,25 @@ const FLAG_LABELS: Record<string, { label: string; description: string }> = {
     label: "Meme Runner (Nova Meme Intelligence)",
     description:
       "When ON, VIP users see Meme Runner under Nova Meme Intelligence — multi-chain trenches (SOL, BSC, ETH) with launchpad filters. Configure in Admin → Meme Runner.",
+  },
+  nova_gmgn_vip_bot: {
+    label: "GMGN VIP Bot — master",
+    description:
+      "Master switch for GMGN meme trading bot tab (SOL, BSC, Robinhood). Pair with owner-only flag. Default OFF.",
+  },
+  nova_gmgn_vip_bot_owner_only: {
+    label: "GMGN VIP Bot — owner only",
+    description:
+      "When master is ON and this is ON, only the owner sees GMGN VIP Bot (test mode). Turn OFF for All VIP. Default ON.",
+  },
+  nova_gmgn_vip_bot_cron: {
+    label: "GMGN VIP Bot — auto-scan cron",
+    description:
+      "When ON, server cron scans GMGN trending for users with bot enabled in auto/semi-auto mode. Default OFF.",
+  },
+  page_tab_gmgn_vip_bot: {
+    label: "Tab: GMGN VIP Bot",
+    description: "Show/hide the GMGN VIP Bot top-level tab. Also managed in Admin → Product visibility.",
   },
   nova_perp_wallet_analyst: {
     label: "Nova Perp Wallet Analyst Agent (Wallet Tracker)",
@@ -1076,7 +1100,11 @@ export default function AdminFeatureFlagsPage() {
     key === "nova_smart_money_alerts" ||
     key === "nova_smart_money_alerts_owner_only" ||
     key === "nova_early_catch" ||
-    key === "nova_early_catch_owner_only";
+    key === "nova_early_catch_owner_only" ||
+    key === "nova_gmgn_vip_bot" ||
+    key === "nova_gmgn_vip_bot_owner_only" ||
+    key === "nova_gmgn_vip_bot_cron" ||
+    key === "page_tab_gmgn_vip_bot";
   const groupedFlags = FLAG_GROUPS.map((g) => ({
     ...g,
     entries: flagEntries.filter(([key]) => !hideFromFlagsList(key) && flagGroupId(key) === g.id),
@@ -1085,6 +1113,7 @@ export default function AdminFeatureFlagsPage() {
       g.entries.length > 0 ||
       g.id === "nova-jobs-agent" ||
       g.id === "crypto-buddie" ||
+      g.id === "gmgn-vip-bot" ||
       g.id === "narratives-early" ||
       g.id === "wallet-subs"
   );
@@ -1528,6 +1557,95 @@ export default function AdminFeatureFlagsPage() {
                                     {busy && audience !== opt.id ? "…" : opt.label}
                                   </Button>
                                 ))}
+                              </div>
+                            </div>
+                          );
+                        })()}
+                      </div>
+                    ) : group.id === "gmgn-vip-bot" ? (
+                      <div className="space-y-4 px-4 pb-4 border-t border-zinc-200 dark:border-zinc-700 pt-3">
+                        <p className="text-xs text-muted-foreground">
+                          GMGN VIP Bot is <strong className="text-zinc-800 dark:text-zinc-200">VIP only</strong>. Trades SOL, BSC,
+                          and Robinhood via GMGN. Use <strong className="text-zinc-800 dark:text-zinc-200">Owner only</strong> while
+                          testing, then <strong className="text-zinc-800 dark:text-zinc-200">All VIP</strong>. Also show the tab in
+                          Admin → Product visibility.
+                        </p>
+                        {(() => {
+                          const audience = forexAudienceFromFlags("nova_gmgn_vip_bot", "nova_gmgn_vip_bot_owner_only");
+                          const busy = toggling === "nova_gmgn_vip_bot";
+                          return (
+                            <div className="rounded-lg bg-zinc-50/80 dark:bg-zinc-900/50 p-3 space-y-3">
+                              <div className="flex flex-wrap items-start justify-between gap-2">
+                                <div className="min-w-0 flex-1">
+                                  <p className="font-medium text-zinc-900 dark:text-zinc-100">GMGN VIP Meme Bot</p>
+                                  <p className="text-xs text-muted-foreground mt-0.5">
+                                    Semi-auto (approve each trade) or full auto. Users paste GMGN API key + private key; owner can use
+                                    server env GMGN_API_KEY.
+                                  </p>
+                                </div>
+                                <span
+                                  className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
+                                    audience === "off"
+                                      ? "bg-zinc-200 text-zinc-600 dark:bg-zinc-700 dark:text-zinc-400"
+                                      : audience === "owner"
+                                        ? "bg-amber-100 text-amber-900 dark:bg-amber-950 dark:text-amber-200"
+                                        : "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300"
+                                  }`}
+                                >
+                                  {audience === "off" ? "OFF" : audience === "owner" ? "OWNER ONLY" : "ALL VIP"}
+                                </span>
+                              </div>
+                              <div className="flex flex-wrap gap-2">
+                                {(
+                                  [
+                                    { id: "off" as const, label: "Off" },
+                                    { id: "owner" as const, label: "Owner only (test)" },
+                                    { id: "vip" as const, label: "All VIP" },
+                                  ] as const
+                                ).map((opt) => (
+                                  <Button
+                                    key={opt.id}
+                                    size="sm"
+                                    variant={audience === opt.id ? "default" : "outline"}
+                                    disabled={busy}
+                                    onClick={() =>
+                                      void setForexAudience("nova_gmgn_vip_bot", "nova_gmgn_vip_bot_owner_only", opt.id)
+                                    }
+                                  >
+                                    {busy && audience !== opt.id ? "…" : opt.label}
+                                  </Button>
+                                ))}
+                              </div>
+                            </div>
+                          );
+                        })()}
+                        {(() => {
+                          const cronKey = "nova_gmgn_vip_bot_cron";
+                          const enabled = flags[cronKey] ?? false;
+                          const busy = toggling === cronKey;
+                          return (
+                            <div className="rounded-lg bg-zinc-50/80 dark:bg-zinc-900/50 p-3">
+                              <div className="flex flex-wrap items-start justify-between gap-3">
+                                <div className="min-w-0 flex-1">
+                                  <p className="font-medium text-zinc-900 dark:text-zinc-100">GMGN VIP Bot — auto-scan cron</p>
+                                  <p className="text-xs text-muted-foreground mt-0.5">
+                                    When ON, scheduled cron scans GMGN trending for enabled users (manual Scan still works when OFF).
+                                  </p>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <span
+                                    className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
+                                      enabled
+                                        ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300"
+                                        : "bg-zinc-200 text-zinc-600 dark:bg-zinc-700 dark:text-zinc-400"
+                                    }`}
+                                  >
+                                    {enabled ? "ON" : "OFF"}
+                                  </span>
+                                  <Button size="sm" variant={enabled ? "outline" : "default"} disabled={busy} onClick={() => handleToggle(cronKey)}>
+                                    {busy ? "…" : enabled ? "Turn off" : "Turn on"}
+                                  </Button>
+                                </div>
                               </div>
                             </div>
                           );

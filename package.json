@@ -43,6 +43,7 @@
     "clsx": "^2.1.1",
     "dotenv": "^17.2.3",
     "ethers": "^6.16.0",
+    "gmgn-cli": "^1.6.0",
     "hyperliquid-ts": "^1.2.1",
     "imapflow": "^1.6.6",
     "lucide-react": "^0.563.0",
