@@ -13,6 +13,11 @@ import {
   ROBINHOOD_HYPEREVM_LAUNCH_EMAIL,
   shouldUseCustomRobinhoodHyperevmIntro,
 } from "@/lib/robinhood-hyperevm-launch-email";
+import {
+  GMGN_VIP_BOT_LAUNCH_EMAIL,
+  GMGN_VIP_BOT_RULES_URL,
+  shouldUseCustomGmgnVipBotIntro,
+} from "@/lib/gmgn-vip-bot-launch-email";
 import { filterSuppressedEmails, getSuppressedEmailSet } from "@/lib/email-suppression";
 import type { FuturesWrapItem } from "@/lib/futures-daily-wrap";
 
@@ -27,7 +32,8 @@ export type AnnouncementEmailTemplate =
   | "why-traders"
   | "futures-morning-brief"
   | "pnl-calculator"
-  | "robinhood-hyperevm";
+  | "robinhood-hyperevm"
+  | "gmgn-vip-bot";
 
 export const ANNOUNCEMENT_EMAIL_TEMPLATES: AnnouncementEmailTemplate[] = [
   "default",
@@ -39,6 +45,7 @@ export const ANNOUNCEMENT_EMAIL_TEMPLATES: AnnouncementEmailTemplate[] = [
   "futures-morning-brief",
   "pnl-calculator",
   "robinhood-hyperevm",
+  "gmgn-vip-bot",
 ];
 
 export function parseAnnouncementEmailTemplate(value: string | null | undefined): AnnouncementEmailTemplate {
@@ -571,6 +578,65 @@ export function buildRobinhoodHyperevmLaunchEmailHtml(args?: {
   return pnlCalculatorEmailShell(inner);
 }
 
+/** GMGN VIP Meme Bot launch — violet hero, setup checklist, rules link. */
+export function buildGmgnVipBotLaunchEmailHtml(args?: {
+  body?: string;
+  ctaLabel?: string | null;
+  ctaUrl?: string | null;
+}): string {
+  const customBody = (args?.body ?? "").trim();
+  const ctaLabel = args?.ctaLabel?.trim() || GMGN_VIP_BOT_LAUNCH_EMAIL.ctaLabel;
+  const ctaUrl = absoluteAnnouncementUrl(args?.ctaUrl?.trim() || GMGN_VIP_BOT_LAUNCH_EMAIL.ctaUrl);
+  const rulesLink = absoluteAnnouncementUrl(GMGN_VIP_BOT_RULES_URL);
+
+  const bodyBlock = customBody
+    ? `<td bgcolor="#18181b" style="padding:28px 28px 8px 28px;background:#18181b;">
+        ${announcementBodyToHtml(customBody)}
+        <div style="margin:8px 0 8px 0;text-align:center;">${pnlCalculatorCtaButtonHtml(ctaLabel, ctaUrl)}</div>
+      </td>`
+    : `<td bgcolor="#18181b" style="padding:28px 28px 8px 28px;background:#18181b;">
+        <p style="margin:0 0 14px 0;font-size:15px;line-height:1.55;color:#e4e4e7;">Hi there,</p>
+        <p style="margin:0 0 18px 0;font-size:15px;line-height:1.55;color:#e4e4e7;">
+          The <strong style="color:#fafafa;">GMGN VIP Meme Bot</strong> is live — scan 1h trending on Solana, BSC, and Robinhood, approve signals in semi-auto, or run full auto when you&apos;re ready.
+        </p>
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 18px 0;border-collapse:collapse;">
+          <tr>
+            <td style="background:#27272a;border:1px solid #8b5cf6;border-radius:12px;padding:16px 18px;">
+              <p style="margin:0 0 10px 0;font-size:13px;font-weight:700;color:#c4b5fd;text-transform:uppercase;letter-spacing:0.06em;">Setup checklist</p>
+              <p style="margin:0 0 8px 0;font-size:15px;line-height:1.45;color:#f4f4f5;">Read the <a href="${rulesLink}" style="color:#a78bfa;">trading rules</a> — filters are configurable per account</p>
+              <p style="margin:0 0 8px 0;font-size:15px;line-height:1.45;color:#f4f4f5;">Add your GMGN-bound wallet (on-chain address, not email)</p>
+              <p style="margin:0 0 8px 0;font-size:15px;line-height:1.45;color:#f4f4f5;">Connect GMGN API key + private key (encrypted storage)</p>
+              <p style="margin:0;font-size:15px;line-height:1.45;color:#f4f4f5;">Start in <strong>semi-auto</strong> — approve each trade first</p>
+            </td>
+          </tr>
+        </table>
+        ${pnlCalculatorCtaButtonHtml(ctaLabel, ctaUrl)}
+        <p style="margin:16px 0 0 0;font-size:12px;line-height:1.5;color:#a1a1aa;text-align:center;">
+          Meme trading is high risk. Not financial advice.
+        </p>
+      </td>`;
+
+  const inner = `
+    <tr>
+      <td align="center" bgcolor="#4c1d95" style="background:#4c1d95;background-image:linear-gradient(160deg,#0a0a0b 0%,#18181b 55%,#4c1d95 140%);padding:36px 28px 32px 28px;">
+        <p style="margin:0 0 10px 0;font-family:Arial,Helvetica,sans-serif;font-size:11px;letter-spacing:0.16em;text-transform:uppercase;color:#c4b5fd;">
+          VIP · GMGN MEME BOT
+        </p>
+        <p style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:26px;line-height:1.25;font-weight:700;color:#ffffff;letter-spacing:-0.02em;">
+          Trending meme signals on GMGN
+        </p>
+        <p style="margin:14px 0 0 0;font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.45;color:#ddd6fe;">
+          Solana · BSC · Robinhood · Semi-auto or full auto
+        </p>
+      </td>
+    </tr>
+    <tr>
+      ${bodyBlock}
+    </tr>`;
+
+  return pnlCalculatorEmailShell(inner);
+}
+
 /** Polished welcome / Start here email with NovaStaris brand banner. */
 export function buildWelcomeEmailHtml(args?: { body?: string }): string {
   const customBody = (args?.body ?? "").trim();
@@ -759,6 +825,14 @@ export function buildAnnouncementEmailHtml(args: {
   if (args.template === "robinhood-hyperevm") {
     return buildRobinhoodHyperevmLaunchEmailHtml({
       body: shouldUseCustomRobinhoodHyperevmIntro(args.body) ? args.body : undefined,
+      ctaLabel: args.ctaLabel,
+      ctaUrl: args.ctaUrl,
+    });
+  }
+
+  if (args.template === "gmgn-vip-bot") {
+    return buildGmgnVipBotLaunchEmailHtml({
+      body: shouldUseCustomGmgnVipBotIntro(args.body) ? args.body : undefined,
       ctaLabel: args.ctaLabel,
       ctaUrl: args.ctaUrl,
     });

@@ -763,6 +763,31 @@ model AnnouncementEmailCampaign {
   @@index([template, createdAt(sort: Desc)])
 }
 
+/** Saved / archived admin email templates (custom drafts + hidden built-in presets). */
+model AdminEmailTemplate {
+  id                  String    @id @default(cuid())
+  label               String
+  subject             String
+  body                String    @db.Text
+  template            String    @default("nova-branded")
+  format              String    @default("rich")
+  includePartnerLogos Boolean   @default(false)
+  partnerBrand        String?
+  ctaLabel            String?
+  ctaUrl              String?
+  /** Built-in preset id when archiving a system template; null = custom saved draft */
+  sourcePresetId      String?
+  status              String    @default("active")
+  createdByUserId     String?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+  archivedAt          DateTime?
+  deletedAt           DateTime?
+
+  @@index([status, updatedAt(sort: Desc)])
+  @@index([sourcePresetId, status])
+}
+
 /** Auto welcome on register / first Google signup — audit who received (or failed). */
 model WelcomeEmailLog {
   id        String   @id @default(cuid())

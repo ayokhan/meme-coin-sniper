@@ -33,7 +33,7 @@ function NumField({
   max,
   step,
   disabled,
-  onSave,
+  onChange,
 }: {
   label: string;
   value: number;
@@ -41,7 +41,7 @@ function NumField({
   max: number;
   step?: number;
   disabled?: boolean;
-  onSave: (v: number) => void;
+  onChange: (v: number) => void;
 }) {
   return (
     <label className="block">
@@ -54,10 +54,49 @@ function NumField({
         max={max}
         step={step ?? 1}
         disabled={disabled}
-        onChange={(e) => onSave(Number(e.target.value))}
+        onChange={(e) => onChange(Number(e.target.value))}
       />
     </label>
   );
+}
+
+type SettingsDraft = {
+  enabled: boolean;
+  tradingMode: "semi_auto" | "auto";
+  chains: string[];
+  walletAddress: string;
+};
+
+type RulesDraft = {
+  maxTradeUsd: number;
+  maxOpenTrades: number;
+  minLiquidityUsd: number;
+  minMomentum1hPct: number;
+  slippagePct: number;
+  maxDailyLossUsd: number;
+  stopLossPct: number;
+  takeProfitPct: number;
+};
+
+function configToDrafts(c: GmgnVipBotConfigView): { settings: SettingsDraft; rules: RulesDraft } {
+  return {
+    settings: {
+      enabled: c.enabled,
+      tradingMode: c.tradingMode,
+      chains: [...c.chains],
+      walletAddress: c.walletAddress ?? "",
+    },
+    rules: {
+      maxTradeUsd: c.maxTradeUsd,
+      maxOpenTrades: c.maxOpenTrades,
+      minLiquidityUsd: c.minLiquidityUsd,
+      minMomentum1hPct: c.minMomentum1hPct,
+      slippagePct: c.slippagePct,
+      maxDailyLossUsd: c.maxDailyLossUsd,
+      stopLossPct: c.stopLossPct,
+      takeProfitPct: c.takeProfitPct,
+    },
+  };
 }
 
 export default function GmgnVipBotPanel() {
@@ -69,6 +108,9 @@ export default function GmgnVipBotPanel() {
   const [apiKey, setApiKey] = useState("");
   const [privateKey, setPrivateKey] = useState("");
   const [walletError, setWalletError] = useState<string | null>(null);
+  const [settingsDraft, setSettingsDraft] = useState<SettingsDraft | null>(null);
+  const [rulesDraft, setRulesDraft] = useState<RulesDraft | null>(null);
+  const [saveNotice, setSaveNotice] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setError(null);
@@ -79,8 +121,13 @@ export default function GmgnVipBotPanel() {
       ]);
       const cfg = await cfgRes.json();
       const sig = await sigRes.json();
-      if (cfg.success) setConfig(cfg.config);
-      else setError(cfg.error ?? "Failed to load config.");
+      if (cfg.success) {
+        setConfig(cfg.config);
+        const drafts = configToDrafts(cfg.config);
+        setSettingsDraft(drafts.settings);
+        setRulesDraft(drafts.rules);
+        setWalletError(null);
+      } else setError(cfg.error ?? "Failed to load config.");
       if (sig.success) setSignals(sig.signals ?? []);
     } catch {
       setError("Network error loading GMGN bot.");
@@ -108,8 +155,12 @@ export default function GmgnVipBotPanel() {
         return;
       }
       setConfig(data.config);
+      const drafts = configToDrafts(data.config);
+      setSettingsDraft(drafts.settings);
+      setRulesDraft(drafts.rules);
       setApiKey("");
       setPrivateKey("");
+      setSaveNotice("Settings saved.");
     } catch {
       setError("Save failed.");
     } finally {
@@ -117,20 +168,30 @@ export default function GmgnVipBotPanel() {
     }
   };
 
-  const saveWallet = async (raw: string) => {
-    const trimmed = raw.trim();
-    if (!trimmed) {
-      setWalletError(null);
-      await saveConfig({ walletAddress: null });
-      return;
-    }
-    const check = validateGmgnWalletAddress(trimmed);
-    if (!check.ok) {
-      setWalletError(check.error);
-      return;
+  const saveSettings = async () => {
+    if (!settingsDraft) return;
+    const trimmedWallet = settingsDraft.walletAddress.trim();
+    if (trimmedWallet) {
+      const check = validateGmgnWalletAddress(trimmedWallet);
+      if (!check.ok) {
+        setWalletError(check.error);
+        setError(check.error);
+        return;
+      }
     }
     setWalletError(null);
-    await saveConfig({ walletAddress: trimmed });
+    await saveConfig({
+      enabled: settingsDraft.enabled,
+      tradingMode: settingsDraft.tradingMode,
+      chains: settingsDraft.chains,
+      walletAddress: trimmedWallet || null,
+    });
+  };
+
+  const saveRules = async () => {
+    if (!rulesDraft) return;
+    await saveConfig({ ...rulesDraft });
+    setSaveNotice("Trading rules saved.");
   };
 
   const runScan = async () => {
@@ -180,6 +241,7 @@ export default function GmgnVipBotPanel() {
       });
       const data = await res.json();
       if (!data.success) setError(data.error ?? "Connection failed.");
+      else setSaveNotice("GMGN connection OK.");
     } catch {
       setError("Connection test failed.");
     } finally {
@@ -196,15 +258,18 @@ export default function GmgnVipBotPanel() {
     );
   }
 
-  if (!config) {
+  if (!config || !settingsDraft || !rulesDraft) {
     return <p className="text-sm text-red-600 dark:text-red-400 px-4">{error ?? "Unable to load bot."}</p>;
   }
 
   const toggleChain = (id: string) => {
-    const set = new Set(config.chains);
-    if (set.has(id as (typeof config.chains)[number])) set.delete(id as (typeof config.chains)[number]);
-    else set.add(id as (typeof config.chains)[number]);
-    void saveConfig({ chains: [...set] });
+    setSettingsDraft((d) => {
+      if (!d) return d;
+      const set = new Set(d.chains);
+      if (set.has(id)) set.delete(id);
+      else set.add(id);
+      return { ...d, chains: [...set] };
+    });
   };
 
   const showCredentialFields = !config.credentialsFromServer;
@@ -228,6 +293,12 @@ export default function GmgnVipBotPanel() {
         </div>
       </div>
 
+      {saveNotice && (
+        <div className="rounded-lg border border-emerald-300 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/40 px-3 py-2 text-sm text-emerald-800 dark:text-emerald-200">
+          {saveNotice}
+        </div>
+      )}
+
       {error && (
         <div className="rounded-lg border border-red-300 dark:border-red-800 bg-red-50 dark:bg-red-950/40 px-3 py-2 text-sm text-red-800 dark:text-red-200 flex gap-2">
           <ShieldAlert className="h-4 w-4 shrink-0 mt-0.5" />
@@ -245,9 +316,9 @@ export default function GmgnVipBotPanel() {
               <span>Bot enabled</span>
               <input
                 type="checkbox"
-                checked={config.enabled}
-                disabled={config.ownerForceOff || busy === "save"}
-                onChange={(e) => void saveConfig({ enabled: e.target.checked })}
+                checked={settingsDraft.enabled}
+                disabled={config.ownerForceOff}
+                onChange={(e) => setSettingsDraft((d) => (d ? { ...d, enabled: e.target.checked } : d))}
               />
             </label>
 
@@ -263,9 +334,8 @@ export default function GmgnVipBotPanel() {
                   <Button
                     key={m.id}
                     size="sm"
-                    variant={config.tradingMode === m.id ? "default" : "outline"}
-                    disabled={busy === "save"}
-                    onClick={() => void saveConfig({ tradingMode: m.id })}
+                    variant={settingsDraft.tradingMode === m.id ? "default" : "outline"}
+                    onClick={() => setSettingsDraft((d) => (d ? { ...d, tradingMode: m.id } : d))}
                   >
                     {m.label}
                   </Button>
@@ -280,8 +350,7 @@ export default function GmgnVipBotPanel() {
                   <Button
                     key={c.id}
                     size="sm"
-                    variant={config.chains.includes(c.id) ? "default" : "outline"}
-                    disabled={busy === "save"}
+                    variant={settingsDraft.chains.includes(c.id) ? "default" : "outline"}
                     onClick={() => toggleChain(c.id)}
                   >
                     {c.label}
@@ -298,13 +367,20 @@ export default function GmgnVipBotPanel() {
                   walletError ? "border-red-400 dark:border-red-700" : "border-zinc-300 dark:border-zinc-600"
                 }`}
                 placeholder="Solana base58 or EVM 0x… — not your email"
-                defaultValue={config.walletAddress ?? ""}
-                key={config.walletAddress ?? "empty"}
-                onBlur={(e) => void saveWallet(e.target.value)}
+                value={settingsDraft.walletAddress}
+                onChange={(e) => {
+                  setSettingsDraft((d) => (d ? { ...d, walletAddress: e.target.value } : d));
+                  if (walletError) setWalletError(null);
+                }}
               />
-              <p className="text-xs text-muted-foreground mt-1">{walletHintForChains(config.chains)}</p>
+              <p className="text-xs text-muted-foreground mt-1">{walletHintForChains(settingsDraft.chains)}</p>
               {walletError && <p className="text-xs text-red-600 dark:text-red-400 mt-1">{walletError}</p>}
             </label>
+
+            <Button size="sm" disabled={busy === "save"} onClick={() => void saveSettings()}>
+              {busy === "save" ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}
+              Save bot settings
+            </Button>
 
             <div className="flex flex-wrap gap-2 pt-1">
               <Button size="sm" variant="outline" disabled={!!busy} onClick={() => void runScan()}>
@@ -331,7 +407,7 @@ export default function GmgnVipBotPanel() {
           </CardHeader>
           <CardContent className="space-y-3 text-sm">
             <p className="text-xs text-muted-foreground">
-              Saved per account. Full explanation on the{" "}
+              Adjust values, then click Save. Full explanation on the{" "}
               <Link href={GMGN_BOT_RULES_PATH} className="underline">
                 rules page
               </Link>
@@ -340,71 +416,67 @@ export default function GmgnVipBotPanel() {
             <div className="grid gap-3 sm:grid-cols-2">
               <NumField
                 label="Max trade (USD est.)"
-                value={config.maxTradeUsd}
+                value={rulesDraft.maxTradeUsd}
                 min={5}
                 max={500}
-                disabled={busy === "save"}
-                onSave={(v) => void saveConfig({ maxTradeUsd: v })}
+                onChange={(v) => setRulesDraft((d) => (d ? { ...d, maxTradeUsd: v } : d))}
               />
               <NumField
                 label="Max open trades"
-                value={config.maxOpenTrades}
+                value={rulesDraft.maxOpenTrades}
                 min={1}
                 max={10}
-                disabled={busy === "save"}
-                onSave={(v) => void saveConfig({ maxOpenTrades: v })}
+                onChange={(v) => setRulesDraft((d) => (d ? { ...d, maxOpenTrades: v } : d))}
               />
               <NumField
                 label="Min liquidity (USD)"
-                value={config.minLiquidityUsd}
+                value={rulesDraft.minLiquidityUsd}
                 min={0}
                 max={1_000_000}
                 step={1000}
-                disabled={busy === "save"}
-                onSave={(v) => void saveConfig({ minLiquidityUsd: v })}
+                onChange={(v) => setRulesDraft((d) => (d ? { ...d, minLiquidityUsd: v } : d))}
               />
               <NumField
                 label="Min 1h momentum (%)"
-                value={config.minMomentum1hPct}
+                value={rulesDraft.minMomentum1hPct}
                 min={0}
                 max={100}
                 step={0.5}
-                disabled={busy === "save"}
-                onSave={(v) => void saveConfig({ minMomentum1hPct: v })}
+                onChange={(v) => setRulesDraft((d) => (d ? { ...d, minMomentum1hPct: v } : d))}
               />
               <NumField
                 label="Slippage (%)"
-                value={config.slippagePct}
+                value={rulesDraft.slippagePct}
                 min={1}
                 max={50}
-                disabled={busy === "save"}
-                onSave={(v) => void saveConfig({ slippagePct: v })}
+                onChange={(v) => setRulesDraft((d) => (d ? { ...d, slippagePct: v } : d))}
               />
               <NumField
                 label="Max daily loss (USD)"
-                value={config.maxDailyLossUsd}
+                value={rulesDraft.maxDailyLossUsd}
                 min={10}
                 max={10_000}
-                disabled={busy === "save"}
-                onSave={(v) => void saveConfig({ maxDailyLossUsd: v })}
+                onChange={(v) => setRulesDraft((d) => (d ? { ...d, maxDailyLossUsd: v } : d))}
               />
               <NumField
                 label="Stop loss (%)"
-                value={config.stopLossPct}
+                value={rulesDraft.stopLossPct}
                 min={5}
                 max={90}
-                disabled={busy === "save"}
-                onSave={(v) => void saveConfig({ stopLossPct: v })}
+                onChange={(v) => setRulesDraft((d) => (d ? { ...d, stopLossPct: v } : d))}
               />
               <NumField
                 label="Take profit (%)"
-                value={config.takeProfitPct}
+                value={rulesDraft.takeProfitPct}
                 min={10}
                 max={500}
-                disabled={busy === "save"}
-                onSave={(v) => void saveConfig({ takeProfitPct: v })}
+                onChange={(v) => setRulesDraft((d) => (d ? { ...d, takeProfitPct: v } : d))}
               />
             </div>
+            <Button size="sm" disabled={busy === "save"} onClick={() => void saveRules()}>
+              {busy === "save" ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}
+              Save trading rules
+            </Button>
             <p className="text-xs text-amber-700 dark:text-amber-300">
               Stop loss, take profit, and max daily loss are saved now; automated exits are planned in a future update.
             </p>

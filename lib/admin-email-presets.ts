@@ -6,6 +6,7 @@ import {
 import { BLOFIN_PARTNERSHIP_EMAIL } from "@/lib/blofin-partner-promo";
 import { PNL_CALCULATOR_LAUNCH_EMAIL } from "@/lib/pnl-calculator-launch-email";
 import { ROBINHOOD_HYPEREVM_LAUNCH_EMAIL } from "@/lib/robinhood-hyperevm-launch-email";
+import { GMGN_VIP_BOT_LAUNCH_EMAIL } from "@/lib/gmgn-vip-bot-launch-email";
 import { AFFILIATE_PROGRAM_EMAIL } from "@/lib/referral-program";
 import { WELCOME_EMAIL } from "@/lib/welcome-email";
 import { WHY_TRADERS_EMAIL } from "@/lib/why-traders-email";
@@ -57,6 +58,7 @@ export type AdminEmailPresetId =
   | "forex-bots-launch"
   | "pnl-calculator-launch"
   | "robinhood-hyperevm-launch"
+  | "gmgn-vip-bot-launch"
   | "tio-partnership"
   | "vantage-partnership"
   | "assex-partnership"
@@ -377,6 +379,19 @@ export const ADMIN_EMAIL_PRESETS: AdminEmailPreset[] = [
     ctaLabel: ROBINHOOD_HYPEREVM_LAUNCH_EMAIL.ctaLabel,
     ctaUrl: ROBINHOOD_HYPEREVM_LAUNCH_EMAIL.ctaUrl,
     defaultAudience: "all",
+  },
+  {
+    id: "gmgn-vip-bot-launch",
+    label: "GMGN VIP Meme Bot launch",
+    blurb: "One-time VIP announcement — semi-auto trending bot + setup checklist",
+    subject: GMGN_VIP_BOT_LAUNCH_EMAIL.subject,
+    body: GMGN_VIP_BOT_LAUNCH_EMAIL.body,
+    template: "gmgn-vip-bot",
+    includePartnerLogos: false,
+    partnerBrand: "blofin",
+    ctaLabel: GMGN_VIP_BOT_LAUNCH_EMAIL.ctaLabel,
+    ctaUrl: GMGN_VIP_BOT_LAUNCH_EMAIL.ctaUrl,
+    defaultAudience: "vip",
   },
   {
     id: "tio-partnership",

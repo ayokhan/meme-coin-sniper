@@ -74,6 +74,22 @@ type WelcomeLogRow = {
   createdAt: string;
 };
 
+type SavedTemplateRow = {
+  id: string;
+  label: string;
+  subject: string;
+  body: string;
+  template: string;
+  format: string;
+  includePartnerLogos: boolean;
+  partnerBrand: string | null;
+  ctaLabel: string | null;
+  ctaUrl: string | null;
+  sourcePresetId: string | null;
+  status: string;
+  updatedAt: string;
+};
+
 type AudienceMode = "newsletter" | "all" | "new" | "free" | "vip" | "inactive7d" | "trial" | "trial-expiring";
 
 type Props = {
@@ -133,6 +149,12 @@ export default function AdminEmailsPanel({ onNotice, onError }: Props) {
   const [suppressBusy, setSuppressBusy] = useState(false);
   const [suppressSearch, setSuppressSearch] = useState("");
   const [suppressFilter, setSuppressFilter] = useState<"all" | "blocked" | "sendable">("all");
+  const [savedTemplates, setSavedTemplates] = useState<SavedTemplateRow[]>([]);
+  const [archivedTemplates, setArchivedTemplates] = useState<SavedTemplateRow[]>([]);
+  const [archivedPresetIds, setArchivedPresetIds] = useState<string[]>([]);
+  const [templateBusy, setTemplateBusy] = useState(false);
+  const [showArchivedTemplates, setShowArchivedTemplates] = useState(false);
+  const [saveTemplateLabel, setSaveTemplateLabel] = useState("");
 
   const suppressedSet = useMemo(
     () => new Set((stats?.suppressedEmails ?? []).map((e) => e.toLowerCase())),
@@ -200,10 +222,27 @@ export default function AdminEmailsPanel({ onNotice, onError }: Props) {
     });
   }, [customerEmailRows, suppressFilter, suppressSearch]);
 
+  const loadEmailTemplates = useCallback(async () => {
+    try {
+      const res = await fetch("/api/admin/email-templates", { credentials: "include" });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setSavedTemplates(Array.isArray(data.active) ? data.active : []);
+        setArchivedTemplates(Array.isArray(data.archived) ? data.archived : []);
+        setArchivedPresetIds(Array.isArray(data.archivedPresetIds) ? data.archivedPresetIds : []);
+      }
+    } catch {
+      /* non-fatal */
+    }
+  }, []);
+
   const loadStats = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch("/api/admin/announcement-email", { credentials: "include" });
+      const [res] = await Promise.all([
+        fetch("/api/admin/announcement-email", { credentials: "include" }),
+        loadEmailTemplates(),
+      ]);
       const data = await res.json();
       if (res.ok && data.success && data.stats) {
         const s = data.stats as EmailStats;
@@ -233,7 +272,54 @@ export default function AdminEmailsPanel({ onNotice, onError }: Props) {
     } finally {
       setLoading(false);
     }
-  }, [onError]);
+  }, [onError, loadEmailTemplates]);
+
+  const visiblePresets = useMemo(
+    () => ADMIN_EMAIL_PRESETS.filter((p) => !archivedPresetIds.includes(p.id)),
+    [archivedPresetIds]
+  );
+
+  const templateAction = useCallback(
+    async (body: Record<string, unknown>, okMsg: string) => {
+      setTemplateBusy(true);
+      try {
+        const res = await fetch("/api/admin/email-templates", {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        });
+        const data = await res.json();
+        if (res.ok && data.success) {
+          await loadEmailTemplates();
+          onNotice?.(okMsg);
+        } else {
+          onError?.(data.error || "Template action failed.");
+        }
+      } catch {
+        onError?.("Template action failed.");
+      } finally {
+        setTemplateBusy(false);
+      }
+    },
+    [loadEmailTemplates, onError, onNotice]
+  );
+
+  const loadSavedTemplate = useCallback((row: SavedTemplateRow) => {
+    setPresetId(row.sourcePresetId ? (row.sourcePresetId as AdminEmailPresetId) : "custom");
+    setFormat(row.format === "plain" ? "plain" : "rich");
+    setDraft((d) => ({
+      ...d,
+      subject: row.subject,
+      body: row.body,
+      includePartnerLogos: row.includePartnerLogos,
+      partnerBrand: (row.partnerBrand as PartnerBrandEmail) ?? "blofin",
+      template: (row.template as AnnouncementEmailTemplate) ?? "nova-branded",
+      ctaLabel: row.ctaLabel ?? "",
+      ctaUrl: row.ctaUrl ?? "",
+    }));
+    onNotice?.(`Loaded “${row.label}”.`);
+  }, [onNotice]);
 
   const addToDoNotSend = useCallback(
     async (emails: string[]) => {
@@ -826,20 +912,31 @@ export default function AdminEmailsPanel({ onNotice, onError }: Props) {
         </CardHeader>
         <CardContent>
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-2">
-            {ADMIN_EMAIL_PRESETS.map((p) => (
-              <button
+            {visiblePresets.map((p) => (
+              <div
                 key={p.id}
-                type="button"
-                onClick={() => applyPreset(p.id)}
-                className={`text-left rounded-lg border px-3 py-2.5 transition-colors ${
+                className={`relative rounded-lg border transition-colors ${
                   presetId === p.id
                     ? "border-teal-500 bg-teal-500/10"
                     : "border-zinc-200 dark:border-zinc-700 hover:border-zinc-400 dark:hover:border-zinc-500"
                 }`}
               >
-                <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">{p.label}</p>
-                <p className="text-[11px] text-muted-foreground mt-0.5">{p.blurb}</p>
-              </button>
+                <button type="button" onClick={() => applyPreset(p.id)} className="text-left w-full px-3 py-2.5 pr-16">
+                  <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">{p.label}</p>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">{p.blurb}</p>
+                </button>
+                <button
+                  type="button"
+                  title="Archive template"
+                  disabled={templateBusy}
+                  className="absolute top-2 right-2 text-[10px] px-1.5 py-0.5 rounded border border-zinc-300 dark:border-zinc-600 text-muted-foreground hover:text-amber-700"
+                  onClick={() =>
+                    void templateAction({ action: "archive-preset", presetId: p.id }, `Archived “${p.label}”.`)
+                  }
+                >
+                  Archive
+                </button>
+              </div>
             ))}
             <button
               type="button"
@@ -856,6 +953,86 @@ export default function AdminEmailsPanel({ onNotice, onError }: Props) {
               <p className="text-sm font-medium">Custom</p>
               <p className="text-[11px] text-muted-foreground mt-0.5">Write your own message</p>
             </button>
+          </div>
+
+          {savedTemplates.length > 0 && (
+            <div className="mt-4 space-y-2">
+              <p className="text-xs font-medium text-zinc-700 dark:text-zinc-300">Your saved templates</p>
+              <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                {savedTemplates.map((t) => (
+                  <div
+                    key={t.id}
+                    className="rounded-lg border border-zinc-200 dark:border-zinc-700 px-3 py-2 flex flex-col gap-2"
+                  >
+                    <button type="button" className="text-left" onClick={() => loadSavedTemplate(t)}>
+                      <p className="text-sm font-medium">{t.label}</p>
+                      <p className="text-[11px] text-muted-foreground truncate">{t.subject}</p>
+                    </button>
+                    <div className="flex gap-1">
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        className="h-7 text-xs"
+                        disabled={templateBusy}
+                        onClick={() => void templateAction({ action: "archive", id: t.id }, "Template archived.")}
+                      >
+                        Archive
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div className="mt-4">
+            <button
+              type="button"
+              className="text-xs text-teal-700 dark:text-teal-300 underline"
+              onClick={() => setShowArchivedTemplates((v) => !v)}
+            >
+              {showArchivedTemplates ? "Hide archived templates" : `Show archived (${archivedTemplates.length})`}
+            </button>
+            {showArchivedTemplates && archivedTemplates.length > 0 && (
+              <div className="mt-2 grid sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                {archivedTemplates.map((t) => (
+                  <div
+                    key={t.id}
+                    className="rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-2 space-y-2"
+                  >
+                    <p className="text-sm font-medium">{t.label}</p>
+                    <p className="text-[11px] text-muted-foreground">
+                      {t.sourcePresetId ? `Built-in: ${t.sourcePresetId}` : "Custom saved"}
+                    </p>
+                    <div className="flex flex-wrap gap-1">
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        className="h-7 text-xs"
+                        disabled={templateBusy}
+                        onClick={() => void templateAction({ action: "restore", id: t.id }, "Template restored.")}
+                      >
+                        Restore
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        className="h-7 text-xs text-red-700"
+                        disabled={templateBusy}
+                        onClick={() =>
+                          void templateAction({ action: "delete", id: t.id }, "Template deleted permanently.")
+                        }
+                      >
+                        Delete
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>
@@ -922,6 +1099,11 @@ export default function AdminEmailsPanel({ onNotice, onError }: Props) {
           {format === "rich" && draft.template === "robinhood-hyperevm" && (
             <p className="text-xs text-emerald-700 dark:text-emerald-300 rounded-md border border-emerald-500/30 bg-emerald-500/10 px-3 py-2">
               Robinhood & HyperEVM rich layout is on (green hero, feature card, Open Robinhood Chain CTA). Suggested audience: all users with email.
+            </p>
+          )}
+          {format === "rich" && draft.template === "gmgn-vip-bot" && (
+            <p className="text-xs text-violet-700 dark:text-violet-300 rounded-md border border-violet-500/30 bg-violet-500/10 px-3 py-2">
+              GMGN VIP Bot rich layout is on (violet hero, setup checklist, Open GMGN VIP Bot CTA). Suggested audience: VIP.
             </p>
           )}
           {format === "rich" && draft.template === "nova-branded" && (
@@ -1309,6 +1491,45 @@ export default function AdminEmailsPanel({ onNotice, onError }: Props) {
               placeholder="Edit the message. Use Copy for WhatsApp, or Send for email."
             />
           </label>
+
+          <div className="rounded-md border border-zinc-200 dark:border-zinc-700 p-3 space-y-2">
+            <p className="text-xs font-medium text-zinc-800 dark:text-zinc-200">Save for reuse</p>
+            <div className="flex flex-wrap items-end gap-2">
+              <label className="text-xs text-muted-foreground flex flex-col gap-1 flex-1 min-w-[160px]">
+                Template name
+                <input
+                  className={inputClass}
+                  value={saveTemplateLabel}
+                  onChange={(e) => setSaveTemplateLabel(e.target.value)}
+                  placeholder={draft.subject.slice(0, 40) || "My template"}
+                />
+              </label>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                disabled={templateBusy || !draft.subject.trim() || !draft.body.trim()}
+                onClick={() =>
+                  void templateAction(
+                    {
+                      label: saveTemplateLabel.trim() || draft.subject.slice(0, 80) || "Saved template",
+                      subject: draft.subject,
+                      body: draft.body,
+                      template: draft.template,
+                      format,
+                      includePartnerLogos: draft.includePartnerLogos,
+                      partnerBrand: draft.partnerBrand,
+                      ctaLabel: draft.ctaLabel,
+                      ctaUrl: draft.ctaUrl,
+                    },
+                    "Template saved."
+                  )
+                }
+              >
+                Save as template
+              </Button>
+            </div>
+          </div>
 
           {format === "rich" && (
             <div className="grid sm:grid-cols-2 gap-3">

@@ -1,4 +1,6 @@
 import { execFile } from "node:child_process";
+import { access } from "node:fs/promises";
+import { constants } from "node:fs";
 import { promisify } from "node:util";
 import path from "node:path";
 
@@ -29,34 +31,49 @@ function gmgnEnv(creds: GmgnCredentials): NodeJS.ProcessEnv {
     GMGN_API_KEY: creds.apiKey,
     ...(creds.privateKey ? { GMGN_PRIVATE_KEY: creds.privateKey } : {}),
     GMGN_ALLOW_AUTOMATED_TRADES: creds.privateKey ? "1" : "0",
+    // Serverless (Vercel) has no writable $HOME — gmgn-cli/npx must not mkdir there.
+    HOME: process.env.HOME || "/tmp",
+    TMPDIR: process.env.TMPDIR || "/tmp",
+    NPM_CONFIG_CACHE: process.env.NPM_CONFIG_CACHE || "/tmp/.npm",
   };
+}
+
+async function resolveGmgnCliEntry(): Promise<string> {
+  const candidates = [
+    path.join(process.cwd(), "node_modules", "gmgn-cli", "dist", "index.js"),
+    path.join(process.cwd(), "node_modules", ".bin", process.platform === "win32" ? "gmgn-cli.cmd" : "gmgn-cli"),
+  ];
+  for (const p of candidates) {
+    try {
+      await access(p, constants.R_OK);
+      return p;
+    } catch {
+      /* try next */
+    }
+  }
+  throw new Error("gmgn-cli is not installed. Run npm install on the server.");
 }
 
 async function runGmgnCli(args: string[], creds: GmgnCredentials): Promise<string> {
   const env = gmgnEnv(creds);
   const withRaw = args.includes("--raw") ? args : [...args, "--raw"];
-  const localBin = path.join(
-    process.cwd(),
-    "node_modules",
-    ".bin",
-    process.platform === "win32" ? "gmgn-cli.cmd" : "gmgn-cli"
-  );
+  const entry = await resolveGmgnCliEntry();
+  const isJs = entry.endsWith(".js");
 
   try {
-    const { stdout } = await execFileAsync(localBin, withRaw, {
+    const { stdout } = await execFileAsync(isJs ? process.execPath : entry, isJs ? [entry, ...withRaw] : withRaw, {
       env,
       timeout: 45000,
       maxBuffer: 8 * 1024 * 1024,
     });
     return stdout.trim();
-  } catch {
-    const npx = process.platform === "win32" ? "npx.cmd" : "npx";
-    const { stdout } = await execFileAsync(npx, ["gmgn-cli", ...withRaw], {
-      env,
-      timeout: 45000,
-      maxBuffer: 8 * 1024 * 1024,
-    });
-    return stdout.trim();
+  } catch (e) {
+    const err = e as { message?: string; stderr?: string };
+    const detail = (err.stderr ?? err.message ?? "GMGN CLI failed").trim();
+    if (detail.includes("ENOENT") && detail.includes("sbx_user")) {
+      throw new Error("GMGN CLI could not run in this server environment. Contact support if this persists.");
+    }
+    throw new Error(detail.split("\n").slice(-3).join(" ").slice(0, 280) || "GMGN CLI failed.");
   }
 }
 
