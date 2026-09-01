@@ -19,12 +19,19 @@ export async function getServerEgressIpv4(): Promise<string | null> {
   return null;
 }
 
-export function formatGmgnIpBlockedError(blockedIp: string | null, egressIp: string | null): string {
-  const ip = blockedIp ?? egressIp ?? "your server IP";
-  return `GMGN blocked this server IP (${ip}). In GMGN → API Management, add ${ip} to your API key IP whitelist, then try Approve again.`;
+export function parseGmgnBlockedIp(message: string): string | null {
+  const patterns = [
+    /source ip blocked\s+(\d+\.\d+\.\d+\.\d+)/i,
+    /blocked server IP\s+(\d+\.\d+\.\d+\.\d+)/i,
+  ];
+  for (const p of patterns) {
+    const m = message.match(p);
+    if (m?.[1]) return m[1];
+  }
+  return null;
 }
 
-export function parseGmgnBlockedIp(message: string): string | null {
-  const m = message.match(/source ip blocked\s+(\d+\.\d+\.\d+\.\d+)/i);
-  return m?.[1] ?? null;
+export function formatGmgnIpBlockedError(blockedIp: string | null, egressIp: string | null): string {
+  const ip = blockedIp ?? egressIp ?? "your server IP";
+  return `GMGN blocked NovaStaris server IP ${ip}. Add ${ip} to Trusted IP For Trading in GMGN API Management (max 5 IPs). Vercel may use more than one — add each new blocked IP. Your home IP does not help server trades.`;
 }

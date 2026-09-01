@@ -588,10 +588,9 @@ export default function GmgnVipBotPanel() {
               <li>Click <strong>Test GMGN</strong> — must say signing key OK before Approve on signals.</li>
             </ol>
             <p className="mt-2 text-muted-foreground">
-              Free GMGN accounts work for scan + signals; the private key is only for executing trades.{" "}
-              <a href={GMGN_KEY_DOCS_URL} target="_blank" rel="noopener noreferrer" className="underline">
-                GMGN docs
-              </a>
+              <strong>IP whitelist:</strong> Trades run from NovaStaris servers (Vercel), not your PC. Add each blocked IP
+              from errors to GMGN Trusted IP (max 5). You can remove your home IP — it is not used for Approve. For a single
+              fixed IP long-term, enable Vercel Static IPs (Pro).
             </p>
           </details>
 
