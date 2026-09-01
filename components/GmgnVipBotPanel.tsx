@@ -5,7 +5,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Bot, ExternalLink, Loader2, Play, RefreshCw, ShieldAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import type { GmgnVipBotConfigView } from "@/lib/gmgn-vip-bot-config";
+import { GMGN_BOT_DISPLAY_NAME } from "@/lib/gmgn-client-types";
 import { GMGN_BOT_RULES_PATH, validateGmgnWalletAddress, walletHintForChains } from "@/lib/gmgn-vip-bot-rules";
 
 type SignalRow = {
@@ -253,7 +253,7 @@ export default function GmgnVipBotPanel() {
     return (
       <div className="flex items-center justify-center py-16 text-muted-foreground">
         <Loader2 className="h-6 w-6 animate-spin mr-2" />
-        Loading GMGN VIP Bot…
+        Loading {GMGN_BOT_DISPLAY_NAME}…
       </div>
     );
   }
@@ -280,7 +280,7 @@ export default function GmgnVipBotPanel() {
         <div className="flex items-start gap-3">
           <Bot className="h-8 w-8 text-violet-600 dark:text-violet-400 shrink-0 mt-0.5" />
           <div>
-            <h2 className="text-lg font-bold text-zinc-900 dark:text-zinc-100">GMGN VIP Meme Bot</h2>
+            <h2 className="text-lg font-bold text-zinc-900 dark:text-zinc-100">{GMGN_BOT_DISPLAY_NAME}</h2>
             <p className="text-sm text-zinc-600 dark:text-zinc-400 mt-1">
               Scans GMGN trending on Solana, BSC, and Robinhood. Semi-auto shows signals for your approval; auto executes
               when credentials and wallet are set. Not financial advice — meme trading is high risk.{" "}

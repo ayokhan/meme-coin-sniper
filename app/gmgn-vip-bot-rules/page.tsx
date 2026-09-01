@@ -3,9 +3,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Bot, Zap } from "lucide-react";
 import { GMGN_BOT_DEFAULTS } from "@/lib/gmgn-vip-bot-rules";
 
+import { GMGN_BOT_DISPLAY_NAME } from "@/lib/gmgn-client-types";
+
 export const metadata = {
-  title: "GMGN VIP Bot — Trading rules | NovaStaris",
-  description: "How the NovaStaris GMGN VIP Meme Bot scans, filters, and executes trades.",
+  title: `${GMGN_BOT_DISPLAY_NAME} — Trading rules | NovaStaris`,
+  description: `How the NovaStaris ${GMGN_BOT_DISPLAY_NAME} scans, filters, and executes trades.`,
 };
 
 export default function GmgnVipBotRulesPage() {
@@ -22,7 +24,7 @@ export default function GmgnVipBotRulesPage() {
           <CardHeader>
             <div className="flex items-center gap-2">
               <Bot className="h-5 w-5 text-violet-600 dark:text-violet-400" />
-              <CardTitle>GMGN VIP Meme Bot — trading rules</CardTitle>
+              <CardTitle>{GMGN_BOT_DISPLAY_NAME} — trading rules</CardTitle>
             </div>
             <p className="text-sm text-muted-foreground">
               Each VIP configures their own limits in the bot panel. Defaults below apply when you have not changed a
@@ -127,7 +129,7 @@ export default function GmgnVipBotRulesPage() {
         </Card>
         <p className="mt-4 text-sm text-muted-foreground">
           <Link href="/?tab=gmgn-vip-bot" className="underline">
-            Open GMGN VIP Bot
+            Open {GMGN_BOT_DISPLAY_NAME}
           </Link>
           {" · "}
           <Link href="/" className="underline">
