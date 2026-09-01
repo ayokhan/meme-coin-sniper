@@ -10,6 +10,7 @@ import {
   type GmgnTradingMode,
 } from "@/lib/gmgn-vip-bot-config";
 import type { GmgnChain } from "@/lib/gmgn-client";
+import { validateGmgnPrivateKey } from "@/lib/gmgn-private-key";
 import { validateGmgnWalletAddress } from "@/lib/gmgn-vip-bot-rules";
 
 export const dynamic = "force-dynamic";
@@ -65,6 +66,13 @@ export async function POST(request: Request) {
       }
     }
 
+    if (body.gmgnPrivateKey != null && String(body.gmgnPrivateKey).trim()) {
+      const keyCheck = validateGmgnPrivateKey(String(body.gmgnPrivateKey));
+      if (!keyCheck.ok) {
+        return NextResponse.json({ success: false, error: keyCheck.error }, { status: 400 });
+      }
+    }
+
     const config = await updateGmgnVipBotConfig(access.userId, {
       enabled: typeof body.enabled === "boolean" ? body.enabled : undefined,
       tradingMode: body.tradingMode === "auto" || body.tradingMode === "semi_auto" ? (body.tradingMode as GmgnTradingMode) : undefined,
@@ -111,7 +119,14 @@ export async function PATCH(request: Request) {
     }
     const { fetchGmgnTrending } = await import("@/lib/gmgn-client");
     await fetchGmgnTrending("sol", creds, 1);
-    return NextResponse.json({ success: true, message: "GMGN connection OK." });
+    if (!creds.privateKey) {
+      return NextResponse.json({
+        success: false,
+        error:
+          "API key works, but no valid private key for signing. Paste -----BEGIN PRIVATE KEY----- (not the public key).",
+      }, { status: 400 });
+    }
+    return NextResponse.json({ success: true, message: "GMGN connection and signing key OK." });
   } catch (e) {
     console.error("gmgn-vip-bot/config PATCH:", e);
     return NextResponse.json({ success: false, error: e instanceof Error ? e.message : "Connection failed." }, { status: 502 });

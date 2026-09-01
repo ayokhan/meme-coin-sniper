@@ -1,14 +1,14 @@
 import crypto from "node:crypto";
 import type { GmgnCredentials } from "@/lib/gmgn-client-types";
+import {
+  detectGmgnSignAlgorithm,
+  normalizeGmgnPrivateKeyPem,
+  signGmgnMessage,
+} from "@/lib/gmgn-private-key";
 
 export type { GmgnChain, GmgnCredentials, GmgnTrendingToken } from "@/lib/gmgn-client-types";
 
 const GMGN_HOST = "https://openapi.gmgn.ai";
-
-function normalizePrivateKeyPem(raw?: string): string | undefined {
-  if (!raw?.trim()) return undefined;
-  return raw.replace(/\\n/g, "\n").trim();
-}
 
 function buildAuthQuery() {
   return {
@@ -51,30 +51,8 @@ function buildMessage(
   return `${subPath}:${sortedQs}:${body}:${timestamp}`;
 }
 
-function detectAlgorithm(pem: string): "Ed25519" | "RSA-SHA256" {
-  const key = crypto.createPrivateKey(pem);
-  switch (key.asymmetricKeyType) {
-    case "ed25519":
-      return "Ed25519";
-    case "rsa":
-      return "RSA-SHA256";
-    default:
-      throw new Error(`Unsupported GMGN private key type: ${key.asymmetricKeyType ?? "unknown"}`);
-  }
-}
-
 function sign(message: string, privateKeyPem: string, algorithm: "Ed25519" | "RSA-SHA256") {
-  const msgBuf = Buffer.from(message, "utf-8");
-  if (algorithm === "Ed25519") {
-    return crypto.sign(null, msgBuf, privateKeyPem).toString("base64");
-  }
-  return crypto
-    .sign("sha256", msgBuf, {
-      key: privateKeyPem,
-      padding: crypto.constants.RSA_PKCS1_PSS_PADDING,
-      saltLength: 32,
-    })
-    .toString("base64");
+  return signGmgnMessage(message, privateKeyPem, algorithm);
 }
 
 function parseGmgnError(json: Record<string, unknown>, status: number): string {
@@ -127,14 +105,19 @@ async function gmgnSignedPost<T>(
   body: Record<string, unknown>,
   creds: GmgnCredentials
 ): Promise<T> {
-  const pem = normalizePrivateKeyPem(creds.privateKey);
+  const pem = normalizeGmgnPrivateKeyPem(creds.privateKey);
   if (!pem) throw new Error("GMGN private key required for swap execution.");
 
   const { timestamp, client_id } = buildAuthQuery();
   const query = { ...queryExtra, timestamp, client_id } as Record<string, string | number | string[]>;
   const bodyStr = JSON.stringify(body);
   const message = buildMessage(subPath, query, bodyStr, timestamp);
-  const signature = sign(message, pem, detectAlgorithm(pem));
+  let signature: string;
+  try {
+    signature = sign(message, pem, detectGmgnSignAlgorithm(pem));
+  } catch (e) {
+    throw new Error(e instanceof Error ? e.message : "Invalid GMGN private key.");
+  }
   const url = buildUrl(`${GMGN_HOST}${subPath}`, query);
 
   let res: Response;

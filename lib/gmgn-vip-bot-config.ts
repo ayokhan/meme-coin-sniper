@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db";
 import { decryptField, encryptField, maskSecret } from "@/lib/field-encryption";
 import { resolveServerGmgnCredentials, type GmgnChain, type GmgnCredentials } from "@/lib/gmgn-client";
+import { normalizeGmgnPrivateKeyPem, validateGmgnPrivateKey } from "@/lib/gmgn-private-key";
 import { GMGN_BOT_DEFAULTS, parseWalletAddresses, resolveWalletForChain } from "@/lib/gmgn-vip-bot-rules";
 import { isOwnerSession } from "@/lib/auth";
 import type { Session } from "next-auth";
@@ -55,7 +56,11 @@ function toView(row: Record<string, unknown>): GmgnVipBotConfigView {
   const hasUserKey = !!apiKey;
   const hasCredentials = hasUserKey || !!serverCreds?.apiKey;
   const userPrivateKey = decryptField(row.gmgnPrivateKeyEnc as string | null);
-  const hasTradeSigningKey = !!(userPrivateKey || serverCreds?.privateKey);
+  const serverPrivateKey = serverCreds?.privateKey ?? null;
+  const validUserPrivate = userPrivateKey ? validateGmgnPrivateKey(userPrivateKey) : null;
+  const validServerPrivate =
+    serverPrivateKey && validateGmgnPrivateKey(serverPrivateKey).ok ? serverPrivateKey : null;
+  const hasTradeSigningKey = !!(validUserPrivate?.ok || validServerPrivate);
   const walletAddresses = parseWalletAddresses(row.walletAddresses, (row.walletAddress as string | null) ?? null);
   return {
     enabled: !!row.enabled && !ownerForceOff,
@@ -103,17 +108,32 @@ export async function resolveUserGmgnCredentials(
   userId: string,
   session: Session | null
 ): Promise<GmgnCredentials | null> {
-  if (isOwnerSession(session)) {
-    const server = resolveServerGmgnCredentials();
-    if (server) return server;
-  }
   const row = await ensureGmgnVipBotConfig(userId);
-  const apiKey = decryptField(row.gmgnApiKeyEnc);
-  if (!apiKey) {
-    return resolveServerGmgnCredentials();
+  const userApiKey = decryptField(row.gmgnApiKeyEnc);
+  const userPrivateRaw = decryptField(row.gmgnPrivateKeyEnc);
+  const userPrivateCheck = userPrivateRaw ? validateGmgnPrivateKey(userPrivateRaw) : null;
+  const userPrivateKey = userPrivateCheck?.ok ? userPrivateCheck.pem : undefined;
+
+  const server = resolveServerGmgnCredentials();
+  const serverPrivateCheck = server?.privateKey ? validateGmgnPrivateKey(server.privateKey) : null;
+  const serverPrivateKey = serverPrivateCheck?.ok ? serverPrivateCheck.pem : undefined;
+
+  if (isOwnerSession(session) && server?.apiKey) {
+    return {
+      apiKey: server.apiKey,
+      privateKey: userPrivateKey ?? serverPrivateKey,
+    };
   }
-  const privateKey = decryptField(row.gmgnPrivateKeyEnc) ?? undefined;
-  return { apiKey, privateKey };
+
+  if (userApiKey) {
+    return { apiKey: userApiKey, privateKey: userPrivateKey };
+  }
+
+  if (server?.apiKey) {
+    return { apiKey: server.apiKey, privateKey: serverPrivateKey };
+  }
+
+  return null;
 }
 
 export async function updateGmgnVipBotConfig(
@@ -166,7 +186,11 @@ export async function updateGmgnVipBotConfig(
     data.gmgnPrivateKeyEnc = null;
   } else {
     if (patch.gmgnApiKey?.trim()) data.gmgnApiKeyEnc = encryptField(patch.gmgnApiKey.trim());
-    if (patch.gmgnPrivateKey?.trim()) data.gmgnPrivateKeyEnc = encryptField(patch.gmgnPrivateKey.trim());
+    if (patch.gmgnPrivateKey?.trim()) {
+      const keyCheck = validateGmgnPrivateKey(patch.gmgnPrivateKey.trim());
+      if (!keyCheck.ok) throw new Error(keyCheck.error);
+      data.gmgnPrivateKeyEnc = encryptField(keyCheck.pem);
+    }
   }
 
   const updated = await db.gmgnVipBotUserConfig.update({ where: { id: row.id }, data });

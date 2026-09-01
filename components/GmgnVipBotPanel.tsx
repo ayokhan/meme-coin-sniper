@@ -247,7 +247,7 @@ export default function GmgnVipBotPanel() {
       });
       const data = await res.json();
       if (!data.success) setError(data.error ?? "Connection failed.");
-      else setSaveNotice("GMGN connection OK.");
+      else setSaveNotice(data.message ?? "GMGN connection and signing key OK.");
     } catch {
       setError("Connection test failed.");
     } finally {
@@ -578,8 +578,8 @@ export default function GmgnVipBotPanel() {
                     onChange={(e) => setApiKey(e.target.value)}
                   />
                   <textarea
-                    placeholder="GMGN private key (PEM, for trading only)"
-                    className="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-900 px-2 py-1.5 font-mono text-xs min-h-[80px]"
+                    placeholder={"-----BEGIN PRIVATE KEY-----\nMC4CAQAwBQYDK2VwBCIE…\n-----END PRIVATE KEY-----\n\nNOT the public key (BEGIN PUBLIC KEY). From the key pair you saved when creating the GMGN API key."}
+                    className="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-900 px-2 py-1.5 font-mono text-xs min-h-[100px]"
                     value={privateKey}
                     onChange={(e) => setPrivateKey(e.target.value)}
                   />

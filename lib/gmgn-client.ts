@@ -1,4 +1,5 @@
 import { createGmgnOpenApiClient } from "@/lib/gmgn-openapi";
+import { normalizeGmgnPrivateKeyPem } from "@/lib/gmgn-private-key";
 import type { GmgnChain, GmgnCredentials, GmgnTrendingToken } from "@/lib/gmgn-client-types";
 
 export type { GmgnChain, GmgnCredentials, GmgnTrendingToken } from "@/lib/gmgn-client-types";
@@ -15,7 +16,7 @@ const QUOTE_TOKEN: Record<GmgnChain, string> = {
 export function resolveServerGmgnCredentials(): GmgnCredentials | null {
   const apiKey = process.env.GMGN_API_KEY?.trim();
   if (!apiKey) return null;
-  const privateKey = process.env.GMGN_PRIVATE_KEY?.trim();
+  const privateKey = normalizeGmgnPrivateKeyPem(process.env.GMGN_PRIVATE_KEY);
   return { apiKey, privateKey: privateKey || undefined };
 }
 
