@@ -10,7 +10,7 @@ import {
   type GmgnTradingMode,
 } from "@/lib/gmgn-vip-bot-config";
 import type { GmgnChain } from "@/lib/gmgn-client";
-import { validateGmgnPrivateKey } from "@/lib/gmgn-private-key";
+import { getServerEgressIpv4 } from "@/lib/gmgn-egress-ip";
 import { validateGmgnWalletAddress } from "@/lib/gmgn-vip-bot-rules";
 
 export const dynamic = "force-dynamic";
@@ -126,7 +126,15 @@ export async function PATCH(request: Request) {
           "API key works, but no valid private key for signing. Paste -----BEGIN PRIVATE KEY----- (not the public key).",
       }, { status: 400 });
     }
-    return NextResponse.json({ success: true, message: "GMGN connection and signing key OK." });
+    const egressIp = await getServerEgressIpv4();
+    const ipNote = egressIp
+      ? ` Whitelist server IP in GMGN: ${egressIp}`
+      : "";
+    return NextResponse.json({
+      success: true,
+      message: `GMGN connection and signing key OK.${ipNote}`,
+      egressIp,
+    });
   } catch (e) {
     console.error("gmgn-vip-bot/config PATCH:", e);
     return NextResponse.json({ success: false, error: e instanceof Error ? e.message : "Connection failed." }, { status: 502 });

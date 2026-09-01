@@ -2,7 +2,7 @@ import type { Session } from "next-auth";
 import { prisma } from "@/lib/db";
 import { executeGmgnSwap, type GmgnChain } from "@/lib/gmgn-client";
 import { getGmgnVipBotConfigView, resolveUserGmgnCredentials } from "@/lib/gmgn-vip-bot-config";
-import { resolveWalletForChain } from "@/lib/gmgn-vip-bot-rules";
+import { formatGmgnIpBlockedError, parseGmgnBlockedIp } from "@/lib/gmgn-egress-ip";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const db = prisma as any;
@@ -53,7 +53,9 @@ export async function executeGmgnVipBotSignal(
     });
     return { ok: true, orderId };
   } catch (e) {
-    const msg = e instanceof Error ? e.message : "Swap failed";
+    let msg = e instanceof Error ? e.message : "Swap failed";
+    const blocked = parseGmgnBlockedIp(msg);
+    if (blocked) msg = formatGmgnIpBlockedError(blocked, null);
     await db.gmgnVipBotSignal.update({
       where: { id: signalId },
       data: { status: "failed", reason: msg },

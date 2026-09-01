@@ -247,7 +247,14 @@ export default function GmgnVipBotPanel() {
       });
       const data = await res.json();
       if (!data.success) setError(data.error ?? "Connection failed.");
-      else setSaveNotice(data.message ?? "GMGN connection and signing key OK.");
+      else {
+        const ip = typeof data.egressIp === "string" ? data.egressIp : null;
+        setSaveNotice(
+          ip
+            ? `${data.message ?? "GMGN OK."} Add ${ip} to your GMGN API key IP whitelist if trades fail.`
+            : (data.message ?? "GMGN connection and signing key OK.")
+        );
+      }
     } catch {
       setError("Connection test failed.");
     } finally {
@@ -564,11 +571,15 @@ export default function GmgnVipBotPanel() {
                 Click <strong>COPY</strong> under <strong>Public Key</strong> (whole block, including BEGIN/END lines).
               </li>
               <li>
-                Paste it at{" "}
+                Register the public key at{" "}
                 <a href={GMGN_API_MANAGEMENT_URL} target="_blank" rel="noopener noreferrer" className="underline">
                   GMGN API Management
-                </a>{" "}
-                to create a new API key — copy the <code className="font-mono">gmgn_…</code> string they show.
+                </a>
+                . When creating the key, add your <strong>server IP whitelist</strong> — click Test GMGN in this panel
+                and whitelist the IP it shows (e.g. Vercel egress). Your home IP is not enough for NovaStaris trades.
+              </li>
+              <li>
+                Copy the <code className="font-mono">gmgn_…</code> API key GMGN gives you.
               </li>
               <li>
                 Paste the <strong>private key</strong> (left box or saved file — <code className="font-mono">BEGIN PRIVATE KEY</code>, not

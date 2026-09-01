@@ -60,6 +60,15 @@ function parseGmgnError(json: Record<string, unknown>, status: number): string {
     (typeof json.message === "string" && json.message) ||
     (typeof json.error === "string" && json.error) ||
     (typeof json.reason === "string" && json.reason);
+  if (msg && /source ip blocked/i.test(msg)) {
+    const ip =
+      (typeof json.source_ip === "string" && json.source_ip) ||
+      msg.match(/(\d+\.\d+\.\d+\.\d+)/)?.[1] ||
+      null;
+    return ip
+      ? `GMGN blocked server IP ${ip}. Add it to your API key IP whitelist at gmgn.ai/ai → API Management.`
+      : "GMGN blocked this server IP. Add NovaStaris egress IP to your API key whitelist at gmgn.ai/ai.";
+  }
   if (msg) return msg;
   if (json.code != null) return `GMGN API error (code ${String(json.code)})`;
   return `GMGN API request failed (HTTP ${status})`;
