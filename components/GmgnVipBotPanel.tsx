@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { GmgnVipBotConfigView } from "@/lib/gmgn-vip-bot-config";
 import { GMGN_BOT_DISPLAY_NAME } from "@/lib/gmgn-client-types";
-import { GMGN_BOT_RULES_PATH, validateGmgnWalletAddress, walletHintForChains } from "@/lib/gmgn-vip-bot-rules";
+import { GMGN_BOT_RULES_PATH, GMGN_API_MANAGEMENT_URL, GMGN_KEY_DOCS_URL, GMGN_KEY_GENERATOR_URL, validateGmgnWalletAddress, walletHintForChains } from "@/lib/gmgn-vip-bot-rules";
 
 type SignalRow = {
   id: string;
@@ -542,23 +542,79 @@ export default function GmgnVipBotPanel() {
           <CardTitle className="text-base">GMGN credentials</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3 text-sm">
-          {config.credentialsFromServer ? (
-            <p className="text-xs text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 rounded-md px-3 py-2">
-              GMGN API key is active for your account.{" "}
-              {config.hasTradeSigningKey
-                ? "Add your GMGN-bound wallet address(es) above to trade."
-                : "Add GMGN_PRIVATE_KEY in Vercel (or paste your private key below) plus your EVM wallet to execute swaps."}
+          <details className="rounded-md border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900/50 px-3 py-2 text-xs">
+            <summary className="cursor-pointer font-medium text-zinc-800 dark:text-zinc-200">
+              How to generate GMGN API + private key (Windows)
+            </summary>
+            <ol className="mt-2 list-decimal pl-4 space-y-1.5 text-muted-foreground">
+              <li>
+                Open the{" "}
+                <a href={GMGN_KEY_GENERATOR_URL} target="_blank" rel="noopener noreferrer" className="underline">
+                  Binance Key Pair Generator
+                </a>{" "}
+                — keep <strong>Ed25519</strong> selected.
+              </li>
+              <li>
+                Click <strong>Generate 1 Key Pair</strong>. Both boxes fill with keys.
+              </li>
+              <li>
+                Click <strong>SAVE PAIR</strong> and store the files safely (you need the private file for trading).
+              </li>
+              <li>
+                Click <strong>COPY</strong> under <strong>Public Key</strong> (whole block, including BEGIN/END lines).
+              </li>
+              <li>
+                Paste it at{" "}
+                <a href={GMGN_API_MANAGEMENT_URL} target="_blank" rel="noopener noreferrer" className="underline">
+                  GMGN API Management
+                </a>{" "}
+                to create a new API key — copy the <code className="font-mono">gmgn_…</code> string they show.
+              </li>
+              <li>
+                Paste the <strong>private key</strong> (left box or saved file — <code className="font-mono">BEGIN PRIVATE KEY</code>, not
+                public) and the <code className="font-mono">gmgn_…</code> key below, then Save credentials.
+              </li>
+              <li>Click <strong>Test GMGN</strong> — must say signing key OK before Approve on signals.</li>
+            </ol>
+            <p className="mt-2 text-muted-foreground">
+              Free GMGN accounts work for scan + signals; the private key is only for executing trades.{" "}
+              <a href={GMGN_KEY_DOCS_URL} target="_blank" rel="noopener noreferrer" className="underline">
+                GMGN docs
+              </a>
             </p>
+          </details>
+
+          {config.credentialsFromServer ? (
+            <>
+              <p className="text-xs text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 rounded-md px-3 py-2">
+                GMGN API key is active for your account.{" "}
+                {config.hasTradeSigningKey
+                  ? "Add your GMGN-bound wallet address(es) above to trade."
+                  : "Paste your private key below (from the key generator) plus your EVM wallet to execute swaps."}
+              </p>
+              {!config.hasTradeSigningKey && (
+                <>
+                  <textarea
+                    placeholder={"-----BEGIN PRIVATE KEY-----\nMC4CAQAwBQYDK2VwBCIE…\n-----END PRIVATE KEY-----\n\nFrom the LEFT box or SAVE PAIR file — not the public key."}
+                    className="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-900 px-2 py-1.5 font-mono text-xs min-h-[100px]"
+                    value={privateKey}
+                    onChange={(e) => setPrivateKey(e.target.value)}
+                  />
+                  <Button
+                    size="sm"
+                    disabled={!!busy || !privateKey.trim()}
+                    onClick={() => void saveConfig({ gmgnPrivateKey: privateKey.trim() })}
+                  >
+                    Save private key
+                  </Button>
+                </>
+              )}
+            </>
           ) : (
             <>
               <p className="text-muted-foreground text-xs">
                 Paste from{" "}
-                <a
-                  href="https://gmgn.ai/ai?tab=api_management"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="underline"
-                >
+                <a href={GMGN_API_MANAGEMENT_URL} target="_blank" rel="noopener noreferrer" className="underline">
                   GMGN API Management
                 </a>
                 . Stored encrypted on NovaStaris.
@@ -609,9 +665,9 @@ export default function GmgnVipBotPanel() {
               )}
             </>
           )}
-          {config.hasCredentials && !config.credentialsFromServer && (
+          {(config.hasCredentials || showCredentialFields) && (
             <Button size="sm" variant="outline" disabled={!!busy} onClick={() => void testConnection()}>
-              Test GMGN connection
+              Test GMGN
             </Button>
           )}
         </CardContent>

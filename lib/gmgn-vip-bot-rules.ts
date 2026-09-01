@@ -2,6 +2,11 @@
 
 export const GMGN_BOT_RULES_PATH = "/gmgn-vip-bot-rules";
 
+export const GMGN_KEY_GENERATOR_URL =
+  "https://github.com/binance/asymmetric-key-generator/releases";
+export const GMGN_KEY_DOCS_URL = "https://docs.gmgn.ai/index/generate-public-key";
+export const GMGN_API_MANAGEMENT_URL = "https://gmgn.ai/ai?tab=api_management";
+
 export const GMGN_BOT_DEFAULTS = {
   minLiquidityUsd: 15_000,
   minMomentum1hPct: 0,

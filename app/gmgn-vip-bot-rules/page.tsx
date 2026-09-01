@@ -106,6 +106,33 @@ export default function GmgnVipBotRulesPage() {
             </section>
 
             <section>
+              <h2 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">GMGN API key + private key</h2>
+              <p className="text-sm">
+                Scanning only needs the <code>gmgn_…</code> API key. Executing trades also needs the{" "}
+                <strong>private key</strong> from the same key pair — GMGN never stores this for you (free or paid).
+              </p>
+              <ol className="list-decimal pl-5 space-y-1 text-sm mt-2">
+                <li>
+                  Generate Ed25519 keys locally with the{" "}
+                  <a href="https://github.com/binance/asymmetric-key-generator/releases" className="underline" target="_blank" rel="noopener noreferrer">
+                    Binance Key Pair Generator
+                  </a>{" "}
+                  (Ed25519 → Generate 1 Key Pair → SAVE PAIR).
+                </li>
+                <li>
+                  Register the <strong>public key</strong> at{" "}
+                  <a href="https://gmgn.ai/ai?tab=api_management" className="underline" target="_blank" rel="noopener noreferrer">
+                    GMGN API Management
+                  </a>{" "}
+                  and copy your new <code>gmgn_…</code> API key.
+                </li>
+                <li>
+                  Save the <strong>private key</strong> (<code>BEGIN PRIVATE KEY</code>) in the bot credentials — never the public key.
+                </li>
+              </ol>
+            </section>
+
+            <section>
               <h2 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">Wallet addresses</h2>
               <p className="text-sm">
                 Add one or more <strong>on-chain wallets</strong> bound to your GMGN API key in GMGN → API Management.
