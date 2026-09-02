@@ -583,6 +583,32 @@ export default function GmgnVipBotPanel() {
           <CardTitle className="text-base">GMGN credentials</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3 text-sm">
+          <details className="rounded-md border border-cyan-200 dark:border-cyan-800 bg-cyan-50/50 dark:bg-cyan-950/30 px-3 py-2 text-xs">
+            <summary className="cursor-pointer font-medium text-cyan-900 dark:text-cyan-100">
+              Fixed IP for GMGN trades (~$5/mo VPS — no Vercel Pro)
+            </summary>
+            <ol className="mt-2 list-decimal pl-4 space-y-1.5 text-muted-foreground">
+              <li>
+                Create a small Ubuntu VPS (DigitalOcean $6, Hetzner ~€4, etc.) — note its <strong>public IP</strong>.
+              </li>
+              <li>
+                SSH in and run:{" "}
+                <code className="font-mono text-[10px] break-all">
+                  curl -fsSL https://raw.githubusercontent.com/ayokhan/meme-coin-sniper/main/scripts/setup-gmgn-egress-proxy.sh | sudo bash
+                </code>
+              </li>
+              <li>Copy the <code className="font-mono">GMGN_HTTPS_PROXY=…</code> line into Vercel → Settings → Environment Variables → Production.</li>
+              <li>Redeploy novastaris.ai, then whitelist <strong>only that VPS IP</strong> in GMGN Trusted IP (one IP, done).</li>
+              <li>Click <strong>Test GMGN</strong> — should show the VPS IP, not rotating Vercel IPs.</li>
+            </ol>
+          </details>
+
+          {config.gmgnProxyConfigured && (
+            <p className="text-xs text-cyan-800 dark:text-cyan-200 bg-cyan-50 dark:bg-cyan-950/40 rounded-md px-3 py-2">
+              GMGN fixed-egress proxy is active. Whitelist only the proxy VPS IP in GMGN.
+            </p>
+          )}
+
           <details className="rounded-md border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900/50 px-3 py-2 text-xs">
             <summary className="cursor-pointer font-medium text-zinc-800 dark:text-zinc-200">
               How to generate GMGN API + private key (Windows)
@@ -608,12 +634,8 @@ export default function GmgnVipBotPanel() {
                 Register the public key at{" "}
                 <a href={GMGN_API_MANAGEMENT_URL} target="_blank" rel="noopener noreferrer" className="underline">
                   GMGN API Management
-                </a>
-                . When creating the key, add your <strong>server IP whitelist</strong> — click Test GMGN in this panel
-                and whitelist the IP it shows (e.g. Vercel egress). Your home IP is not enough for NovaStaris trades.
-              </li>
-              <li>
-                Copy the <code className="font-mono">gmgn_…</code> API key GMGN gives you.
+                </a>{" "}
+                and copy the <code className="font-mono">gmgn_…</code> API key.
               </li>
               <li>
                 Paste the <strong>private key</strong> (left box or saved file — <code className="font-mono">BEGIN PRIVATE KEY</code>, not
@@ -622,7 +644,8 @@ export default function GmgnVipBotPanel() {
               <li>Click <strong>Test GMGN</strong> — must say signing key OK before Approve on signals.</li>
             </ol>
             <p className="mt-2 text-muted-foreground">
-              <strong>IP whitelist:</strong> Add blocked server IPs to GMGN Trusted IP (max 5). Click Copy IPs below when trades fail.
+              For GMGN Trusted IP: use the <strong>Fixed IP VPS</strong> guide above (recommended), or copy blocked IPs from
+              the signals banner.
             </p>
           </details>
 

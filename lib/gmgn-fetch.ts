@@ -1,11 +1,8 @@
 import { fetch as undiciFetch, ProxyAgent } from "undici";
 
-/** Optional fixed-egress HTTP(S) proxy for GMGN trade API (e.g. cheap VPS). */
+/** GMGN-only proxy URL (do not use global HTTPS_PROXY — other APIs stay on Vercel). */
 export function getGmgnProxyUrl(): string | undefined {
-  const url =
-    process.env.GMGN_HTTPS_PROXY?.trim() ||
-    process.env.GMGN_HTTP_PROXY?.trim() ||
-    process.env.HTTPS_PROXY?.trim();
+  const url = process.env.GMGN_HTTPS_PROXY?.trim() || process.env.GMGN_HTTP_PROXY?.trim();
   return url || undefined;
 }
 

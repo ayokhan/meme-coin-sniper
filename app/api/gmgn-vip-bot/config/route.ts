@@ -10,6 +10,7 @@ import {
   type GmgnTradingMode,
 } from "@/lib/gmgn-vip-bot-config";
 import type { GmgnChain } from "@/lib/gmgn-client";
+import { isGmgnProxyConfigured } from "@/lib/gmgn-fetch";
 import { getServerEgressIpv4 } from "@/lib/gmgn-egress-ip";
 import { validateGmgnPrivateKey } from "@/lib/gmgn-private-key";
 import { validateGmgnWalletAddress } from "@/lib/gmgn-vip-bot-rules";
@@ -128,13 +129,17 @@ export async function PATCH(request: Request) {
       }, { status: 400 });
     }
     const egressIp = await getServerEgressIpv4();
+    const proxyOn = isGmgnProxyConfigured();
     const ipNote = egressIp
-      ? ` Whitelist server IP in GMGN: ${egressIp}`
+      ? proxyOn
+        ? ` GMGN trades use fixed proxy — whitelist only ${egressIp} in GMGN.`
+        : ` Whitelist ${egressIp} in GMGN (or set GMGN_HTTPS_PROXY on Vercel).`
       : "";
     return NextResponse.json({
       success: true,
       message: `GMGN connection and signing key OK.${ipNote}`,
       egressIp,
+      proxyConfigured: proxyOn,
     });
   } catch (e) {
     console.error("gmgn-vip-bot/config PATCH:", e);

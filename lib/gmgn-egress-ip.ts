@@ -1,9 +1,10 @@
-/** Best-effort IPv4 egress address for GMGN IP whitelist (Vercel/serverless). */
+/** Best-effort IPv4 egress address (uses GMGN proxy when configured). */
 export async function getServerEgressIpv4(): Promise<string | null> {
+  const { gmgnFetch } = await import("@/lib/gmgn-fetch");
   const urls = ["https://api.ipify.org?format=json", "https://ip.me/ip"];
   for (const url of urls) {
     try {
-      const res = await fetch(url, { cache: "no-store" });
+      const res = await gmgnFetch(url, { cache: "no-store" });
       if (!res.ok) continue;
       if (url.includes("ipify")) {
         const json = (await res.json()) as { ip?: string };
