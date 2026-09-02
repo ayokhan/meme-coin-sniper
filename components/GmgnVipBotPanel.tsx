@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Bot, ExternalLink, Loader2, Play, Plus, RefreshCw, ShieldAlert, Trash2 } from "lucide-react";
+import MemeTokenTableActions from "@/components/MemeTokenTableActions";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { GmgnVipBotConfigView } from "@/lib/gmgn-vip-bot-config";
@@ -27,6 +28,17 @@ const CHAINS = [
   { id: "bsc", label: "BSC" },
   { id: "robinhood", label: "Robinhood" },
 ] as const;
+
+function analyzerChain(chain: string): "solana" | "bsc" | "robinhood" {
+  if (chain === "sol") return "solana";
+  if (chain === "bsc") return "bsc";
+  return "robinhood";
+}
+
+function gmgnTokenUrl(chain: string, address: string): string {
+  const slug = chain === "sol" ? "sol" : chain === "bsc" ? "bsc" : chain;
+  return `https://gmgn.ai/${slug}/token/${encodeURIComponent(address)}`;
+}
 
 function NumField({
   label,
@@ -610,9 +622,7 @@ export default function GmgnVipBotPanel() {
               <li>Click <strong>Test GMGN</strong> — must say signing key OK before Approve on signals.</li>
             </ol>
             <p className="mt-2 text-muted-foreground">
-              <strong>IP whitelist:</strong> Trades run from NovaStaris servers (Vercel), not your PC. Add each blocked IP
-              from errors to GMGN Trusted IP (max 5). You can remove your home IP — it is not used for Approve. For a single
-              fixed IP long-term, enable Vercel Static IPs (Pro).
+              <strong>IP whitelist:</strong> Add blocked server IPs to GMGN Trusted IP (max 5). Click Copy IPs below when trades fail.
             </p>
           </details>
 
@@ -710,28 +720,20 @@ export default function GmgnVipBotPanel() {
           <CardTitle className="text-base">Signals</CardTitle>
         </CardHeader>
         <CardContent>
-          {hasIpBlockFailures && gmgnWhitelistIps.length > 0 && (
+          {hasIpBlockFailures && !config.gmgnProxyConfigured && gmgnWhitelistIps.length > 0 && (
             <div className="text-sm text-amber-900 dark:text-amber-100 bg-amber-50 dark:bg-amber-950/50 border border-amber-200 dark:border-amber-800 rounded-md px-3 py-2 mb-3 space-y-2">
-              <p className="font-medium">GMGN IP whitelist — paste all of these (max 5 on GMGN):</p>
+              <p className="font-medium">Add to GMGN Trusted IP (max 5):</p>
               <p className="font-mono text-xs break-all">{gmgnWhitelistIps.join(", ")}</p>
-              <p className="text-xs text-amber-800 dark:text-amber-200">
-                NovaStaris uses rotating Vercel IPs. Add every IP above in GMGN Trusted IP, then Retry a failed signal.
-                Permanent fix:{" "}
-                <a
-                  href="https://vercel.com/docs/networking/static-ips"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="underline"
-                >
-                  Vercel Static IPs
-                </a>{" "}
-                (Pro) on the NovaStaris project.
-              </p>
               <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => copyWhitelistIps()}>
                 Copy IPs for GMGN
               </Button>
             </div>
           )}
+          <p className="text-xs text-muted-foreground mb-3">
+            <strong>Workflow:</strong> Scan → review signal → <strong>Copy ID</strong> / <strong>Analyze</strong> →{" "}
+            <strong>Approve</strong> sends a market buy via GMGN (~your max trade size, with your slippage %). Not a limit
+            order — check the chart first if you want a better entry.
+          </p>
           {scanNotice && (
             <p className="text-sm text-violet-800 dark:text-violet-200 bg-violet-50 dark:bg-violet-950/40 rounded-md px-3 py-2 mb-3">
               Last scan: {scanNotice}
@@ -763,8 +765,26 @@ export default function GmgnVipBotPanel() {
                   {signals.map((s) => (
                     <tr key={s.id} className="border-b border-zinc-100 dark:border-zinc-800">
                       <td className="py-2 pr-2 font-medium">
-                        {s.symbol ?? "?"}{" "}
-                        <span className="text-xs text-muted-foreground font-normal">{s.name ?? ""}</span>
+                        <div className="flex flex-col gap-1">
+                          <span>
+                            {s.symbol ?? "?"}{" "}
+                            <span className="text-xs text-muted-foreground font-normal">{s.name ?? ""}</span>
+                          </span>
+                          <div className="flex flex-wrap items-center gap-1">
+                            <MemeTokenTableActions
+                              contractAddress={s.tokenAddress}
+                              chain={analyzerChain(s.chain)}
+                            />
+                            <a
+                              href={gmgnTokenUrl(s.chain, s.tokenAddress)}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center rounded-md border border-zinc-300 dark:border-zinc-600 px-2 py-1 text-[11px] font-medium text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                            >
+                              GMGN
+                            </a>
+                          </div>
+                        </div>
                       </td>
                       <td className="py-2 pr-2 uppercase text-xs">{s.chain}</td>
                       <td className="py-2 pr-2">

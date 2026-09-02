@@ -5,6 +5,7 @@ import {
   normalizeGmgnPrivateKeyPem,
   signGmgnMessage,
 } from "@/lib/gmgn-private-key";
+import { gmgnFetch } from "@/lib/gmgn-fetch";
 
 export type { GmgnChain, GmgnCredentials, GmgnTrendingToken } from "@/lib/gmgn-client-types";
 
@@ -84,7 +85,7 @@ async function gmgnExistGet<T>(
   const url = buildUrl(`${GMGN_HOST}${subPath}`, query);
   let res: Response;
   try {
-    res = await fetch(url, {
+    res = await gmgnFetch(url, {
       method: "GET",
       headers: {
         "X-APIKEY": apiKey,
@@ -131,7 +132,7 @@ async function gmgnSignedPost<T>(
 
   let res: Response;
   try {
-    res = await fetch(url, {
+    res = await gmgnFetch(url, {
       method: "POST",
       headers: {
         "X-APIKEY": creds.apiKey,

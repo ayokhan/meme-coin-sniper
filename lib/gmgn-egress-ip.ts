@@ -46,8 +46,8 @@ export function parseGmgnBlockedIp(message: string): string | null {
 }
 
 export function formatGmgnIpBlockedError(blockedIp: string | null, egressIp: string | null): string {
-  const ip = blockedIp ?? egressIp ?? "your server IP";
-  return `GMGN blocked NovaStaris server IP ${ip}. Add ALL NovaStaris IPs to GMGN Trusted IP (max 5). Enable Vercel Static IPs for a permanent fix — whitelisting one IP at a time will keep failing.`;
+  const ip = blockedIp ?? egressIp ?? "server IP";
+  return `GMGN blocked IP ${ip}. Add it to Trusted IP in GMGN API Management (max 5).`;
 }
 
 export function mergeWhitelistIps(...groups: (string | null | undefined)[][]): string[] {

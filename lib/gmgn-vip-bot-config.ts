@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/db";
 import { decryptField, encryptField, maskSecret } from "@/lib/field-encryption";
 import { resolveServerGmgnCredentials, type GmgnChain, type GmgnCredentials } from "@/lib/gmgn-client";
+import { isGmgnProxyConfigured } from "@/lib/gmgn-fetch";
 import { normalizeGmgnPrivateKeyPem, validateGmgnPrivateKey } from "@/lib/gmgn-private-key";
 import { GMGN_BOT_DEFAULTS, parseWalletAddresses, resolveWalletForChain } from "@/lib/gmgn-vip-bot-rules";
 import { isOwnerSession } from "@/lib/auth";
@@ -32,6 +33,8 @@ export type GmgnVipBotConfigView = {
   credentialsFromServer: boolean;
   /** True when a GMGN private key is available for swap signing. */
   hasTradeSigningKey: boolean;
+  /** Server routes GMGN trades through a fixed-egress proxy when configured. */
+  gmgnProxyConfigured: boolean;
   apiKeyMask: string | null;
   lastRunAt: string | null;
   lastError: string | null;
@@ -85,6 +88,7 @@ function toView(row: Record<string, unknown>): GmgnVipBotConfigView {
     hasCredentials,
     credentialsFromServer: hasCredentials && !hasUserKey,
     hasTradeSigningKey,
+    gmgnProxyConfigured: isGmgnProxyConfigured(),
     apiKeyMask: maskSecret(apiKey),
     lastRunAt: row.lastRunAt ? (row.lastRunAt as Date).toISOString() : null,
     lastError: (row.lastError as string | null) ?? null,
