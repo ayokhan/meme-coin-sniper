@@ -1,13 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Bot, ExternalLink, Loader2, Play, Plus, RefreshCw, ShieldAlert, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { GmgnVipBotConfigView } from "@/lib/gmgn-vip-bot-config";
 import { GMGN_BOT_DISPLAY_NAME } from "@/lib/gmgn-client-types";
-import { GMGN_BOT_RULES_PATH, GMGN_API_MANAGEMENT_URL, GMGN_KEY_DOCS_URL, GMGN_KEY_GENERATOR_URL, validateGmgnWalletAddress, walletHintForChains } from "@/lib/gmgn-vip-bot-rules";
+import { GMGN_BOT_RULES_PATH, GMGN_API_MANAGEMENT_URL, GMGN_KEY_GENERATOR_URL, validateGmgnWalletAddress, walletHintForChains } from "@/lib/gmgn-vip-bot-rules";
+import { extractIpsFromGmgnBlockReason, isGmgnIpBlockReason, mergeWhitelistIps } from "@/lib/gmgn-egress-ip";
 
 type SignalRow = {
   id: string;
@@ -113,6 +114,20 @@ export default function GmgnVipBotPanel() {
   const [rulesDraft, setRulesDraft] = useState<RulesDraft | null>(null);
   const [saveNotice, setSaveNotice] = useState<string | null>(null);
   const [scanNotice, setScanNotice] = useState<string | null>(null);
+  const [testEgressIp, setTestEgressIp] = useState<string | null>(null);
+
+  const gmgnWhitelistIps = useMemo(
+    () =>
+      mergeWhitelistIps(
+        signals.flatMap((s) => extractIpsFromGmgnBlockReason(s.reason)),
+        testEgressIp ? [testEgressIp] : []
+      ),
+    [signals, testEgressIp]
+  );
+  const hasIpBlockFailures = useMemo(
+    () => signals.some((s) => isGmgnIpBlockReason(s.reason)),
+    [signals]
+  );
 
   const load = useCallback(async () => {
     setError(null);
@@ -217,7 +232,7 @@ export default function GmgnVipBotPanel() {
     }
   };
 
-  const handleSignal = async (signalId: string, action: "approve" | "reject") => {
+  const handleSignal = async (signalId: string, action: "approve" | "reject" | "retry") => {
     setBusy(signalId);
     setError(null);
     try {
@@ -249,6 +264,7 @@ export default function GmgnVipBotPanel() {
       if (!data.success) setError(data.error ?? "Connection failed.");
       else {
         const ip = typeof data.egressIp === "string" ? data.egressIp : null;
+        if (ip) setTestEgressIp(ip);
         setSaveNotice(
           ip
             ? `${data.message ?? "GMGN OK."} Add ${ip} to your GMGN API key IP whitelist if trades fail.`
@@ -286,6 +302,12 @@ export default function GmgnVipBotPanel() {
   };
 
   const showCredentialFields = !config.credentialsFromServer || !config.hasTradeSigningKey;
+
+  const copyWhitelistIps = () => {
+    if (!gmgnWhitelistIps.length) return;
+    void navigator.clipboard.writeText(gmgnWhitelistIps.join(", "));
+    setSaveNotice("Copied NovaStaris IPs for GMGN whitelist.");
+  };
 
   return (
     <div className="space-y-4">
@@ -688,6 +710,28 @@ export default function GmgnVipBotPanel() {
           <CardTitle className="text-base">Signals</CardTitle>
         </CardHeader>
         <CardContent>
+          {hasIpBlockFailures && gmgnWhitelistIps.length > 0 && (
+            <div className="text-sm text-amber-900 dark:text-amber-100 bg-amber-50 dark:bg-amber-950/50 border border-amber-200 dark:border-amber-800 rounded-md px-3 py-2 mb-3 space-y-2">
+              <p className="font-medium">GMGN IP whitelist — paste all of these (max 5 on GMGN):</p>
+              <p className="font-mono text-xs break-all">{gmgnWhitelistIps.join(", ")}</p>
+              <p className="text-xs text-amber-800 dark:text-amber-200">
+                NovaStaris uses rotating Vercel IPs. Add every IP above in GMGN Trusted IP, then Retry a failed signal.
+                Permanent fix:{" "}
+                <a
+                  href="https://vercel.com/docs/networking/static-ips"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="underline"
+                >
+                  Vercel Static IPs
+                </a>{" "}
+                (Pro) on the NovaStaris project.
+              </p>
+              <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => copyWhitelistIps()}>
+                Copy IPs for GMGN
+              </Button>
+            </div>
+          )}
           {scanNotice && (
             <p className="text-sm text-violet-800 dark:text-violet-200 bg-violet-50 dark:bg-violet-950/40 rounded-md px-3 py-2 mb-3">
               Last scan: {scanNotice}
@@ -758,6 +802,17 @@ export default function GmgnVipBotPanel() {
                               Skip
                             </Button>
                           </div>
+                        )}
+                        {s.status === "failed" && isGmgnIpBlockReason(s.reason) && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-7 text-xs"
+                            disabled={busy === s.id}
+                            onClick={() => void handleSignal(s.id, "retry")}
+                          >
+                            Retry
+                          </Button>
                         )}
                         {s.orderId && <span className="text-xs font-mono text-muted-foreground">{s.orderId.slice(0, 12)}…</span>}
                       </td>

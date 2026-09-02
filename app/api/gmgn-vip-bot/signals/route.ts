@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { getGmgnVipBotAccess } from "@/lib/vip-futures-addon-access";
 import { executeGmgnVipBotSignal } from "@/lib/gmgn-vip-bot-execute";
+import { isGmgnIpBlockReason } from "@/lib/gmgn-egress-ip";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const db = prisma as any;
@@ -64,9 +65,35 @@ export async function POST(request: Request) {
 
     const body = (await request.json().catch(() => ({}))) as { signalId?: string; action?: string };
     const signalId = String(body.signalId ?? "").trim();
-    const action = body.action === "reject" ? "reject" : "approve";
+    const action =
+      body.action === "reject" ? "reject" : body.action === "retry" ? "retry" : "approve";
     if (!signalId) {
       return NextResponse.json({ success: false, error: "signalId required." }, { status: 400 });
+    }
+
+    if (action === "retry") {
+      const sig = await db.gmgnVipBotSignal.findFirst({
+        where: { id: signalId, userId: access.userId, status: "failed" },
+      });
+      if (!sig || !isGmgnIpBlockReason(sig.reason as string | null)) {
+        return NextResponse.json(
+          { success: false, error: "Only IP-blocked failed signals can be retried." },
+          { status: 400 }
+        );
+      }
+      await db.gmgnVipBotSignal.update({
+        where: { id: signalId },
+        data: { status: "pending", reason: sig.reason },
+      });
+    }
+
+    if (action === "approve" || action === "retry") {
+      await db.gmgnVipBotSignal.updateMany({
+        where: { id: signalId, userId: access.userId, status: { in: ["pending", "approved"] } },
+        data: { status: "approved" },
+      });
+    } else if (action !== "reject") {
+      return NextResponse.json({ success: false, error: "Invalid action." }, { status: 400 });
     }
 
     if (action === "reject") {
@@ -76,11 +103,6 @@ export async function POST(request: Request) {
       });
       return NextResponse.json({ success: true, status: "rejected" });
     }
-
-    await db.gmgnVipBotSignal.updateMany({
-      where: { id: signalId, userId: access.userId, status: "pending" },
-      data: { status: "approved" },
-    });
 
     const result = await executeGmgnVipBotSignal(access.userId, session, signalId);
     if (!result.ok) {

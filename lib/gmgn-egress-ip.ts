@@ -19,10 +19,24 @@ export async function getServerEgressIpv4(): Promise<string | null> {
   return null;
 }
 
+const IP_RE = /\d+\.\d+\.\d+\.\d+/g;
+
+export function isGmgnIpBlockReason(reason: string | null | undefined): boolean {
+  if (!reason) return false;
+  return /ip blocked|blocked server ip|blocked novastaris server ip/i.test(reason);
+}
+
+export function extractIpsFromGmgnBlockReason(reason: string | null | undefined): string[] {
+  if (!reason || !isGmgnIpBlockReason(reason)) return [];
+  const ips = reason.match(IP_RE) ?? [];
+  return [...new Set(ips)];
+}
+
 export function parseGmgnBlockedIp(message: string): string | null {
   const patterns = [
     /source ip blocked\s+(\d+\.\d+\.\d+\.\d+)/i,
     /blocked server IP\s+(\d+\.\d+\.\d+\.\d+)/i,
+    /blocked NovaStaris server IP\s+(\d+\.\d+\.\d+\.\d+)/i,
   ];
   for (const p of patterns) {
     const m = message.match(p);
@@ -33,5 +47,15 @@ export function parseGmgnBlockedIp(message: string): string | null {
 
 export function formatGmgnIpBlockedError(blockedIp: string | null, egressIp: string | null): string {
   const ip = blockedIp ?? egressIp ?? "your server IP";
-  return `GMGN blocked NovaStaris server IP ${ip}. Add ${ip} to Trusted IP For Trading in GMGN API Management (max 5 IPs). Vercel may use more than one — add each new blocked IP. Your home IP does not help server trades.`;
+  return `GMGN blocked NovaStaris server IP ${ip}. Add ALL NovaStaris IPs to GMGN Trusted IP (max 5). Enable Vercel Static IPs for a permanent fix — whitelisting one IP at a time will keep failing.`;
+}
+
+export function mergeWhitelistIps(...groups: (string | null | undefined)[][]): string[] {
+  const out = new Set<string>();
+  for (const g of groups) {
+    for (const ip of g) {
+      if (ip && /^\d+\.\d+\.\d+\.\d+$/.test(ip)) out.add(ip);
+    }
+  }
+  return [...out];
 }
