@@ -29,7 +29,7 @@ After that date, VIP desks (NovaForecast, Nova Forex, and related tools) will pa
 Renew anytime:
 ${SUBSCRIBE_URL}
 
-Need help? Use Chat or Support in the app at novastaris.ai — this inbox is not monitored.
+Need help? Use Chat or Support in the app at novastaris.ai — or reply to this email.
 
 — The NovaStaris team
 ${APP}`,
@@ -47,7 +47,7 @@ Your VIP period has ended. Free tools still work; VIP desks stay paused until yo
 Renew anytime:
 ${SUBSCRIBE_URL}
 
-Need help? Use Chat or Support in the app at novastaris.ai — this inbox is not monitored.
+Need help? Use Chat or Support in the app at novastaris.ai — or reply to this email.
 
 — The NovaStaris team
 ${APP}`,
@@ -68,7 +68,7 @@ After that date, VIP desks (NovaForecast, Nova Forex, and related tools) will pa
 Renew anytime:
 ${SUBSCRIBE_URL}
 
-Need help? Use Chat or Support in the app at novastaris.ai — this inbox is not monitored.
+Need help? Use Chat or Support in the app at novastaris.ai — or reply to this email.
 
 — The NovaStaris team
 ${APP}`,
@@ -86,7 +86,7 @@ Your VIP period ended on ${when}. Free tools still work; VIP desks stay paused u
 Renew anytime:
 ${SUBSCRIBE_URL}
 
-Need help? Use Chat or Support in the app at novastaris.ai — this inbox is not monitored.
+Need help? Use Chat or Support in the app at novastaris.ai — or reply to this email.
 
 — The NovaStaris team
 ${APP}`,

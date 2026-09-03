@@ -441,7 +441,7 @@ Want to stop before you’re charged? Open Account or Subscribe in the app and t
 Cancel here:
 ${app}/subscribe
 
-Need help? Use Chat or Support in the app — this inbox is not monitored.
+Need help? Use Chat or Support in the app — or reply to this email.
 
 — The NovaStaris team
 ${app}`,
@@ -477,7 +477,7 @@ ${app}/subscribe?trial=1
 Prefer to explore first? Open Start here:
 ${app}/start-here
 
-Need help? Use Chat or Support in the app — this inbox is not monitored.
+Need help? Use Chat or Support in the app — or reply to this email.
 
 — The NovaStaris team
 ${app}`,
@@ -500,7 +500,7 @@ Want to stop before you’re charged? Open Subscribe and turn off auto-renew / c
 Cancel / manage:
 https://novastaris.ai/subscribe
 
-Need help? Use Chat or Support in the app — this inbox is not monitored.
+Need help? Use Chat or Support in the app — or reply to this email.
 
 — The NovaStaris team
 https://novastaris.ai`,

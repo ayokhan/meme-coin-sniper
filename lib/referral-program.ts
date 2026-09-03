@@ -59,7 +59,7 @@ Tips
 • Self-referrals and abuse aren’t allowed
 • Track referrals and commissions on your Affiliate page
 
-Questions? Use Chat, Support, or Need Help in the app at novastaris.ai — this inbox is not monitored.
+Questions? Use Chat, Support, or Need Help in the app at novastaris.ai — or reply to this email.
 
 — The NovaStaris team
 https://novastaris.ai/affiliate`,

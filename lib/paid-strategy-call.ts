@@ -70,7 +70,7 @@ What happens next:
 
 This is not a Calendly self-serve booking — we schedule personally to avoid conflicts and match you with the right expert.
 
-Need help in the meantime? Use Chat or Support in the app at novastaris.ai — this inbox is not monitored.
+Need help in the meantime? Use Chat or Support in the app at novastaris.ai — or reply to this email.
 
 — The NovaStaris team
 https://novastaris.ai`;
@@ -568,7 +568,7 @@ ${PAID_STRATEGY_CALL_PAGE_URL}
 Prefer a complimentary product introduction first? Book a Discovery call:
 https://novastaris.ai/discovery-call
 
-Need help? Use Chat or Support in the app at novastaris.ai — this inbox is not monitored.
+Need help? Use Chat or Support in the app at novastaris.ai — or reply to this email.
 
 — The NovaStaris team
 https://novastaris.ai`,

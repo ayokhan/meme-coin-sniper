@@ -74,7 +74,7 @@ How to get started
 
 Create API keys: https://portal.cdp.coinbase.com
 
-Questions? Use Chat, Support, or Need Help in the app at novastaris.ai — this inbox is not monitored.
+Questions? Use Chat, Support, or Need Help in the app at novastaris.ai — or reply to this email.
 
 — The NovaStaris team
 https://novastaris.ai`,
@@ -99,7 +99,7 @@ Coinbase bot trading on NovaStaris is a VIP feature. Anyone can still open a Coi
 
 NovaStaris connects to your account — we never hold your funds.
 
-Questions? Use Chat, Support, or Need Help in the app at novastaris.ai — this inbox is not monitored.
+Questions? Use Chat, Support, or Need Help in the app at novastaris.ai — or reply to this email.
 
 — The NovaStaris team
 https://novastaris.ai`,

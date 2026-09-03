@@ -18,7 +18,7 @@ Open Robinhood or HyperEVM in the top tabs, or use the links below.
 
 Educational only — not financial advice.
 
-Questions? Use Chat or Support in the app at novastaris.ai — this inbox is not monitored.
+Questions? Use Chat or Support in the app at novastaris.ai — or reply to this email.
 
 — The NovaStaris team
 ${ROBINHOOD_TAB_URL}`,

@@ -45,6 +45,15 @@ import {
   drawVantagePartnerPostcard,
   VANTAGE_PARTNER_JOIN_URL,
 } from "@/lib/vantage-partner-share-image";
+import {
+  buildMarketingPostcardCaption,
+  downloadMarketingPostcard,
+  drawMarketingPostcard,
+  marketingPostcardAssetPath,
+  marketingPostcardFilePrefix,
+  marketingPostcardJoinUrl,
+  type MarketingPostcardId,
+} from "@/lib/marketing-postcards";
 import { sharePnlWithFallback } from "@/lib/pnl-share";
 import { AdminPartnerPostcardCard } from "@/components/admin/AdminPartnerPostcardCard";
 
@@ -1015,6 +1024,69 @@ export default function AdminEmailsPanel({ onNotice, onError }: Props) {
         onError={onError}
       />
 
+      {(
+        [
+          {
+            id: "vip-upgrade" as MarketingPostcardId,
+            cardId: "vip-upgrade-postcard",
+            title: "VIP upgrade — social postcard",
+            description: "Soft free → VIP pitch for X, Instagram, WhatsApp, and Telegram.",
+            accent: "amber" as const,
+            emailPresetHref: "/admin/emails?preset=vip-soft-pitch",
+            previewAlt: "VIP upgrade postcard preview",
+          },
+          {
+            id: "affiliate" as MarketingPostcardId,
+            cardId: "affiliate-postcard",
+            title: "Affiliate / invite — social postcard",
+            description: "Premium “earn 10%” affiliate postcard for social sharing.",
+            accent: "cyan" as const,
+            emailPresetHref: "/admin/emails?preset=affiliate",
+            previewAlt: "Affiliate postcard preview",
+          },
+          {
+            id: "nova-pulse" as MarketingPostcardId,
+            cardId: "nova-pulse-postcard",
+            title: "Nova Pulse / Scalp Agent — social postcard",
+            description: "Trade ideas in minutes — Pulse + Scalp Agent marketing card.",
+            accent: "cyan" as const,
+            emailPresetHref: "/admin/emails",
+            previewAlt: "Nova Pulse postcard preview",
+          },
+          {
+            id: "investor-onepager" as MarketingPostcardId,
+            cardId: "investor-onepager-postcard",
+            title: "Investor one-pager — social postcard",
+            description: "Partnership / investment visual for X and LinkedIn.",
+            accent: "blue" as const,
+            emailPresetHref: "/admin/emails?preset=investor-partnership",
+            previewAlt: "Investor one-pager postcard preview",
+          },
+        ] as const
+      ).map((card) => (
+        <AdminPartnerPostcardCard
+          key={card.id}
+          id={card.cardId}
+          title={card.title}
+          description={card.description}
+          accent={card.accent}
+          previewSrc={marketingPostcardAssetPath(card.id)}
+          previewAlt={card.previewAlt}
+          filePrefix={marketingPostcardFilePrefix(card.id)}
+          emailPresetHref={card.emailPresetHref}
+          joinUrl={marketingPostcardJoinUrl(card.id)}
+          busy={postcardBusy}
+          setBusy={setPostcardBusy}
+          drawPostcard={async () => drawMarketingPostcard(card.id)}
+          downloadPostcard={async () => {
+            await downloadMarketingPostcard(card.id);
+          }}
+          buildCaption={() => buildMarketingPostcardCaption(card.id)}
+          onNotice={onNotice}
+          onError={onError}
+        />
+      ))}
+
       <Card>
         <CardHeader className="pb-2">
           <CardTitle className="text-base">1. Choose a template</CardTitle>
@@ -1504,6 +1576,8 @@ export default function AdminEmailsPanel({ onNotice, onError }: Props) {
                 <>
                   {" "}
                   · replies go to <span className="font-medium text-foreground">{replyToAddress}</span>
+                  {" "}
+                  (all templates)
                 </>
               ) : (
                 <> · set <code className="text-[11px]">RESEND_REPLY_TO</code> if you want replies on a monitored inbox</>

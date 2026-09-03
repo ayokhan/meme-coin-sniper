@@ -64,7 +64,7 @@ How to get started:
 2. Tap "Register on Blofin" in the partnership banner—or use the link above.
 3. After your Blofin account is ready, save your API keys in NovaStaris and start trading with AI on your account.
 
-Questions? Use Chat, Support, or Need Help in the app at novastaris.ai — this inbox is not monitored.
+Questions? Use Chat, Support, or Need Help in the app at novastaris.ai — or reply to this email.
 
 — The NovaStaris team
 https://novastaris.ai`,

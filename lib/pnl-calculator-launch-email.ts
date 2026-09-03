@@ -18,7 +18,7 @@ Open PnL Calculator in the top tabs, or use the link below.
 
 Educational only — not financial advice.
 
-Questions? Use Chat or Support in the app at novastaris.ai — this inbox is not monitored.
+Questions? Use Chat or Support in the app at novastaris.ai — or reply to this email.
 
 — The NovaStaris team
 https://novastaris.ai/?tab=pnl-calculator`,

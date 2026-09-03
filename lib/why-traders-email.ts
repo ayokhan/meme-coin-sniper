@@ -18,7 +18,7 @@ On NovaStaris you can:
 Choose your desk:
 ${APP}/enter
 
-Questions? Use Chat or Support in the app at novastaris.ai — this inbox is not monitored.
+Questions? Use Chat or Support in the app at novastaris.ai — or reply to this email.
 
 — The NovaStaris team
 ${APP}`,

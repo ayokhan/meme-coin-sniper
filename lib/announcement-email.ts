@@ -418,7 +418,7 @@ export function buildWhyTradersEmailHtml(args?: {
         </table>
         ${whyTradersCtaButtonHtml(ctaLabel, ctaUrl)}
         <p style="margin:20px 0 0 0;font-size:12px;line-height:1.5;color:#a1a1aa;text-align:center;">
-          Questions? Use Chat or Support in the app — this inbox is not monitored.<br />
+          Questions? Use Chat or Support in the app — or reply to this email.<br />
           Or open <a href="${ENTER_URL}" style="color:#5eead4;">novastaris.ai/enter</a>
         </p>
       </td>`;
@@ -718,7 +718,7 @@ export function buildWelcomeEmailHtml(args?: { body?: string }): string {
         ${pathsBlock}
         ${ctaButtonHtml("Open Start here", START_HERE_URL)}
         <p style="margin:20px 0 0 0;font-size:12px;line-height:1.5;color:#71717a;text-align:center;">
-          Stuck? Use Chat or Support in the app at novastaris.ai — this inbox is not monitored.<br />
+          Stuck? Use Chat or Support in the app at novastaris.ai — or reply to this email.<br />
           Or open <a href="${START_HERE_URL}" style="color:#5eead4;">novastaris.ai/start-here</a>
         </p>
       </td>

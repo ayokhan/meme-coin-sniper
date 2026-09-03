@@ -187,7 +187,7 @@ Already scheduled? Use the same calendar link to reschedule or cancel.
 Prefer to explore on your own? Start here anytime:
 https://novastaris.ai/start-here
 
-Need help? Use Chat or Support in the app at novastaris.ai — this inbox is not monitored.
+Need help? Use Chat or Support in the app at novastaris.ai — or reply to this email.
 
 — The NovaStaris team
 https://novastaris.ai`,

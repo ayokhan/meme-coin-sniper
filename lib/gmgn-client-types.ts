@@ -12,6 +12,7 @@ export type GmgnTrendingToken = {
   name?: string;
   price?: number;
   liquidity?: number;
+  market_cap?: number;
   volume?: number;
   price_change_percent?: number;
   price_change_percent1h?: number;
