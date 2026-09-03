@@ -23,11 +23,24 @@ import {
   drawPnlCalculatorPostcard,
 } from "@/lib/pnl-calculator-share-image";
 import {
+  BLOFIN_PARTNER_JOIN_URL,
+  buildBlofinPartnerShareCaption,
+  downloadBlofinPartnerPostcard,
+  drawBlofinPartnerPostcard,
+} from "@/lib/blofin-partner-share-image";
+import {
   buildCoinbasePartnerShareCaption,
   downloadCoinbasePartnerPostcard,
   drawCoinbasePartnerPostcard,
 } from "@/lib/coinbase-partner-share-image";
-import { openTelegramShare, sharePnlWithFallback } from "@/lib/pnl-share";
+import {
+  buildTiomarketsPartnerShareCaption,
+  downloadTiomarketsPartnerPostcard,
+  drawTiomarketsPartnerPostcard,
+  TIOMARKETS_PARTNER_JOIN_URL,
+} from "@/lib/tiomarkets-partner-share-image";
+import { sharePnlWithFallback } from "@/lib/pnl-share";
+import { AdminPartnerPostcardCard } from "@/components/admin/AdminPartnerPostcardCard";
 
 type RecentRegistrant = {
   email: string;
@@ -908,152 +921,62 @@ export default function AdminEmailsPanel({ onNotice, onError }: Props) {
         </CardContent>
       </Card>
 
-      <Card id="coinbase-postcard" className="border-blue-200/80 dark:border-blue-800/50 scroll-mt-24">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-base">Coinbase × NovaStaris — social postcards</CardTitle>
-          <p className="text-sm text-muted-foreground">
-            Owner/admin marketing for X, Instagram, WhatsApp, and Telegram. Share or download the image, then paste the
-            caption. Includes the referral join link.
-          </p>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="rounded-lg border border-blue-200/70 dark:border-blue-800/40 overflow-hidden bg-zinc-950 max-w-sm">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src="/marketing/novastaris-coinbase-postcard-premium.png"
-              alt="NovaStaris Coinbase premium postcard preview"
-              className="w-full h-auto"
-            />
-          </div>
-          <div className="space-y-2">
-            <p className="text-xs font-semibold text-blue-800 dark:text-blue-200">Premium (recommended)</p>
-            <div className="flex flex-wrap gap-2">
-              <Button
-                type="button"
-                size="sm"
-                disabled={postcardBusy}
-                onClick={async () => {
-                  setPostcardBusy(true);
-                  try {
-                    const blob = await drawCoinbasePartnerPostcard("premium");
-                    await sharePnlWithFallback(
-                      blob,
-                      `NovaStaris_Coinbase_Premium_${new Date().toISOString().slice(0, 10)}.png`,
-                      buildCoinbasePartnerShareCaption()
-                    );
-                    onNotice?.("Coinbase premium postcard shared or downloaded.");
-                  } finally {
-                    setPostcardBusy(false);
-                  }
-                }}
-              >
-                {postcardBusy ? "Preparing…" : "Share premium"}
-              </Button>
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                disabled={postcardBusy}
-                onClick={async () => {
-                  setPostcardBusy(true);
-                  try {
-                    await downloadCoinbasePartnerPostcard("premium");
-                    onNotice?.("Coinbase premium postcard downloaded.");
-                  } finally {
-                    setPostcardBusy(false);
-                  }
-                }}
-              >
-                Download premium
-              </Button>
-            </div>
-          </div>
-          <div className="space-y-2">
-            <p className="text-xs font-semibold text-zinc-600 dark:text-zinc-400">Classic (generated)</p>
-            <div className="flex flex-wrap gap-2">
-              <Button
-                type="button"
-                size="sm"
-                variant="secondary"
-                disabled={postcardBusy}
-                onClick={async () => {
-                  setPostcardBusy(true);
-                  try {
-                    const blob = await drawCoinbasePartnerPostcard("classic");
-                    await sharePnlWithFallback(
-                      blob,
-                      `NovaStaris_Coinbase_Classic_${new Date().toISOString().slice(0, 10)}.jpg`,
-                      buildCoinbasePartnerShareCaption()
-                    );
-                    onNotice?.("Coinbase classic postcard shared or downloaded.");
-                  } finally {
-                    setPostcardBusy(false);
-                  }
-                }}
-              >
-                Share classic
-              </Button>
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                disabled={postcardBusy}
-                onClick={async () => {
-                  setPostcardBusy(true);
-                  try {
-                    await downloadCoinbasePartnerPostcard("classic");
-                    onNotice?.("Coinbase classic postcard downloaded.");
-                  } finally {
-                    setPostcardBusy(false);
-                  }
-                }}
-              >
-                Download classic
-              </Button>
-            </div>
-          </div>
-          <div className="pt-2 border-t border-blue-200/60 dark:border-blue-800/40 space-y-2">
-            <p className="text-xs text-muted-foreground">
-              Caption for WhatsApp / Telegram / IG (referral link included). On mobile, Share premium opens the system
-              share sheet (WA / TG / IG). On desktop, download then upload.
-            </p>
-            <div className="flex flex-wrap gap-2">
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                onClick={async () => {
-                  try {
-                    await navigator.clipboard.writeText(buildCoinbasePartnerShareCaption());
-                    onNotice?.("Coinbase caption copied — paste into WhatsApp / IG.");
-                  } catch {
-                    onError?.("Could not copy caption.");
-                  }
-                }}
-              >
-                Copy caption (WA / IG)
-              </Button>
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                onClick={() => {
-                  openTelegramShare(
-                    buildCoinbasePartnerShareCaption(),
-                    "https://coinbase.com/join/WGVMDA2?src=referral-link"
-                  );
-                  onNotice?.("Telegram share opened.");
-                }}
-              >
-                Open Telegram share
-              </Button>
-              <Button type="button" size="sm" variant="outline" asChild>
-                <Link href="/admin/emails?preset=coinbase-partnership">Load email preset</Link>
-              </Button>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      <AdminPartnerPostcardCard
+        id="coinbase-postcard"
+        title="Coinbase × NovaStaris — social postcards"
+        description="Owner/admin marketing for X, Instagram, WhatsApp, and Telegram. Share or download the image, then paste the caption. Includes the referral join link."
+        accent="blue"
+        previewSrc="/marketing/novastaris-coinbase-postcard-premium.png"
+        previewAlt="NovaStaris Coinbase premium postcard preview"
+        filePrefix="NovaStaris_Coinbase"
+        emailPresetHref="/admin/emails?preset=coinbase-partnership"
+        joinUrl="https://coinbase.com/join/WGVMDA2?src=referral-link"
+        busy={postcardBusy}
+        setBusy={setPostcardBusy}
+        drawPostcard={drawCoinbasePartnerPostcard}
+        downloadPostcard={downloadCoinbasePartnerPostcard}
+        buildCaption={buildCoinbasePartnerShareCaption}
+        onNotice={onNotice}
+        onError={onError}
+      />
+
+      <AdminPartnerPostcardCard
+        id="blofin-postcard"
+        title="Blofin × NovaStaris — social postcards"
+        description="Owner/admin marketing for X, Instagram, WhatsApp, and Telegram. 10% cashback referral + VIP bot pitch."
+        accent="cyan"
+        previewSrc="/marketing/novastaris-blofin-postcard-premium.png"
+        previewAlt="NovaStaris Blofin premium postcard preview"
+        filePrefix="NovaStaris_Blofin"
+        emailPresetHref="/admin/emails?preset=blofin-partnership"
+        joinUrl={BLOFIN_PARTNER_JOIN_URL}
+        busy={postcardBusy}
+        setBusy={setPostcardBusy}
+        drawPostcard={drawBlofinPartnerPostcard}
+        downloadPostcard={downloadBlofinPartnerPostcard}
+        buildCaption={buildBlofinPartnerShareCaption}
+        onNotice={onNotice}
+        onError={onError}
+      />
+
+      <AdminPartnerPostcardCard
+        id="tiomarkets-postcard"
+        title="TIOmarkets × NovaStaris — social postcards"
+        description="Owner/admin marketing for X, Instagram, WhatsApp, and Telegram. Unlimited Leverage + $2/lot rebate pitch."
+        accent="amber"
+        previewSrc="/marketing/novastaris-tiomarkets-postcard-premium.png"
+        previewAlt="NovaStaris TIOmarkets premium postcard preview"
+        filePrefix="NovaStaris_TIOmarkets"
+        emailPresetHref="/admin/emails?preset=tio-partnership"
+        joinUrl={TIOMARKETS_PARTNER_JOIN_URL}
+        busy={postcardBusy}
+        setBusy={setPostcardBusy}
+        drawPostcard={drawTiomarketsPartnerPostcard}
+        downloadPostcard={downloadTiomarketsPartnerPostcard}
+        buildCaption={buildTiomarketsPartnerShareCaption}
+        onNotice={onNotice}
+        onError={onError}
+      />
 
       <Card>
         <CardHeader className="pb-2">

@@ -1274,6 +1274,9 @@ export default function BannersAdminPanel({ onNotice, onError }: Props) {
                 >
                   <Link href="/admin/emails?preset=blofin-partnership">Open in Emails</Link>
                 </Button>
+                <Button size="sm" variant="outline" asChild>
+                  <Link href="/admin/emails#blofin-postcard">Social postcard</Link>
+                </Button>
               </div>
               <p className="text-[11px] text-muted-foreground">
                 Register link clicks tracked: {blofinPartner.registerClickCount}. Blofin does not expose confirmed signups via API — use your Blofin affiliate dashboard for conversions; this list is NovaStaris link clicks only.
@@ -1918,6 +1921,11 @@ function ForexBrokerPartnerSection({
               >
                 Load in Emails
               </Button>
+              {broker === "tiomarkets" && (
+                <Button size="sm" variant="outline" asChild>
+                  <Link href="/admin/emails#tiomarkets-postcard">Social postcard</Link>
+                </Button>
+              )}
             </div>
             <p className="text-[11px] text-muted-foreground">
               Register link clicks tracked: {promo.registerClickCount}. {label} does not expose confirmed signups via
