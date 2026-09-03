@@ -3533,10 +3533,10 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
                 className="mb-2"
               />
               <p className="text-xs text-muted-foreground mb-2">
-                Open orders = pending. Positions = open only. Order history = filled/canceled.
+                All open positions for the selected exchange are listed below.
                 {effectivePositionsView === "both"
-                  ? " Showing Blofin and Coinbase in separate sections — pick one exchange to hide the other."
-                  : ` Showing ${venueLabel(effectivePositionsView === "coinbase" ? "coinbase" : "blofin")} only.`}
+                  ? " Blofin and Coinbase show in separate sections."
+                  : ` Currently showing ${venueLabel(effectivePositionsView === "coinbase" ? "coinbase" : "blofin")} only.`}
               </p>
               {blofinPanelMeta && effectivePositionsView !== "both" && (
                 <p className="text-xs text-muted-foreground mb-1">

@@ -232,20 +232,24 @@ export function PositionsExchangeFilter({
   className?: string;
 }) {
   const options: { id: ExchangeSetupMode; label: string }[] = [
-    { id: "blofin", label: "Blofin" },
+    { id: "blofin", label: "Blofin only" },
     ...(coinbaseAvailable
       ? [
-          { id: "coinbase" as const, label: "Coinbase" },
-          { id: "both" as const, label: "Both" },
+          { id: "coinbase" as const, label: "Coinbase only" },
+          { id: "both" as const, label: "Blofin + Coinbase" },
         ]
       : []),
   ];
 
   return (
-    <div className={`flex flex-wrap items-center gap-2 ${className}`}>
-      <span className="text-[11px] text-muted-foreground shrink-0">Show</span>
+    <div
+      className={`rounded-lg border border-zinc-300 dark:border-zinc-600 bg-white/70 dark:bg-zinc-950/50 px-2.5 py-2 ${className}`}
+    >
+      <p className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1.5">
+        Exchange view
+      </p>
       <div
-        className="inline-flex rounded-md border border-zinc-300 dark:border-zinc-600 p-0.5 bg-zinc-100/90 dark:bg-zinc-800/90"
+        className="flex flex-wrap gap-1.5"
         role="group"
         aria-label="Filter positions by exchange"
       >
@@ -256,14 +260,14 @@ export function PositionsExchangeFilter({
               key={opt.id}
               type="button"
               onClick={() => onChange(opt.id)}
-              className={`px-2.5 py-1 rounded text-xs font-medium transition-colors ${
+              className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-colors ${
                 active
                   ? opt.id === "coinbase"
                     ? "bg-blue-600 text-white"
                     : opt.id === "both"
                       ? "bg-zinc-800 text-white dark:bg-zinc-200 dark:text-zinc-900"
                       : "bg-cyan-600 text-white"
-                  : "text-zinc-600 dark:text-zinc-300 hover:bg-zinc-200/80 dark:hover:bg-zinc-700/80"
+                  : "bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700"
               }`}
             >
               {opt.label}
@@ -271,6 +275,11 @@ export function PositionsExchangeFilter({
           );
         })}
       </div>
+      {!coinbaseAvailable && (
+        <p className="mt-1.5 text-[10px] text-muted-foreground">
+          Coinbase view appears when Coinbase trading is enabled.
+        </p>
+      )}
     </div>
   );
 }
