@@ -55,7 +55,8 @@ export const COINBASE_PARTNERSHIP_EMAIL = {
 NovaStaris now supports Coinbase Futures alongside Blofin.
 
 Don't have a Coinbase account yet?
-Register with our referral link (you'll both get the invite offer when eligible):
+Don't have a Coinbase account yet?
+Register with our referral link — when you sign up and make your first eligible purchase, you get Coinbase's invite reward (terms apply):
 https://coinbase.com/join/WGVMDA2?src=referral-link
 
 What you can do
