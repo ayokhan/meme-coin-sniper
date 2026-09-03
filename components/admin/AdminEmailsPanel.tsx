@@ -39,6 +39,12 @@ import {
   drawTiomarketsPartnerPostcard,
   TIOMARKETS_PARTNER_JOIN_URL,
 } from "@/lib/tiomarkets-partner-share-image";
+import {
+  buildVantagePartnerShareCaption,
+  downloadVantagePartnerPostcard,
+  drawVantagePartnerPostcard,
+  VANTAGE_PARTNER_JOIN_URL,
+} from "@/lib/vantage-partner-share-image";
 import { sharePnlWithFallback } from "@/lib/pnl-share";
 import { AdminPartnerPostcardCard } from "@/components/admin/AdminPartnerPostcardCard";
 
@@ -986,6 +992,25 @@ export default function AdminEmailsPanel({ onNotice, onError }: Props) {
         drawPostcard={drawTiomarketsPartnerPostcard}
         downloadPostcard={downloadTiomarketsPartnerPostcard}
         buildCaption={buildTiomarketsPartnerShareCaption}
+        onNotice={onNotice}
+        onError={onError}
+      />
+
+      <AdminPartnerPostcardCard
+        id="vantage-postcard"
+        title="Vantage × NovaStaris — social postcards"
+        description="Owner/admin marketing for X, Instagram, WhatsApp, and Telegram. Vantage Markets forex + MT4/MT5 bots."
+        accent="emerald"
+        previewSrc="/marketing/novastaris-vantage-postcard-premium.png"
+        previewAlt="NovaStaris Vantage premium postcard preview"
+        filePrefix="NovaStaris_Vantage"
+        emailPresetHref="/admin/emails?preset=vantage-partnership"
+        joinUrl={VANTAGE_PARTNER_JOIN_URL}
+        busy={postcardBusy}
+        setBusy={setPostcardBusy}
+        drawPostcard={drawVantagePartnerPostcard}
+        downloadPostcard={downloadVantagePartnerPostcard}
+        buildCaption={buildVantagePartnerShareCaption}
         onNotice={onNotice}
         onError={onError}
       />

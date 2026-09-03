@@ -1926,6 +1926,11 @@ function ForexBrokerPartnerSection({
                   <Link href="/admin/emails#tiomarkets-postcard">Social postcard</Link>
                 </Button>
               )}
+              {broker === "vantage" && (
+                <Button size="sm" variant="outline" asChild>
+                  <Link href="/admin/emails#vantage-postcard">Social postcard</Link>
+                </Button>
+              )}
             </div>
             <p className="text-[11px] text-muted-foreground">
               Register link clicks tracked: {promo.registerClickCount}. {label} does not expose confirmed signups via

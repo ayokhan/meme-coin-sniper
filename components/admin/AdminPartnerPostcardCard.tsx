@@ -11,7 +11,7 @@ type Props = {
   id: string;
   title: string;
   description: string;
-  accent: "blue" | "cyan" | "amber";
+  accent: "blue" | "cyan" | "amber" | "emerald";
   previewSrc: string;
   previewAlt: string;
   filePrefix: string;
@@ -50,6 +50,13 @@ const ACCENT: Record<
     label: "text-amber-800 dark:text-amber-200",
     divider: "border-amber-200/60 dark:border-amber-800/40",
     previewBorder: "border-amber-200/70 dark:border-amber-800/40",
+  },
+  emerald: {
+    card: "border-emerald-200/80 dark:border-emerald-800/50",
+    border: "border-emerald-200/70 dark:border-emerald-800/40",
+    label: "text-emerald-800 dark:text-emerald-200",
+    divider: "border-emerald-200/60 dark:border-emerald-800/40",
+    previewBorder: "border-emerald-200/70 dark:border-emerald-800/40",
   },
 };
 
