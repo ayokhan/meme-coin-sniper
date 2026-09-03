@@ -131,6 +131,19 @@ function formatOrderSize(size: string): string {
   return n.toPrecision(4);
 }
 
+function formatExchangeTimestamp(raw?: string | number | null): string | null {
+  if (raw == null || raw === "") return null;
+  const asNum = typeof raw === "number" ? raw : Number(raw);
+  const ms =
+    Number.isFinite(asNum) && String(raw).trim() !== "" && !String(raw).includes("-") && !String(raw).includes("T")
+      ? asNum < 1e12
+        ? asNum * 1000
+        : asNum
+      : Date.parse(String(raw));
+  if (!Number.isFinite(ms)) return null;
+  return new Date(ms).toLocaleString();
+}
+
 function closedTradeToShareInput(t: ClosedTradeRow, mode: "demo" | "live"): ClosedTradeShareInput {
   return {
     displaySymbol: t.displaySymbol,
@@ -3672,8 +3685,8 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
                                 <span>size {o.size}</span>
                                 <span>@ {o.price}</span>
                                 <span className="text-muted-foreground">{o.state}</span>
-                                {o.createdAt != null && (
-                                  <span className="text-muted-foreground">{new Date(Number(o.createdAt)).toLocaleString()}</span>
+                                {formatExchangeTimestamp(o.createdAt) && (
+                                  <span className="text-muted-foreground">{formatExchangeTimestamp(o.createdAt)}</span>
                                 )}
                                 <Button
                                   type="button"
@@ -4061,7 +4074,9 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
                                 </span>
                               )}
                               <span className="text-muted-foreground">{o.state}</span>
-                              {o.createdAt != null && <span className="text-muted-foreground">{new Date(Number(o.createdAt)).toLocaleString()}</span>}
+                              {formatExchangeTimestamp(o.createdAt) && (
+                                <span className="text-muted-foreground">{formatExchangeTimestamp(o.createdAt)}</span>
+                              )}
                             </div>
                           ))}
                         </div>

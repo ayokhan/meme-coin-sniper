@@ -664,6 +664,29 @@ function resolveLeverage(instId: string, fallback = 1): number {
   return leverageByInst.get(toCoinbaseInstrument(instId)) ?? fallback;
 }
 
+/** Blofin UI expects epoch milliseconds as a string. Coinbase CFM sends ISO timestamps. */
+function toEpochMsString(raw?: string | number | null): string | undefined {
+  if (raw == null || raw === "") return undefined;
+  if (typeof raw === "number" && Number.isFinite(raw)) {
+    return String(raw < 1e12 ? Math.round(raw * 1000) : Math.round(raw));
+  }
+  const s = String(raw).trim();
+  if (/^\d+$/.test(s)) {
+    const n = Number(s);
+    return String(n < 1e12 ? n * 1000 : n);
+  }
+  const t = Date.parse(s);
+  if (!Number.isFinite(t)) return undefined;
+  return String(t);
+}
+
+function isCfmOrFuturesProduct(productId: string, productType?: string): boolean {
+  const type = (productType ?? "").toUpperCase();
+  if (type === "FUTURE") return true;
+  const id = productId.toUpperCase();
+  return id.endsWith("-CDE") || id.includes("-PERP") || id.endsWith("-INTX");
+}
+
 export async function placeMarketOrder(
   instId: string,
   side: "buy" | "sell",
@@ -900,6 +923,7 @@ export async function getOpenOrders(options?: {
     orders?: {
       order_id?: string;
       product_id?: string;
+      product_type?: string;
       side?: string;
       order_type?: string;
       status?: string;
@@ -910,20 +934,22 @@ export async function getOpenOrders(options?: {
     }[];
   }>(config, "GET", `/api/v3/brokerage/orders/historical/batch?${params.toString()}`);
 
-  return (result.orders ?? []).map((o) => {
-    const cfg = o.order_configuration ?? {};
-    const first = Object.values(cfg)[0] ?? {};
-    return {
-      orderId: String(o.order_id ?? ""),
-      instId: String(o.product_id ?? ""),
-      side: String(o.side ?? "").toLowerCase(),
-      orderType: String(o.order_type ?? ""),
-      size: String(first.base_size ?? o.filled_size ?? "0"),
-      price: String(first.limit_price ?? o.average_filled_price ?? "0"),
-      state: String(o.status ?? "open").toLowerCase(),
-      createdAt: o.created_time,
-    };
-  });
+  return (result.orders ?? [])
+    .filter((o) => isCfmOrFuturesProduct(String(o.product_id ?? ""), o.product_type))
+    .map((o) => {
+      const cfg = o.order_configuration ?? {};
+      const first = Object.values(cfg)[0] ?? {};
+      return {
+        orderId: String(o.order_id ?? ""),
+        instId: String(o.product_id ?? ""),
+        side: String(o.side ?? "").toLowerCase(),
+        orderType: String(o.order_type ?? ""),
+        size: String(first.base_size ?? o.filled_size ?? "0"),
+        price: String(first.limit_price ?? o.average_filled_price ?? "0"),
+        state: String(o.status ?? "open").toLowerCase(),
+        createdAt: toEpochMsString(o.created_time),
+      };
+    });
 }
 
 export type CoinbaseFillHistoryRow = {
@@ -977,7 +1003,7 @@ export async function getFillsHistory(options?: {
     positionSide: String(r.side ?? "").toLowerCase(),
     side: String(r.side ?? "").toLowerCase(),
     fee: String(r.commission ?? "0"),
-    ts: String(r.trade_time ?? ""),
+    ts: toEpochMsString(r.trade_time) ?? "",
   }));
 }
 
@@ -1016,6 +1042,7 @@ export async function getOrderHistory(options?: {
       order_id?: string;
       product_id?: string;
       side?: string;
+      product_type?: string;
       order_type?: string;
       status?: string;
       created_time?: string;
@@ -1027,7 +1054,9 @@ export async function getOrderHistory(options?: {
     }[];
   }>(config, "GET", `/api/v3/brokerage/orders/historical/batch?${params.toString()}`);
 
-  return (result.orders ?? []).map((o) => {
+  return (result.orders ?? [])
+    .filter((o) => isCfmOrFuturesProduct(String(o.product_id ?? ""), o.product_type))
+    .map((o) => {
     const cfg = o.order_configuration ?? {};
     const first = Object.values(cfg)[0] ?? {};
     return {
@@ -1040,8 +1069,8 @@ export async function getOrderHistory(options?: {
       state: String(o.status ?? "").toLowerCase(),
       fillPrice: o.average_filled_price,
       averagePrice: o.average_filled_price,
-      createdAt: o.created_time,
-      filledAt: o.last_fill_time,
+      createdAt: toEpochMsString(o.created_time),
+      filledAt: toEpochMsString(o.last_fill_time),
     };
   });
 }
