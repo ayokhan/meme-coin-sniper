@@ -18,6 +18,7 @@ import {
   scalperRoundSize,
   scalperSetLeverage,
 } from "@/lib/nova-scalper-exchange";
+import { computeCoinbaseSizeFromConfig } from "@/lib/coinbase";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const db = prisma as any;
@@ -50,6 +51,7 @@ type ScalperRow = {
   tpslTpPct: number | null;
   tpslSlPct: number | null;
   exchange?: string | null;
+  sizeMode?: string | null;
   lastAction?: string | null;
   lastError?: string | null;
 };
@@ -328,34 +330,61 @@ export async function runNovaScalperTick(
     });
     return { ok: false, error: err };
   }
-  const contractValue = parseFloatSafe(instRes.contractValue);
-  const minSize = parseFloatSafe(instRes.minSize);
-  const lotSize = parseFloatSafe(instRes.lotSize) || minSize;
-  if (contractValue <= 0) {
-    await updateRow({
-      lastError: "Invalid contract value",
-      lastTickAt: new Date(),
-      lastAction: `Entry cross detected, but ${instId} has an invalid contract value.`,
-    });
-    return { ok: false, error: "Invalid contract value." };
-  }
-
   const { leverage: lev, clampedFrom } = scalperClampLeverage(ex, row.leverage || 1, instRes.maxLeverage);
   const levNote =
     clampedFrom != null
       ? ` Leverage clamped ${clampedFrom}x → ${lev}x (${ex.label} max for ${instId}${instRes.assetClass ? ` · ${instRes.assetClass}` : ""}).`
       : "";
-  const notionalUsdt = row.positionSizeUsdt * lev;
-  const sizeContracts = notionalUsdt / (price * contractValue);
-  const sizeStr = scalperRoundSize(ex, sizeContracts, minSize, lotSize);
-  if (parseFloat(sizeStr) < minSize) {
-    const err = `Size below minimum (${minSize} contracts). Increase margin or leverage.`;
-    await updateRow({
-      lastError: err,
-      lastTickAt: new Date(),
-      lastAction: `Entry cross @ ~${price}, but order size too small: ${err}`,
+
+  let sizeStr: string;
+  let amountBase: number | undefined;
+  if (ex.exchange === "coinbase") {
+    const contractSize = parseFloatSafe(instRes.contractValue) || 0.01;
+    const minContracts = parseFloatSafe(instRes.minSize) || 1;
+    const sized = computeCoinbaseSizeFromConfig({
+      sizeMode: row.sizeMode === "contracts" ? "contracts" : "margin",
+      sizeValue: row.positionSizeUsdt,
+      leverage: lev,
+      price,
+      contractSize,
+      minContracts,
+      lotSize: parseFloatSafe(instRes.lotSize) || 1,
     });
-    return { ok: false, error: err };
+    sizeStr = sized.sizeStr;
+    amountBase = sized.amountBase;
+    if (sized.contracts < minContracts) {
+      const err = `Size below minimum (${minContracts} contracts). Increase contracts, margin, or leverage.`;
+      await updateRow({
+        lastError: err,
+        lastTickAt: new Date(),
+        lastAction: `Entry cross @ ~${price}, but order size too small: ${err}`,
+      });
+      return { ok: false, error: err };
+    }
+  } else {
+    const contractValue = parseFloatSafe(instRes.contractValue);
+    const minSize = parseFloatSafe(instRes.minSize);
+    const lotSize = parseFloatSafe(instRes.lotSize) || minSize;
+    if (contractValue <= 0) {
+      await updateRow({
+        lastError: "Invalid contract value",
+        lastTickAt: new Date(),
+        lastAction: `Entry cross detected, but ${instId} has an invalid contract value.`,
+      });
+      return { ok: false, error: "Invalid contract value." };
+    }
+    const notionalUsdt = row.positionSizeUsdt * lev;
+    const sizeContracts = notionalUsdt / (price * contractValue);
+    sizeStr = scalperRoundSize(ex, sizeContracts, minSize, lotSize);
+    if (parseFloat(sizeStr) < minSize) {
+      const err = `Size below minimum (${minSize} contracts). Increase margin or leverage.`;
+      await updateRow({
+        lastError: err,
+        lastTickAt: new Date(),
+        lastAction: `Entry cross @ ~${price}, but order size too small: ${err}`,
+      });
+      return { ok: false, error: err };
+    }
   }
 
   const maxMarket = parseFloatSafe(instRes.maxMarketSize ?? "");
@@ -380,7 +409,7 @@ export async function runNovaScalperTick(
     return { ok: false, error: err };
   }
   const orderSide = side === "long" ? "buy" : "sell";
-  const ord = await scalperPlaceMarketOrder(ex, orderSide, sizeStr, marginMode);
+  const ord = await scalperPlaceMarketOrder(ex, orderSide, sizeStr, marginMode, { amountBase });
   if (!ord.ok) {
     const err = ord.error ?? "Order failed";
     await updateRow({
@@ -429,6 +458,7 @@ export async function runNovaScalperTick(
         {
           tpTriggerPrice: tpAbs,
           slTriggerPrice: slAbs,
+          amountBase,
         }
       );
       tpslNote = tpsl.ok

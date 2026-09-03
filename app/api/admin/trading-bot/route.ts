@@ -83,6 +83,7 @@ export async function GET() {
         marginCurrency: bot.marginCurrency ?? 'USDT',
         marginMode: (bot as { marginMode?: string }).marginMode ?? 'cross',
         positionSizeUsdt: bot.positionSizeUsdt ?? 50,
+        sizeMode: (bot as { sizeMode?: string }).sizeMode === 'contracts' ? 'contracts' : 'margin',
         strategy: (bot as { strategy?: string }).strategy ?? 'simple',
         emaPeriod: (bot as { emaPeriod?: number }).emaPeriod ?? 200,
         fastMA: (bot as { fastMA?: number }).fastMA ?? 9,
@@ -168,6 +169,8 @@ export async function PATCH(request: Request) {
     updates.tpPct = merged.tpPct;
     updates.slPct = merged.slPct;
     updates.positionSizeUsdt = merged.positionSizeUsdt;
+    updates.sizeMode =
+      targetProvider === 'coinbase' && body.sizeMode === 'contracts' ? 'contracts' : 'margin';
     updates.strategy = merged.strategy;
     if (body.mode === 'demo' || body.mode === 'live') updates.mode = body.mode;
     if (body.marginCurrency === 'USDT' || body.marginCurrency === 'USDC') updates.marginCurrency = body.marginCurrency;
@@ -259,6 +262,7 @@ export async function PATCH(request: Request) {
         marginCurrency: updated.marginCurrency ?? 'USDT',
         marginMode: (updated as { marginMode?: string }).marginMode ?? 'cross',
         positionSizeUsdt: updated.positionSizeUsdt ?? 50,
+        sizeMode: (updated as { sizeMode?: string }).sizeMode === 'contracts' ? 'contracts' : 'margin',
         strategy: (updated as { strategy?: string }).strategy ?? 'simple',
         emaPeriod: (updated as { emaPeriod?: number }).emaPeriod ?? 200,
         fastMA: (updated as { fastMA?: number }).fastMA ?? 9,

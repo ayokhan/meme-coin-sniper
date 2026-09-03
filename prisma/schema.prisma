@@ -1476,7 +1476,9 @@ model TradingBot {
   mode             String   @default("demo")     // demo | live
   marginCurrency   String   @default("USDT")     // USDT | USDC
   marginMode       String   @default("cross")    // cross | isolated
-  positionSizeUsdt Float    @default(50)        // target notional in USDT (or USDC); actual may be ≥ due to min contract
+  positionSizeUsdt Float    @default(50)        // margin USDT/USDC, OR contracts when sizeMode=contracts (Coinbase)
+  /** margin = classic margin×lev sizing; contracts = Coinbase Advanced "Amount (Contract)" units */
+  sizeMode         String   @default("margin")
   strategy         String   @default("simple")   // simple | indicators | ai | hybrid
   emaPeriod        Int      @default(200)       // for indicators/hybrid
   fastMA           Int      @default(9)         // fast MA for crossover
@@ -1524,6 +1526,8 @@ model NovaScalperConfig {
   exitPrice        Float
   stopLossPrice    Float?
   positionSizeUsdt Float    @default(50)
+  /** margin | contracts — contracts matches Coinbase Advanced Trade Amount (Contract) */
+  sizeMode         String   @default("margin")
   /** 0 = unlimited repeat cycles */
   maxRounds        Int      @default(0)
   completedRounds  Int      @default(0)

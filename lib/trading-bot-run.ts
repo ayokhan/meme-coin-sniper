@@ -37,8 +37,8 @@ import {
   toCoinbaseInstrument,
   isCoinbaseConfigured,
   getConfig as getCoinbaseEnvConfig,
-  roundCoinbaseSize,
   clampCoinbaseLeverage,
+  computeCoinbaseSizeFromConfig,
   type CoinbaseConfig,
 } from "@/lib/coinbase";
 import { getCoinbaseConfigForUser } from "@/lib/coinbase-user-config";
@@ -159,6 +159,7 @@ export async function runTradingBotCycle(
     mode: string;
     marginCurrency: string;
     positionSizeUsdt: number;
+    sizeMode?: string;
     strategy: string;
     emaPeriod: number;
     fastMA: number;
@@ -302,27 +303,48 @@ export async function runTradingBotCycle(
       return { ok: false, error: "Could not get instrument" };
     }
 
-    const contractValue = parseFloatSafe(instRes.contractValue);
-    const minSize = parseFloatSafe(instRes.minSize);
-    if (contractValue <= 0) {
-      await updateLastRun("Invalid contract value", "no_trade", "Invalid contract value");
-      return { ok: false, error: "Invalid contract value" };
-    }
-
-    // Position size in config = margin (USDT). Notional = margin × leverage so exchange margin matches.
+    // Position size: Blofin = margin USDT → contracts. Coinbase = margin OR contracts (matches Advanced Trade UI).
     const { leverage: lev } = isCoinbase
       ? clampCoinbaseLeverage(bot.leverage ?? 1, instRes.maxLeverage)
       : clampBlofinLeverage(bot.leverage ?? 1, instRes.maxLeverage);
-    const notionalUsdt = bot.positionSizeUsdt * lev;
-    const sizeContracts = notionalUsdt / (lastPrice * contractValue);
-    const lotSize = parseFloatSafe(instRes.lotSize) || minSize;
-    const sizeStr = isCoinbase
-      ? roundCoinbaseSize(sizeContracts, minSize, lotSize)
-      : roundBlofinSize(sizeContracts, minSize, lotSize);
-    if (parseFloat(sizeStr) < minSize) {
-      const err = `Position size below minimum (min ${minSize} contracts)`;
-      await updateLastRun(err, "no_trade", err);
-      return { ok: false, error: err };
+
+    let sizeStr: string;
+    let amountBase: number | undefined;
+    if (isCoinbase) {
+      const contractSize = parseFloatSafe(instRes.contractValue) || 0.01;
+      const minContracts = parseFloatSafe(instRes.minSize) || 1;
+      const sized = computeCoinbaseSizeFromConfig({
+        sizeMode: bot.sizeMode === "contracts" ? "contracts" : "margin",
+        sizeValue: bot.positionSizeUsdt,
+        leverage: lev,
+        price: lastPrice,
+        contractSize,
+        minContracts,
+        lotSize: parseFloatSafe(instRes.lotSize) || 1,
+      });
+      sizeStr = sized.sizeStr;
+      amountBase = sized.amountBase;
+      if (sized.contracts < minContracts) {
+        const err = `Position size below minimum (min ${minContracts} contracts on Coinbase)`;
+        await updateLastRun(err, "no_trade", err);
+        return { ok: false, error: err };
+      }
+    } else {
+      const contractValue = parseFloatSafe(instRes.contractValue);
+      const minSize = parseFloatSafe(instRes.minSize);
+      if (contractValue <= 0) {
+        await updateLastRun("Invalid contract value", "no_trade", "Invalid contract value");
+        return { ok: false, error: "Invalid contract value" };
+      }
+      const notionalUsdt = bot.positionSizeUsdt * lev;
+      const sizeContracts = notionalUsdt / (lastPrice * contractValue);
+      const lotSize = parseFloatSafe(instRes.lotSize) || minSize;
+      sizeStr = roundBlofinSize(sizeContracts, minSize, lotSize);
+      if (parseFloat(sizeStr) < minSize) {
+        const err = `Position size below minimum (min ${minSize} contracts)`;
+        await updateLastRun(err, "no_trade", err);
+        return { ok: false, error: err };
+      }
     }
 
     const marginMode = ((bot as { marginMode?: string }).marginMode ?? "cross") as "isolated" | "cross";
@@ -337,7 +359,11 @@ export async function runTradingBotCycle(
 
     const side = signal === "long" ? "buy" : "sell";
     const order = isCoinbase
-      ? await placeMarketOrderCoinbase(instId, side, sizeStr, marginMode, coinbaseOpts)
+      ? await placeMarketOrderCoinbase(instId, side, sizeStr, marginMode, {
+          ...coinbaseOpts,
+          sizeUnit: "contracts",
+          amountBase,
+        })
       : await placeMarketOrderBlofin(instId, side, sizeStr, marginMode, blofinOpts);
     if (!order.ok) {
       const err = order.error ?? "Order failed";
@@ -349,7 +375,10 @@ export async function runTradingBotCycle(
 
     if (bot.tpPct > 0 || bot.slPct > 0) {
       const tpsl = isCoinbase
-        ? await placeTPSLOrderCoinbase(instId, side, sizeStr, marginMode, lastPrice, bot.tpPct, bot.slPct, coinbaseOpts)
+        ? await placeTPSLOrderCoinbase(instId, side, sizeStr, marginMode, lastPrice, bot.tpPct, bot.slPct, {
+            ...coinbaseOpts,
+            amountBase,
+          })
         : await placeTPSLOrderBlofin(instId, side, sizeStr, marginMode, lastPrice, bot.tpPct, bot.slPct, blofinOpts);
       if (!tpsl.ok) {
         const warn = `Opened ${signal} ${sizeStr} @ ${lastPrice}, but TP/SL attach failed: ${tpsl.error ?? "unknown"}`;

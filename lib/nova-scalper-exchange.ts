@@ -27,6 +27,7 @@ import {
   placeTPSLOrder as placeCoinbaseTPSL,
   clampCoinbaseLeverage,
   roundCoinbaseSize,
+  computeCoinbaseSizeFromConfig,
   getConfig as getCoinbaseEnvConfig,
   type CoinbaseConfig,
 } from "@/lib/coinbase";
@@ -207,10 +208,15 @@ export async function scalperPlaceMarketOrder(
   session: ScalperExchangeSession,
   side: "buy" | "sell",
   size: string,
-  marginMode: "isolated" | "cross"
+  marginMode: "isolated" | "cross",
+  extras?: { amountBase?: number }
 ): Promise<{ ok: boolean; orderId?: string; error?: string }> {
   if (session.exchange === "coinbase") {
-    return placeCoinbaseMarketOrder(session.instId, side, size, marginMode, session.opts);
+    return placeCoinbaseMarketOrder(session.instId, side, size, marginMode, {
+      ...session.opts,
+      sizeUnit: "contracts",
+      amountBase: extras?.amountBase,
+    });
   }
   return placeBlofinMarketOrder(session.instId, side, size, marginMode, session.opts);
 }
@@ -223,7 +229,7 @@ export async function scalperPlaceTPSL(
   fillPrice: number,
   tpPct: number,
   slPct: number,
-  extras: { tpTriggerPrice?: number | null; slTriggerPrice?: number | null }
+  extras: { tpTriggerPrice?: number | null; slTriggerPrice?: number | null; amountBase?: number }
 ): Promise<{ ok: boolean; error?: string }> {
   if (session.exchange === "coinbase") {
     return placeCoinbaseTPSL(

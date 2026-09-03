@@ -45,6 +45,7 @@ type ScalperConfig = {
   exitPrice: number;
   stopLossPrice: number | null;
   positionSizeUsdt: number;
+  sizeMode?: "margin" | "contracts";
   maxRounds: number;
   completedRounds: number;
   inPosition: boolean;
@@ -1064,15 +1065,46 @@ export default function NovaScalperPanel() {
               <input
                 type="number"
                 min={1}
-                max={125}
+                max={exchange === "coinbase" ? 50 : 125}
                 value={config.leverage}
-                onChange={(e) => setField("leverage", Math.max(1, Math.min(125, parseInt(e.target.value, 10) || 1)))}
+                onChange={(e) =>
+                  setField(
+                    "leverage",
+                    Math.max(1, Math.min(exchange === "coinbase" ? 50 : 125, parseInt(e.target.value, 10) || 1))
+                  )
+                }
                 className="w-full rounded border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2 py-1.5 text-sm"
               />
+              {exchange === "coinbase" && (
+                <p className="text-[11px] text-muted-foreground mt-1">
+                  Max leverage comes from Coinbase per instrument (often ≤50×) and is clamped automatically.
+                </p>
+              )}
             </div>
             <div>
+              {exchange === "coinbase" && (
+                <div className="mb-2">
+                  <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">Size mode</label>
+                  <select
+                    value={config.sizeMode === "contracts" ? "contracts" : "margin"}
+                    onChange={(e) => {
+                      const mode = e.target.value as "margin" | "contracts";
+                      setField("sizeMode", mode);
+                      if (mode === "contracts" && (config.positionSizeUsdt ?? 0) > 100) {
+                        setField("positionSizeUsdt", 1);
+                      }
+                    }}
+                    className="w-full rounded border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2 py-1.5 text-sm"
+                  >
+                    <option value="contracts">Contracts (Coinbase UI)</option>
+                    <option value="margin">Margin {priceQuote}</option>
+                  </select>
+                </div>
+              )}
               <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">
-                Margin ({priceQuote})
+                {exchange === "coinbase" && config.sizeMode === "contracts"
+                  ? "Amount (contracts)"
+                  : `Margin (${priceQuote})`}
               </label>
               <input
                 type="number"
@@ -1082,7 +1114,11 @@ export default function NovaScalperPanel() {
                 onChange={(e) => setField("positionSizeUsdt", parseFloat(e.target.value) || 1)}
                 className="w-full rounded border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2 py-1.5 text-sm"
               />
-              <p className="text-xs text-muted-foreground mt-1">Notional = margin × leverage.</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                {exchange === "coinbase" && config.sizeMode === "contracts"
+                  ? "Same unit as Coinbase Advanced Amount (Contract)."
+                  : "Notional = margin × leverage."}
+              </p>
             </div>
           </div>
 
@@ -1196,12 +1232,14 @@ export default function NovaScalperPanel() {
                 checked={config.attachTpsl}
                 onChange={(e) => setField("attachTpsl", e.target.checked)}
               />
-              <span className="text-sm">Also attach Blofin TP/SL after entry</span>
+              <span className="text-sm">
+                Also attach {exchangeLabel} TP/SL after entry
+              </span>
             </label>
             <p className="text-xs text-muted-foreground pl-6">
-              Uses the same <strong className="text-foreground">Exit price</strong> and{" "}
-              <strong className="text-foreground">Stop loss</strong> above (absolute prices, not %). Soft cron close
-              stays as backup.
+              Uses the same <strong className="text-foreground">Exit price</strong> (take profit) and{" "}
+              <strong className="text-foreground">Stop loss</strong> above as absolute prices. Soft cron close stays as
+              backup if exchange TP/SL attach fails.
             </p>
           </div>
 

@@ -110,6 +110,7 @@ type Config = {
   marginCurrency: "USDT" | "USDC";
   marginMode: "cross" | "isolated";
   positionSizeUsdt: number;
+  sizeMode?: "margin" | "contracts";
   strategy: Strategy;
   emaPeriod: number;
   fastMA: number;
@@ -386,9 +387,14 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
 
   useEffect(() => {
     if (exchangeSetup === "coinbase" && coinbaseTradingEnabled) {
-      setForm((f) => ({ ...f, provider: "coinbase", marginCurrency: "USDC" }));
+      setForm((f) => ({
+        ...f,
+        provider: "coinbase",
+        marginCurrency: "USDC",
+        sizeMode: f.sizeMode === "margin" ? "contracts" : f.sizeMode ?? "contracts",
+      }));
     } else if (exchangeSetup === "blofin") {
-      setForm((f) => ({ ...f, provider: "blofin" }));
+      setForm((f) => ({ ...f, provider: "blofin", sizeMode: "margin" }));
     }
   }, [exchangeSetup, coinbaseTradingEnabled]);
 
@@ -853,6 +859,7 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
           marginCurrency: data.config.marginCurrency ?? "USDT",
           marginMode: data.config.marginMode === "isolated" ? "isolated" : "cross",
           positionSizeUsdt: data.config.positionSizeUsdt ?? 50,
+          sizeMode: data.config.sizeMode === "contracts" ? "contracts" : "margin",
           strategy: data.config.strategy ?? "simple",
           emaPeriod: data.config.emaPeriod ?? 200,
           fastMA: data.config.fastMA ?? 9,
@@ -1101,6 +1108,10 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
           marginCurrency: form.marginCurrency ?? "USDT",
           marginMode: form.marginMode === "isolated" ? "isolated" : "cross",
           positionSizeUsdt: form.positionSizeUsdt ?? 50,
+          sizeMode:
+            (form.provider ?? config?.provider) === "coinbase" && form.sizeMode === "contracts"
+              ? "contracts"
+              : "margin",
           strategy: form.strategy ?? "simple",
           emaPeriod: form.emaPeriod ?? 200,
           fastMA: form.fastMA ?? 9,
@@ -2592,7 +2603,30 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
               </div>
             )}
           <div>
-            <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Position size (target notional)</label>
+            {(form.provider ?? config?.provider ?? exchangeSetup) === "coinbase" && (
+              <div className="mb-3">
+                <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Size mode</label>
+                <select
+                  value={form.sizeMode === "contracts" ? "contracts" : "margin"}
+                  onChange={(e) =>
+                    setForm({
+                      ...form,
+                      sizeMode: e.target.value as "margin" | "contracts",
+                      positionSizeUsdt: e.target.value === "contracts" ? 1 : form.positionSizeUsdt ?? 50,
+                    })
+                  }
+                  className="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-3 py-2 text-sm"
+                >
+                  <option value="contracts">Contracts (matches Coinbase Advanced)</option>
+                  <option value="margin">Margin USDC (convert to contracts)</option>
+                </select>
+              </div>
+            )}
+            <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">
+              {(form.provider ?? config?.provider ?? exchangeSetup) === "coinbase" && form.sizeMode === "contracts"
+                ? "Amount (contracts)"
+                : "Position size (margin)"}
+            </label>
             <input
               type="number"
               min="1"
@@ -2602,7 +2636,13 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
               onChange={(e) => setForm({ ...form, positionSizeUsdt: Number(e.target.value) })}
               className="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-3 py-2 text-sm text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-cyan-500"
             />
-            <p className="text-xs text-muted-foreground mt-1">Margin per trade in USDT/USDC. Notional = margin × leverage. Actual position may be rounded up to the exchange minimum contract size.</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              {(form.provider ?? config?.provider ?? exchangeSetup) === "coinbase" && form.sizeMode === "contracts"
+                ? "Same as Coinbase Advanced Trade “Amount (Contract)”. Nano BTC is often 0.01 BTC per contract — NovaStaris sends contracts to the API."
+                : (form.provider ?? config?.provider ?? exchangeSetup) === "coinbase"
+                  ? "Margin in USDC. Notional = margin × leverage → converted to Coinbase contracts using live mark × contract size."
+                  : "Margin per trade in USDT/USDC. Notional = margin × leverage. Actual position may be rounded up to the exchange minimum contract size."}
+            </p>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
@@ -2631,10 +2671,18 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
             </div>
           </div>
           <p className="text-xs text-muted-foreground">
-            TP/SL are attached on Blofin after entry (close-side reduce-only). If attach fails, the bot last-run message shows the error — check that message and pending TP/SL on Blofin.
+            {(form.provider ?? config?.provider ?? exchangeSetup) === "coinbase"
+              ? "TP/SL % are attached on Coinbase after entry (OTOCO take-limit + stop-market). If attach fails, check the bot last-run message."
+              : "TP/SL are attached on Blofin after entry (close-side reduce-only). If attach fails, the bot last-run message shows the error — check that message and pending TP/SL on Blofin."}
           </p>
           <p className="text-xs text-muted-foreground">
-            <strong>Trailing stop:</strong> NovaStaris uses fixed TP/SL for automated risk. Blofin supports trailing stop on their platform; we can add API support here once Blofin exposes it in their API docs.
+            <strong>Max leverage:</strong>{" "}
+            {(form.provider ?? config?.provider ?? exchangeSetup) === "coinbase"
+              ? "Fetched from Coinbase per instrument (often up to 50×). NovaStaris clamps your setting automatically — you do not need to look it up yourself."
+              : "Blofin max leverage is per instrument; NovaStaris clamps if you set higher than the exchange allows."}
+          </p>
+          <p className="text-xs text-muted-foreground">
+            <strong>Trailing stop:</strong> NovaStaris uses fixed TP/SL for automated risk. Trailing stop can be added later if the exchange API supports it for your account type.
           </p>
           <div className="flex flex-wrap gap-2">
             <Button onClick={saveConfig} disabled={saving} className="bg-cyan-500 hover:bg-cyan-600 text-white dark:bg-cyan-600 dark:hover:bg-cyan-700">

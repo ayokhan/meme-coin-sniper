@@ -275,6 +275,12 @@ export async function getTicker(
   return { last: String(last) };
 }
 
+/**
+ * Coinbase / Deribit linear perps:
+ * - `contract_size` = base coin per 1 contract (e.g. nano BTC ≈ 0.01)
+ * - UI "Amount (Contract)" = number of contracts
+ * - API `amount` = base coin; API `contracts` = contract count (preferred to match UI)
+ */
 export async function getInstrument(
   instId: string,
   options?: { demo?: boolean; config?: CoinbaseConfig | null }
@@ -289,19 +295,69 @@ export async function getInstrument(
   const list = Array.isArray(result) ? result : (result as { result?: Record<string, unknown>[] }).result ?? [];
   const row = list.find((r) => String(r.instrument_name ?? "") === instId);
   if (!row) return null;
-  const minTrade = Number(row.min_trade_amount ?? row.contract_size ?? 0.001);
+  const contractSize = Number(row.contract_size ?? row.contractSize ?? 0.01);
+  const minTradeBase = Number(row.min_trade_amount ?? contractSize ?? 0.01);
+  const minContracts =
+    contractSize > 0 ? Math.max(1, Math.ceil(minTradeBase / contractSize - 1e-12)) : 1;
   const tick = Number(row.tick_size ?? 0.01);
-  const maxLev = Number(row.max_leverage ?? 50);
+  const maxLev = Number(row.max_leverage ?? row.leverage ?? 50);
   return {
-    minSize: String(minTrade),
-    contractValue: "1",
+    /** Minimum order size in contracts (matches Coinbase Advanced "Amount (Contract)"). */
+    minSize: String(minContracts),
+    /** Base coin per 1 contract (e.g. 0.01 for nano BTC). */
+    contractValue: String(contractSize > 0 ? contractSize : 0.01),
     settleCurrency: "USDC",
     tickSize: String(tick),
-    lotSize: String(minTrade),
-    maxLeverage: String(maxLev),
-    maxMarketSize: String(row.max_liquidation_allocation ?? "1000"),
+    lotSize: "1",
+    maxLeverage: String(Number.isFinite(maxLev) && maxLev > 0 ? Math.min(50, maxLev) : 50),
+    maxMarketSize: String(row.max_liquidation_allocation ?? "100000"),
     state: row.is_active === false ? "inactive" : "live",
     assetClass: "perpetual",
+  };
+}
+
+/** Convert margin / contracts input into Coinbase order size (contracts + base amount). */
+export function computeCoinbaseSizeFromConfig(input: {
+  sizeMode: "margin" | "contracts";
+  /** Margin in USDC when sizeMode=margin; contract count when sizeMode=contracts. */
+  sizeValue: number;
+  leverage: number;
+  price: number;
+  contractSize: number;
+  minContracts: number;
+  lotSize?: number;
+}): {
+  contracts: number;
+  amountBase: number;
+  notional: number;
+  margin: number;
+  sizeStr: string;
+} {
+  const contractSize = input.contractSize > 0 ? input.contractSize : 0.01;
+  const minC = Math.max(1, input.minContracts || 1);
+  const lot = Math.max(1, input.lotSize || 1);
+  const lev = Math.max(1, input.leverage || 1);
+  const price = input.price > 0 ? input.price : 0;
+
+  let contracts: number;
+  if (input.sizeMode === "contracts") {
+    contracts = Math.max(minC, Math.floor(Number(input.sizeValue) || 0));
+  } else {
+    const margin = Math.max(0, Number(input.sizeValue) || 0);
+    const notional = margin * lev;
+    const rawContracts = price > 0 && contractSize > 0 ? notional / (price * contractSize) : 0;
+    contracts = Math.max(minC, Math.floor(rawContracts / lot) * lot);
+  }
+  contracts = Math.max(minC, Math.floor(contracts / lot) * lot);
+  const amountBase = contracts * contractSize;
+  const notional = price > 0 ? amountBase * price : 0;
+  const margin = lev > 0 ? notional / lev : notional;
+  return {
+    contracts,
+    amountBase,
+    notional,
+    margin,
+    sizeStr: String(contracts),
   };
 }
 
@@ -384,16 +440,30 @@ export async function placeMarketOrder(
   side: "buy" | "sell",
   size: string,
   _marginMode: "isolated" | "cross" = "cross",
-  options?: { demo?: boolean; reduceOnly?: boolean; config?: CoinbaseConfig | null }
+  options?: {
+    demo?: boolean;
+    reduceOnly?: boolean;
+    config?: CoinbaseConfig | null;
+    /** Prefer contracts to match Coinbase Advanced Trade UI (Amount = contracts). */
+    sizeUnit?: "contracts" | "amount";
+    /** Base-coin amount when sizeUnit=contracts (for TP/SL attach). */
+    amountBase?: number;
+  }
 ): Promise<{ ok: boolean; orderId?: string; error?: string }> {
   const config = options?.config ?? getConfig();
   if (!config) return { ok: false, error: "Coinbase API keys not configured" };
   const method = side === "buy" ? "private/buy" : "private/sell";
+  const n = parseFloat(size);
   const params: Record<string, unknown> = {
     instrument_name: instId,
-    amount: parseFloat(size),
     type: "market",
   };
+  if (options?.sizeUnit === "amount") {
+    params.amount = n;
+  } else {
+    // Default: contracts — same unit as Coinbase Advanced "Amount (Contract)"
+    params.contracts = n;
+  }
   if (options?.reduceOnly) params.reduce_only = true;
   try {
     const result = await privateRpc<{ order?: { order_id?: string }; order_id?: string }>(method, params, config);
@@ -457,6 +527,8 @@ export async function placeTPSLOrder(
     config?: CoinbaseConfig | null;
     tpTriggerPrice?: number | null;
     slTriggerPrice?: number | null;
+    /** Base-coin size for OTOCO legs when `size` is contracts. */
+    amountBase?: number;
   }
 ): Promise<{ ok: boolean; error?: string }> {
   const config = options?.config ?? getConfig();
@@ -480,13 +552,29 @@ export async function placeTPSLOrder(
           : entryPrice * (1 + slPct / 100)
         : null;
   if (tpPrice == null && slPrice == null) return { ok: false, error: "No TP or SL level to attach" };
-  const amount = parseFloat(size);
+  // `size` is contracts (Coinbase UI unit).
+  const contracts = parseFloat(size);
+  const amountBase = options?.amountBase != null && options.amountBase > 0 ? options.amountBase : contracts;
   const otoco: Record<string, unknown>[] = [];
   if (tpPrice != null) {
-    otoco.push({ type: "take_limit", direction: closeDir, amount, price: tpPrice, trigger: "last_price" });
+    otoco.push({
+      type: "take_limit",
+      direction: closeDir,
+      contracts,
+      amount: amountBase,
+      price: tpPrice,
+      trigger: "last_price",
+    });
   }
   if (slPrice != null) {
-    otoco.push({ type: "stop_market", direction: closeDir, amount, trigger_price: slPrice, trigger: "mark_price" });
+    otoco.push({
+      type: "stop_market",
+      direction: closeDir,
+      contracts,
+      amount: amountBase,
+      trigger_price: slPrice,
+      trigger: "mark_price",
+    });
   }
   const method = side === "buy" ? "private/buy" : "private/sell";
   try {
@@ -494,7 +582,7 @@ export async function placeTPSLOrder(
       method,
       {
         instrument_name: instId,
-        amount,
+        contracts,
         type: "market",
         linked_order_type: "one_triggers_one_cancels_other",
         otoco_config: otoco,

@@ -235,14 +235,17 @@ export function CoinbaseFuturesFormatNote({ className = "" }: { className?: stri
             the Coinbase UI).
           </li>
           <li>
-            Margin and PnL are in <strong className="text-blue-100">USDC</strong>. Contract size is set by Coinbase
-            (often 0.01 BTC per contract for nano).
+            Prefer <strong className="text-blue-100">Size mode → Contracts</strong> so Amount matches Coinbase Advanced
+            Trade (1 contract ≈ contract size in base, often 0.01 BTC for nano).
           </li>
           <li>
-            Size is sent in <strong className="text-blue-100">contracts</strong>; NovaStaris converts your margin ×
-            leverage using live mark price.
+            <strong className="text-blue-100">TP / SL:</strong> Trading Bot uses Take profit % and Stop loss %.
+            NovaScalper uses Exit price + Stop loss (+ optional attach TP/SL on Coinbase).
           </li>
-          <li>Entry / exit / stop prices match Coinbase mark on your chart.</li>
+          <li>
+            <strong className="text-blue-100">Max leverage</strong> is fetched from Coinbase per instrument and clamped
+            automatically (often up to 50×).
+          </li>
         </ul>
       </div>
     </div>
