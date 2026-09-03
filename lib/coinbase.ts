@@ -273,15 +273,19 @@ export async function getAccessToken(config: CoinbaseConfig): Promise<string> {
   } catch (e) {
     throw new Error(formatCoinbaseApiError(e));
   }
-  const result = await jsonRpc<{ access_token: string; expires_in?: number }>(
-    "public/auth",
-    { grant_type: "coinbase_cdp", token: jwt },
-    config
-  );
-  const token = result.access_token;
-  const ttlMs = (result.expires_in ?? 900) * 1000;
-  tokenCache.set(ck, { token, expiresAt: Date.now() + ttlMs - 60_000 });
-  return token;
+  try {
+    const result = await jsonRpc<{ access_token: string; expires_in?: number }>(
+      "public/auth",
+      { grant_type: "coinbase_cdp", token: jwt },
+      config
+    );
+    const token = result.access_token;
+    const ttlMs = (result.expires_in ?? 900) * 1000;
+    tokenCache.set(ck, { token, expiresAt: Date.now() + ttlMs - 60_000 });
+    return token;
+  } catch (e) {
+    throw new Error(formatCoinbaseApiError(e));
+  }
 }
 
 async function privateRpc<T>(method: string, params: Record<string, unknown>, config: CoinbaseConfig): Promise<T> {
@@ -293,9 +297,16 @@ export function formatCoinbaseApiError(err: unknown): string {
   const msg = err instanceof Error ? err.message : String(err);
   if (msg.includes("DECODER") || msg.includes("unsupported")) {
     return (
-      "Coinbase private key could not be read. Paste the full CDP PEM " +
-      "(-----BEGIN EC PRIVATE KEY----- … -----END EC PRIVATE KEY-----), " +
-      "or the CDP JSON key file. Then re-save keys (or fix COINBASE_API_SECRET on the server)."
+      "Coinbase private key could not be read. For Futures, create a CDP key with signature algorithm ECDSA, " +
+      "then set COINBASE_API_KEY_NAME to the key id/name and COINBASE_API_SECRET to the PEM private key."
+    );
+  }
+  if (/invalid_credentials|invalid credentials|unauthorized|authentication/i.test(msg)) {
+    return (
+      "Coinbase rejected the API key (invalid_credentials). Futures needs a CDP key created with " +
+      "signature algorithm ECDSA (not Ed25519). In the CDP portal: Create API key → Advanced → ECDSA → " +
+      "download the PEM. Then set COINBASE_API_KEY_NAME = key name/id and COINBASE_API_SECRET = the PEM " +
+      "(use \\n for newlines in Vercel), and redeploy."
     );
   }
   return msg;

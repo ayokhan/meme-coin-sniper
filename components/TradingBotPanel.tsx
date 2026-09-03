@@ -2625,13 +2625,15 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
             <CoinbasePartnerPromoBanner />
             <CoinbaseFuturesFormatNote />
             <p className="text-sm text-muted-foreground">
-              Connect a <strong>Coinbase CDP</strong> API key from{" "}
+              Coinbase Futures needs a CDP key with signature algorithm <strong>ECDSA</strong> (not Ed25519).
+              In{" "}
               <a href="https://portal.cdp.coinbase.com" target="_blank" rel="noopener noreferrer" className="text-cyan-600 dark:text-cyan-400 hover:underline">
                 portal.cdp.coinbase.com
               </a>
-              . Easiest: open your downloaded <code className="text-[11px]">cdp_api_key.json</code> and paste the{" "}
-              <strong>entire file</strong> into the private key box (we read <code className="text-[11px]">id</code> +{" "}
-              <code className="text-[11px]">privateKey</code>). Keys are encrypted at rest.
+              : Create API key → Advanced → choose <strong>ECDSA</strong> → download. As owner you can set{" "}
+              <code className="text-[11px]">COINBASE_API_KEY_NAME</code> + <code className="text-[11px]">COINBASE_API_SECRET</code> in
+              Vercel (PEM with <code className="text-[11px]">\n</code> newlines) and redeploy — no need to paste in the form.
+              Or paste the ECDSA PEM / JSON here to save on your account.
             </p>
             {userCoinbaseConfigured === true && (
               <p className="text-sm text-emerald-600 dark:text-emerald-400">Coinbase keys are configured.</p>
