@@ -1,6 +1,7 @@
 /**
  * Investor / strategic partnership outreach — Admin → Emails preset.
  * Send to individually added recipients (not customer newsletter audiences).
+ * Rich template adds NovaStaris banner logo + founder signature with logo mark.
  */
 
 export const INVESTOR_PARTNERSHIP_EMAIL = {
@@ -29,11 +30,6 @@ What I'm seeking
 If useful, I'm happy to share a one-pager, product walkthrough, and traction summary under NDA.
 
 Would you be open to a 20-minute call in the next two weeks?
-
-With respect,
-Ayo Khan
-Founder, NovaStaris
-https://novastaris.ai
 
 P.S. If this isn't the right desk, I'd be grateful for a redirect to the appropriate partner or investments contact.
 

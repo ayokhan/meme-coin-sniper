@@ -478,7 +478,7 @@ export const ADMIN_EMAIL_PRESETS: AdminEmailPreset[] = [
     blurb: "Professional intro for strategic investors & partners — add recipients manually",
     subject: INVESTOR_PARTNERSHIP_EMAIL.subject,
     body: INVESTOR_PARTNERSHIP_EMAIL.body,
-    template: "nova-branded",
+    template: "investor-outreach",
     includePartnerLogos: false,
     partnerBrand: "blofin",
     ctaLabel: INVESTOR_PARTNERSHIP_EMAIL.ctaLabel,

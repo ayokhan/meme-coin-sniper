@@ -33,7 +33,8 @@ export type AnnouncementEmailTemplate =
   | "futures-morning-brief"
   | "pnl-calculator"
   | "robinhood-hyperevm"
-  | "gmgn-vip-bot";
+  | "gmgn-vip-bot"
+  | "investor-outreach";
 
 export const ANNOUNCEMENT_EMAIL_TEMPLATES: AnnouncementEmailTemplate[] = [
   "default",
@@ -46,6 +47,7 @@ export const ANNOUNCEMENT_EMAIL_TEMPLATES: AnnouncementEmailTemplate[] = [
   "pnl-calculator",
   "robinhood-hyperevm",
   "gmgn-vip-bot",
+  "investor-outreach",
 ];
 
 export function parseAnnouncementEmailTemplate(value: string | null | undefined): AnnouncementEmailTemplate {
@@ -92,16 +94,47 @@ const AFFILIATE_URL = `${APP_ORIGIN}/affiliate`;
 const START_HERE_URL = `${APP_ORIGIN}/start-here`;
 const ENTER_URL = `${APP_ORIGIN}/enter`;
 
-/** NovaStaris-only email header (no partner logo). Premium dark standard. */
+/** NovaStaris-only email header with logo banner (no partner logo). Premium dark standard. */
 function novaBrandHeaderEmailHtml(eyebrow: string): string {
+  const logoSrc = `${APP_ORIGIN}/partners/novastaris-logo-email.png`;
   return `
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:0;border-collapse:collapse;">
   <tr>
-    <td align="center" style="background:#0a0a0b;background-image:linear-gradient(160deg,#0a0a0b 0%,#18181b 55%,#134e4a 140%);padding:32px 24px 28px 24px;">
-      <p style="margin:0 0 10px 0;font-family:Arial,Helvetica,sans-serif;font-size:11px;letter-spacing:0.16em;text-transform:uppercase;color:#5eead4;">
+    <td align="center" style="background:#0a0a0b;background-image:linear-gradient(160deg,#0a0a0b 0%,#18181b 55%,#134e4a 140%);padding:28px 24px 24px 24px;">
+      <p style="margin:0 0 14px 0;font-family:Arial,Helvetica,sans-serif;font-size:11px;letter-spacing:0.16em;text-transform:uppercase;color:#5eead4;">
         ${escapeHtml(eyebrow)}
       </p>
-      <p style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:24px;font-weight:700;color:#fafafa;letter-spacing:-0.02em;">NovaStaris</p>
+      <img src="${logoSrc}" alt="NovaStaris" width="280" style="display:block;margin:0 auto;height:auto;max-width:280px;width:100%;border:0;outline:none;" />
+    </td>
+  </tr>
+</table>`.trim();
+}
+
+/** Founder signature block with logo mark — for investor / partnership outreach. */
+export function founderSignatureEmailHtml(): string {
+  const markSrc = `${APP_ORIGIN}/partners/novastaris-logo-mark.png`;
+  const email = "novastaris.ai@gmail.com";
+  return `
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:28px 0 8px 0;border-collapse:collapse;">
+  <tr>
+    <td style="border-top:1px solid #27272a;padding-top:20px;">
+      <p style="margin:0 0 14px 0;font-size:15px;line-height:1.55;color:#e4e4e7;">With respect,</p>
+      <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;">
+        <tr>
+          <td valign="middle" style="padding:0 14px 0 0;">
+            <img src="${markSrc}" alt="NovaStaris" width="48" height="48" style="display:block;width:48px;height:48px;border-radius:10px;border:0;outline:none;" />
+          </td>
+          <td valign="middle" style="padding:0;">
+            <p style="margin:0 0 2px 0;font-family:Arial,Helvetica,sans-serif;font-size:16px;font-weight:700;color:#fafafa;letter-spacing:-0.01em;">Ayo Khan, MBA, PMP</p>
+            <p style="margin:0 0 2px 0;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#5eead4;">Founder, NovaStaris</p>
+            <p style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:12px;color:#a1a1aa;">
+              <a href="mailto:${email}" style="color:#a1a1aa;text-decoration:none;">${email}</a>
+              &nbsp;·&nbsp;
+              <a href="${APP_ORIGIN}" style="color:#a1a1aa;text-decoration:none;">novastaris.ai</a>
+            </p>
+          </td>
+        </tr>
+      </table>
     </td>
   </tr>
 </table>`.trim();
@@ -284,11 +317,13 @@ export function buildNovaBrandedEmailHtml(args: {
   eyebrow?: string;
   ctaLabel?: string | null;
   ctaUrl?: string | null;
+  includeFounderSignature?: boolean;
 }): string {
   const cta =
     args.ctaLabel && args.ctaUrl
       ? `<div style="margin:8px 0 8px 0;text-align:center;">${ctaButtonHtml(args.ctaLabel, args.ctaUrl)}</div>`
       : "";
+  const signature = args.includeFounderSignature ? founderSignatureEmailHtml() : "";
 
   const inner = `
     <tr>
@@ -299,6 +334,7 @@ export function buildNovaBrandedEmailHtml(args: {
     <tr>
       <td style="padding:28px 28px 8px 28px;">
         ${announcementBodyToHtml(args.body)}
+        ${signature}
         ${cta}
       </td>
     </tr>`;
@@ -814,6 +850,16 @@ export function buildAnnouncementEmailHtml(args: {
     });
   }
 
+  if (args.template === "investor-outreach") {
+    return buildNovaBrandedEmailHtml({
+      body: args.body,
+      eyebrow: "Partnership & investment",
+      ctaLabel: args.ctaLabel,
+      ctaUrl: args.ctaUrl,
+      includeFounderSignature: true,
+    });
+  }
+
   if (args.template === "pnl-calculator") {
     return buildPnlCalculatorLaunchEmailHtml({
       body: shouldUseCustomPnlCalculatorIntro(args.body) ? args.body : undefined,
@@ -1219,6 +1265,7 @@ export async function sendAnnouncementEmails(args: {
         template === "welcome" ||
         template === "why-traders" ||
         template === "nova-branded" ||
+        template === "investor-outreach" ||
         template === "futures-morning-brief" ||
         template === "pnl-calculator" ||
         template === "robinhood-hyperevm")
