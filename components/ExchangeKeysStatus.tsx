@@ -57,8 +57,10 @@ export function ExchangeKeysStatus({ activeProvider, className = "" }: Props) {
   );
 
   return (
-    <div className={`flex flex-wrap items-center gap-2 ${className}`}>
-      <span className="text-xs text-muted-foreground mr-1">Connected:</span>
+    <div
+      className={`flex flex-wrap items-center gap-2 rounded-lg border border-zinc-700/50 bg-zinc-900/40 px-3 py-2 ${className}`}
+    >
+      <span className="text-[11px] font-medium uppercase tracking-wide text-zinc-500">Connected</span>
       {pill("Blofin", state.blofin, activeProvider === "blofin")}
       {!state.coinbaseFeatureDisabled && pill("Coinbase", state.coinbase, activeProvider === "coinbase")}
       {state.coinbaseFeatureDisabled && (
