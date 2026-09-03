@@ -262,6 +262,8 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
     markPrice: number | null;
   } | null>(null);
   const [positionsLoading, setPositionsLoading] = useState(false);
+  /** Focus one open position at a time in the Positions tab (instId|posSide). */
+  const [focusedPositionKey, setFocusedPositionKey] = useState<string | null>(null);
   const [orderHistory, setOrderHistory] = useState<{ orderId: string; instId: string; side: string; orderType: string; size: string; price: string; state: string; fillPrice?: string; createdAt?: string; pnl?: string }[]>([]);
   const [orderHistoryLoading, setOrderHistoryLoading] = useState(false);
   const [openOrders, setOpenOrders] = useState<{ orderId: string; instId: string; side: string; orderType: string; size: string; price: string; state: string; createdAt?: string }[]>([]);
@@ -762,6 +764,13 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
           positions: data.positions,
           totalUnrealizedPnl: data.totalUnrealizedPnl ?? 0,
           markPrice: data.markPrice ?? null,
+        });
+        setFocusedPositionKey((prev) => {
+          const keys = (data.positions as PositionWithPnl[]).map(
+            (p) => `${(p.instId ?? "").trim().toUpperCase()}|${p.posSide}`
+          );
+          if (prev && keys.includes(prev)) return prev;
+          return keys[0] ?? null;
         });
       } else {
         setPositionsData(null);
@@ -3434,122 +3443,267 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
                   ) : positionsFetchError ? (
                     <p className="text-rose-600 dark:text-rose-400 text-xs">{positionsFetchError}</p>
                   ) : positionsData && positionsData.positions.length > 0 ? (
-                    <div className="mt-2 space-y-2">
-                      {positionsData.positions.map((p, i) => {
+                    <div className="mt-2 space-y-3">
+                      {positionsData.positions.length > 1 && (
+                        <div className="space-y-1.5">
+                          <p className="text-[11px] text-muted-foreground">
+                            {positionsData.positions.length} open positions — select one to view details
+                          </p>
+                          <div className="flex flex-wrap gap-1.5">
+                            {positionsData.positions.map((p, i) => {
+                              const key = `${(p.instId ?? "").trim().toUpperCase()}|${p.posSide}`;
+                              const selected = focusedPositionKey === key || (!focusedPositionKey && i === 0);
+                              const pnlOk = p.unrealizedPnl >= 0;
+                              return (
+                                <button
+                                  key={key}
+                                  type="button"
+                                  onClick={() => setFocusedPositionKey(key)}
+                                  className={`rounded-lg border px-2.5 py-1.5 text-left text-xs transition-colors ${
+                                    selected
+                                      ? "border-cyan-500/60 bg-cyan-500/10 ring-1 ring-cyan-500/30"
+                                      : "border-zinc-600/70 bg-zinc-900/50 hover:border-zinc-500"
+                                  }`}
+                                >
+                                  <span className="font-semibold text-zinc-100">{formatInstDisplay(p.instId ?? "")}</span>
+                                  <span
+                                    className={`ml-1.5 ${
+                                      p.posSide === "long" ? "text-emerald-400" : "text-rose-400"
+                                    }`}
+                                  >
+                                    {p.posSide.toUpperCase()}
+                                  </span>
+                                  <span
+                                    className={`ml-2 tabular-nums font-medium ${
+                                      pnlOk ? "text-emerald-400" : "text-rose-400"
+                                    }`}
+                                  >
+                                    {pnlOk ? "+" : ""}
+                                    {p.unrealizedPnl.toLocaleString(undefined, {
+                                      minimumFractionDigits: 2,
+                                      maximumFractionDigits: 2,
+                                    })}
+                                  </span>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+                      {(() => {
+                        const list = positionsData.positions;
+                        const focused =
+                          list.find(
+                            (p) =>
+                              `${(p.instId ?? "").trim().toUpperCase()}|${p.posSide}` === focusedPositionKey
+                          ) ?? list[0];
+                        if (!focused) return null;
+                        const p = focused;
                         const instIdNorm = (p.instId ?? "").trim().toUpperCase().replace("/", "-");
                         const isPinned = instIdNorm && monitorBoardSymbols.includes(instIdNorm);
                         return (
-                          <div key={i} className="text-xs p-2 rounded border border-zinc-200 dark:border-zinc-600 space-y-1">
-                          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                            <span className="text-zinc-600 dark:text-zinc-400 font-medium">{p.instId}</span>
-                            <span className={p.posSide === "long" ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}>{p.posSide.toUpperCase()}</span>
-                            {shareShowLeverage && p.leverage != null && p.leverage > 0 && (
-                              <span className="text-[10px] px-1.5 py-0.5 rounded bg-zinc-200/80 dark:bg-zinc-700/80 text-zinc-600 dark:text-zinc-300">{Math.round(p.leverage)}X</span>
-                            )}
-                            {p.marginMode && (
-                              <span className="text-[10px] px-1.5 py-0.5 rounded bg-zinc-200/60 dark:bg-zinc-700/60 text-zinc-500 dark:text-zinc-400 capitalize">{p.marginMode}</span>
-                            )}
-                            <span className="text-muted-foreground">Entry: {p.entryPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                            {(p.markPrice ?? positionsData.markPrice) != null && <span className="text-muted-foreground">Mark: {(p.markPrice ?? positionsData.markPrice)!.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>}
+                          <div className="text-xs p-3 rounded-xl border border-zinc-600/80 bg-zinc-950/40 space-y-2">
+                            <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+                              <span className="text-sm font-semibold text-zinc-100">{p.instId}</span>
+                              <span
+                                className={
+                                  p.posSide === "long"
+                                    ? "text-emerald-600 dark:text-emerald-400"
+                                    : "text-rose-600 dark:text-rose-400"
+                                }
+                              >
+                                {p.posSide.toUpperCase()}
+                              </span>
+                              {shareShowLeverage && p.leverage != null && p.leverage > 0 && (
+                                <span className="text-[10px] px-1.5 py-0.5 rounded bg-zinc-200/80 dark:bg-zinc-700/80 text-zinc-600 dark:text-zinc-300">
+                                  {Math.round(p.leverage)}X
+                                </span>
+                              )}
+                              {p.marginMode && (
+                                <span className="text-[10px] px-1.5 py-0.5 rounded bg-zinc-200/60 dark:bg-zinc-700/60 text-zinc-500 dark:text-zinc-400 capitalize">
+                                  {p.marginMode}
+                                </span>
+                              )}
+                            </div>
+                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-3 gap-y-1 text-muted-foreground">
+                              <span>
+                                Entry:{" "}
+                                {p.entryPrice.toLocaleString(undefined, {
+                                  minimumFractionDigits: 2,
+                                  maximumFractionDigits: 2,
+                                })}
+                              </span>
+                              {(p.markPrice ?? positionsData.markPrice) != null && (
+                                <span>
+                                  Mark:{" "}
+                                  {(p.markPrice ?? positionsData.markPrice)!.toLocaleString(undefined, {
+                                    minimumFractionDigits: 2,
+                                    maximumFractionDigits: 2,
+                                  })}
+                                </span>
+                              )}
+                              {p.liqPrice != null && Number.isFinite(p.liqPrice) && (
+                                <span>
+                                  Liq:{" "}
+                                  {p.liqPrice.toLocaleString(undefined, {
+                                    minimumFractionDigits: 2,
+                                    maximumFractionDigits: 2,
+                                  })}
+                                </span>
+                              )}
+                              {p.margin != null && Number.isFinite(p.margin) && (
+                                <span>
+                                  Margin:{" "}
+                                  {p.margin.toLocaleString(undefined, {
+                                    minimumFractionDigits: 2,
+                                    maximumFractionDigits: 2,
+                                  })}{" "}
+                                  USDT
+                                </span>
+                              )}
+                              {p.marginRatioBlofin != null && Number.isFinite(p.marginRatioBlofin) ? (
+                                <span title="Exchange margin ratio">
+                                  Margin ratio:{" "}
+                                  {p.marginRatioBlofin >= 100
+                                    ? p.marginRatioBlofin.toLocaleString(undefined, { maximumFractionDigits: 2 })
+                                    : p.marginRatioBlofin.toFixed(2)}
+                                  %
+                                </span>
+                              ) : p.initialMarginPct != null && Number.isFinite(p.initialMarginPct) ? (
+                                <span>Initial margin: {p.initialMarginPct.toFixed(2)}%</span>
+                              ) : null}
+                              <span title="Quantity (contracts)">
+                                Size:{" "}
+                                {(p.posSide === "short" ? -p.size : p.size).toLocaleString(undefined, {
+                                  maximumFractionDigits: 4,
+                                })}
+                              </span>
+                            </div>
                             {(() => {
                               const tpSaved = monitorTpForRow(instIdNorm, config?.monitorTpTargets);
                               const tpAmtSaved = monitorTpForRow(instIdNorm, config?.monitorTpAmountsQuote);
+                              if (tpSaved == null && tpAmtSaved == null) return null;
                               return (
-                                <>
+                                <div className="flex flex-wrap gap-x-3 text-muted-foreground">
                                   {tpSaved != null && (
-                                    <span className="text-muted-foreground" title="Saved under AI Monitor → Deep check (Blofin often does not show TP here).">
-                                      TP price (saved): {tpSaved.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                </span>
-                                  )}
-                                  {tpAmtSaved != null && (
-                                    <span className="text-muted-foreground" title="Target unrealized PnL in USDT for AI coaching.">
-                                      PnL target (saved): +{tpAmtSaved.toLocaleString(undefined, { maximumFractionDigits: 0 })} USDT
+                                    <span>
+                                      TP price (saved):{" "}
+                                      {tpSaved.toLocaleString(undefined, {
+                                        minimumFractionDigits: 2,
+                                        maximumFractionDigits: 2,
+                                      })}
                                     </span>
                                   )}
-                                </>
+                                  {tpAmtSaved != null && (
+                                    <span>
+                                      PnL target (saved): +
+                                      {tpAmtSaved.toLocaleString(undefined, { maximumFractionDigits: 0 })} USDT
+                                    </span>
+                                  )}
+                                </div>
                               );
                             })()}
-                            {p.liqPrice != null && Number.isFinite(p.liqPrice) && <span className="text-muted-foreground">Liq: {p.liqPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>}
-                            {p.margin != null && Number.isFinite(p.margin) && <span className="text-muted-foreground">Margin: {p.margin.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USDT</span>}
-                            {p.marginRatioBlofin != null && Number.isFinite(p.marginRatioBlofin) ? (
-                              <span className="text-muted-foreground" title="Blofin margin ratio (risk metric)">Margin ratio: {p.marginRatioBlofin >= 100 ? p.marginRatioBlofin.toLocaleString(undefined, { maximumFractionDigits: 2 }) : p.marginRatioBlofin.toFixed(2)}%</span>
-                            ) : p.initialMarginPct != null && Number.isFinite(p.initialMarginPct) ? (
-                              <span className="text-muted-foreground" title="Initial margin as % of notional (Blofin margin ratio shown on exchange)">Initial margin: {p.initialMarginPct.toFixed(2)}%</span>
-                            ) : (
-                              <span className="text-muted-foreground" title="Margin ratio from exchange when available">Margin ratio: —</span>
-                            )}
-                            <span className="text-muted-foreground" title="Quantity of the asset (contracts). Long = positive, Short = negative.">Size: {(p.posSide === "short" ? -p.size : p.size).toLocaleString(undefined, { maximumFractionDigits: 4 })}</span>
-                            <span
-                              className={`font-semibold tabular-nums ${p.unrealizedPnl >= 0 ? "text-emerald-600 dark:text-[#0ecb81]" : "text-rose-600 dark:text-[#f6465d]"}`}
-                              title="Matches Blofin ROE % (margin × leverage)"
-                            >
-                              PNL: {formatBlofinPnlLine(p.unrealizedPnl, p.pnlPct ?? null)}
-                            </span>
-                            {instIdNorm && (
+                            <div className="flex flex-wrap items-center gap-2 pt-1">
+                              <span
+                                className={`text-sm font-semibold tabular-nums ${
+                                  p.unrealizedPnl >= 0
+                                    ? "text-emerald-600 dark:text-[#0ecb81]"
+                                    : "text-rose-600 dark:text-[#f6465d]"
+                                }`}
+                              >
+                                PNL: {formatBlofinPnlLine(p.unrealizedPnl, p.pnlPct ?? null)}
+                              </span>
+                              {instIdNorm && (
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  className="h-7 text-xs border-cyan-500 text-cyan-700 dark:text-cyan-300"
+                                  onClick={() => {
+                                    if (isPinned)
+                                      setMonitorBoardSymbols(monitorBoardSymbols.filter((x) => x !== instIdNorm));
+                                    else if (!monitorBoardSymbols.includes(instIdNorm))
+                                      setMonitorBoardSymbols([...monitorBoardSymbols, instIdNorm]);
+                                  }}
+                                >
+                                  {isPinned ? "Unpin" : "Pin to board"}
+                                </Button>
+                              )}
                               <Button
                                 type="button"
                                 variant="outline"
                                 size="sm"
-                                className="h-6 text-xs border-cyan-500 text-cyan-700 dark:text-cyan-300"
-                                onClick={() => {
-                                  if (isPinned) setMonitorBoardSymbols(monitorBoardSymbols.filter((x) => x !== instIdNorm));
-                                  else if (!monitorBoardSymbols.includes(instIdNorm)) setMonitorBoardSymbols([...monitorBoardSymbols, instIdNorm]);
-                                }}
+                                className="h-7 text-xs border-amber-500 text-slate-600 dark:text-slate-300"
+                                onClick={() => closePosition(p.instId)}
+                                disabled={closing}
                               >
-                                {isPinned ? "Unpin" : "Pin to board"}
+                                Close
                               </Button>
-                            )}
-                            <Button type="button" variant="outline" size="sm" className="h-6 text-xs border-amber-500 text-slate-600 dark:text-slate-300" onClick={() => closePosition(p.instId)} disabled={closing}>
-                              Close
-                            </Button>
-                          </div>
-                          <PnlShareButtons
-                            compact
-                            kind="open"
-                            showUsdt={shareShowRealizedUsdt}
-                            showAmountInvested={shareShowAmountInvested}
-                            investedUsdt={p.margin != null && p.margin > 0 ? p.margin : null}
-                            symbol={formatInstDisplay(p.instId ?? "")}
-                            roiPct={p.pnlPct ?? 0}
-                            pnlUsdt={p.unrealizedPnl}
-                            filename={`NovaStaris_Open_${formatInstDisplay(p.instId ?? "").replace(/[^a-zA-Z0-9]/g, "_")}.jpg`}
-                            getBlob={() =>
-                              drawOpenPositionShareCard(
-                                {
-                                  displaySymbol: formatInstDisplay(p.instId ?? ""),
-                                  direction: (p.posSide === "short" ? "short" : "long") as "long" | "short",
-                                  entryPrice: p.entryPrice,
-                                  markPrice: p.markPrice ?? p.entryPrice,
-                                  roiPct: p.pnlPct ?? 0,
-                                  unrealizedPnlUsdt: p.unrealizedPnl,
-                                  leverage: p.leverage ?? null,
-                                  modeLabel: config?.mode === "demo" ? "Demo" : "Live",
-                                  investedUsdt: p.margin != null && p.margin > 0 ? p.margin : null,
-                                },
-                                {
-                                  showRealizedUsdt: pnlShareFlags.showUsd && shareShowRealizedUsdt,
-                                  showAmountInvested: pnlShareFlags.showInvested && shareShowAmountInvested,
-                                  showHoldDuration: false,
-                                  showLeverage: pnlShareFlags.showLeverage && shareShowLeverage,
-                                  customMessage: pnlShareFlags.cardMessage ? shareCustomMessage.trim() || null : null,
-                                }
-                              )
-                            }
-                          />
+                            </div>
+                            <PnlShareButtons
+                              compact
+                              kind="open"
+                              showUsdt={shareShowRealizedUsdt}
+                              showAmountInvested={shareShowAmountInvested}
+                              investedUsdt={p.margin != null && p.margin > 0 ? p.margin : null}
+                              symbol={formatInstDisplay(p.instId ?? "")}
+                              roiPct={p.pnlPct ?? 0}
+                              pnlUsdt={p.unrealizedPnl}
+                              filename={`NovaStaris_Open_${formatInstDisplay(p.instId ?? "").replace(/[^a-zA-Z0-9]/g, "_")}.jpg`}
+                              getBlob={() =>
+                                drawOpenPositionShareCard(
+                                  {
+                                    displaySymbol: formatInstDisplay(p.instId ?? ""),
+                                    direction: (p.posSide === "short" ? "short" : "long") as "long" | "short",
+                                    entryPrice: p.entryPrice,
+                                    markPrice: p.markPrice ?? p.entryPrice,
+                                    roiPct: p.pnlPct ?? 0,
+                                    unrealizedPnlUsdt: p.unrealizedPnl,
+                                    leverage: p.leverage ?? null,
+                                    modeLabel: config?.mode === "demo" ? "Demo" : "Live",
+                                    investedUsdt: p.margin != null && p.margin > 0 ? p.margin : null,
+                                  },
+                                  {
+                                    showRealizedUsdt: pnlShareFlags.showUsd && shareShowRealizedUsdt,
+                                    showAmountInvested: pnlShareFlags.showInvested && shareShowAmountInvested,
+                                    showHoldDuration: false,
+                                    showLeverage: pnlShareFlags.showLeverage && shareShowLeverage,
+                                    customMessage: pnlShareFlags.cardMessage ? shareCustomMessage.trim() || null : null,
+                                  }
+                                )
+                              }
+                            />
                           </div>
                         );
-                      })}
-                      <p className="mt-2 pt-2 border-t border-zinc-200 dark:border-zinc-600 font-semibold">
+                      })()}
+                      <p className="pt-2 border-t border-zinc-200 dark:border-zinc-600 font-semibold text-sm">
                         Total unrealized:{" "}
-                        <span className={positionsData.totalUnrealizedPnl >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}>
-                          {positionsData.totalUnrealizedPnl >= 0 ? "+" : ""}{positionsData.totalUnrealizedPnl.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USDT
+                        <span
+                          className={
+                            positionsData.totalUnrealizedPnl >= 0
+                              ? "text-emerald-600 dark:text-emerald-400"
+                              : "text-rose-600 dark:text-rose-400"
+                          }
+                        >
+                          {positionsData.totalUnrealizedPnl >= 0 ? "+" : ""}
+                          {positionsData.totalUnrealizedPnl.toLocaleString(undefined, {
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 2,
+                          })}{" "}
+                          USDT
                         </span>
                       </p>
-                      <div className="flex flex-wrap items-center gap-2 mt-2">
-                        <Button type="button" variant="ghost" size="sm" className="h-7 text-xs" onClick={() => fetchPositions()} disabled={positionsLoading}>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 text-xs"
+                          onClick={() => fetchPositions()}
+                          disabled={positionsLoading}
+                        >
                           {positionsLoading ? "Refreshing…" : "Refresh PNL"}
                         </Button>
-                        <p className="text-[10px] text-muted-foreground">Share each position with Card / TG / IG below.</p>
                         <Button
                           type="button"
                           variant="outline"
@@ -3559,7 +3713,11 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
                             const total = positionsData.totalUnrealizedPnl;
                             const sign = total >= 0 ? "+" : "";
                             const text = `My NovaStaris PNL this week ${sign}${total.toFixed(2)} USDT 🚀\n\nTrack & trade with AI → novastaris.ai`;
-                            window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`, "_blank", "noopener,noreferrer");
+                            window.open(
+                              `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`,
+                              "_blank",
+                              "noopener,noreferrer"
+                            );
                           }}
                         >
                           Share to X / CT
@@ -3567,9 +3725,16 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
                       </div>
                     </div>
                   ) : positionsData && positionsData.positions.length === 0 ? (
-                    <p className="text-muted-foreground text-xs">No open positions on this Blofin account ({config.mode === "demo" ? "Demo" : "Live"}).</p>
+                    <p className="text-muted-foreground text-xs">
+                      No open positions on this{" "}
+                      {(form.provider ?? config?.provider) === "coinbase" ? "Coinbase" : "Blofin"} account (
+                      {config.mode === "demo" ? "Demo" : "Live"}).
+                    </p>
                   ) : !positionsLoading ? (
-                    <p className="text-muted-foreground text-xs">Click Refresh PNL below after Blofin keys are saved.</p>
+                    <p className="text-muted-foreground text-xs">
+                      Click Refresh PNL below after{" "}
+                      {(form.provider ?? config?.provider) === "coinbase" ? "Coinbase" : "Blofin"} keys are saved.
+                    </p>
                   ) : null}
                 </>
               )}
