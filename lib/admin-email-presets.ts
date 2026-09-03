@@ -447,7 +447,7 @@ export const ADMIN_EMAIL_PRESETS: AdminEmailPreset[] = [
   {
     id: "coinbase-partnership",
     label: "Coinbase Futures launch",
-    blurb: "Announce Coinbase support — NovaStaris × Coinbase logos",
+    blurb: "Announce Coinbase support — VIP bot note + referral signup link",
     subject: COINBASE_PARTNERSHIP_EMAIL.subject,
     body: COINBASE_PARTNERSHIP_EMAIL.body,
     template: "default",
@@ -455,7 +455,7 @@ export const ADMIN_EMAIL_PRESETS: AdminEmailPreset[] = [
     partnerBrand: "coinbase",
     ctaLabel: "Open Trading Bot",
     ctaUrl: "https://novastaris.ai/?tab=trading-bot",
-    defaultAudience: "newsletter",
+    defaultAudience: "vip",
   },
   {
     id: "coinbase-referral",
