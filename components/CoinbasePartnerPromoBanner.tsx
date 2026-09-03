@@ -1,0 +1,92 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { coinbasePartnerRegisterPath } from "@/lib/coinbase-partner-promo";
+import { PartnerLogosStrip } from "@/components/PartnerLogosStrip";
+
+type PromoView = {
+  active?: boolean;
+  headline: string;
+  bodyText: string;
+  promoLabel: string;
+  ctaLabel: string;
+  referralCode?: string;
+  showLogosInBanner?: boolean;
+};
+
+type Props = {
+  className?: string;
+  compact?: boolean;
+  preview?: PromoView | null;
+};
+
+export function CoinbasePartnerPromoBanner({ className = "", compact = false, preview = null }: Props) {
+  const [promo, setPromo] = useState<PromoView | null>(preview);
+
+  useEffect(() => {
+    if (preview) {
+      setPromo(preview);
+      return;
+    }
+    let cancelled = false;
+    fetch("/api/coinbase-partner-promo", { credentials: "include" })
+      .then((r) => r.json())
+      .then((data) => {
+        if (!cancelled && data.success && data.promo?.active) setPromo(data.promo);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [preview]);
+
+  if (!promo?.active && !preview) return null;
+  if (!preview && !promo) return null;
+
+  const view = promo!;
+  const showLogos = view.showLogosInBanner !== false;
+
+  return (
+    <div
+      className={`rounded-xl border border-blue-500/25 bg-gradient-to-br from-blue-950/40 via-zinc-950/80 to-indigo-950/30 p-4 ${className}`}
+    >
+      {showLogos && <PartnerLogosStrip className="mb-3" partner="coinbase" />}
+      <div className={compact ? "space-y-2" : "space-y-3"}>
+        <div className="flex flex-wrap items-start justify-between gap-2">
+          <div>
+            <p className="text-sm font-semibold text-zinc-100">{view.headline}</p>
+            {!compact && <p className="text-xs text-zinc-400 mt-1 max-w-prose">{view.bodyText}</p>}
+          </div>
+          {view.promoLabel && (
+            <span className="shrink-0 rounded-full border border-blue-500/40 bg-blue-500/10 px-2.5 py-0.5 text-[11px] font-semibold text-blue-300">
+              {view.promoLabel}
+            </span>
+          )}
+        </div>
+        {!preview && (
+          <a
+            href={coinbasePartnerRegisterPath()}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center justify-center rounded-md bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold px-3 py-2 transition-colors"
+          >
+            {view.ctaLabel}
+          </a>
+        )}
+        {preview && (
+          <span className="inline-flex items-center justify-center rounded-md bg-blue-600/80 text-white text-xs font-semibold px-3 py-2">
+            {view.ctaLabel}
+          </span>
+        )}
+        {view.referralCode && (
+          <p className="text-[11px] text-zinc-500">
+            Referral code: <span className="font-mono text-blue-300">{view.referralCode}</span>
+          </p>
+        )}
+        {compact && (
+          <p className="text-[11px] text-zinc-500">Create a Coinbase account, then save your CDP API keys below.</p>
+        )}
+      </div>
+    </div>
+  );
+}

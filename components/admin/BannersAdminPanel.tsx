@@ -16,12 +16,15 @@ import type { TwoFactorSecurityNudgeBannerAdmin } from "@/lib/two-factor-securit
 import type { SiteAnnouncementBannerAdmin } from "@/lib/site-announcement-banner";
 import type { BlofinPartnerPromoAdmin, BlofinPartnerLinkClickRow } from "@/lib/blofin-partner-promo";
 import { BLOFIN_PARTNERSHIP_EMAIL } from "@/lib/blofin-partner-promo";
+import type { CoinbasePartnerPromoAdmin, CoinbasePartnerLinkClickRow } from "@/lib/coinbase-partner-promo";
+import { COINBASE_PARTNERSHIP_EMAIL } from "@/lib/coinbase-partner-promo";
 import type { ForexBrokerPartnerPromoAdmin, ForexBrokerPartnerLinkClickRow } from "@/lib/forex-broker-partner-promo";
 import { FOREX_PARTNERSHIP_EMAIL, FOREX_PARTNER_REBATE_EMAIL, NOVA_FOREX_BOTS_LAUNCH_EMAIL, forexBrokerLabel } from "@/lib/forex-broker-partner-promo";
 import type { ForexPartnerBrokerId } from "@/lib/forex-broker-user-config";
 import { formatPromoDrawDate } from "@/lib/promo-banner";
 import { PromoBannerDisplay } from "@/components/PromoBannerDisplay";
 import { BlofinPartnerPromoBanner } from "@/components/BlofinPartnerPromoBanner";
+import { CoinbasePartnerPromoBanner } from "@/components/CoinbasePartnerPromoBanner";
 import { ForexBrokerPartnerPromoBanner } from "@/components/ForexBrokerPartnerPromoBanner";
 import MemeAgentBannerDisplay from "@/components/MemeAgentBannerDisplay";
 import MemeTableAnalyzeHint from "@/components/MemeTableAnalyzeHint";
@@ -136,6 +139,22 @@ export default function BannersAdminPanel({ onNotice, onError }: Props) {
     includeLogosInBroadcast: true,
   });
 
+  const [coinbasePartner, setCoinbasePartner] = useState<CoinbasePartnerPromoAdmin | null>(null);
+  const [coinbasePartnerClicks, setCoinbasePartnerClicks] = useState<CoinbasePartnerLinkClickRow[]>([]);
+  const [coinbasePartnerLoading, setCoinbasePartnerLoading] = useState(true);
+  const [coinbasePartnerSaving, setCoinbasePartnerSaving] = useState(false);
+  const [coinbasePartnerDraft, setCoinbasePartnerDraft] = useState({
+    registerUrl: "",
+    headline: "",
+    bodyText: "",
+    promoLabel: "",
+    ctaLabel: "",
+    referralCode: "",
+    showLogosInBanner: true,
+    includeLogosInEmail: true,
+    includeLogosInBroadcast: true,
+  });
+
   const [emailStats, setEmailStats] = useState<{
     newsletterCount: number;
     allEmailCount: number;
@@ -149,7 +168,7 @@ export default function BannersAdminPanel({ onNotice, onError }: Props) {
     body: "",
     audience: "newsletter" as "newsletter" | "all",
     includePartnerLogos: false,
-    partnerBrand: "blofin" as "blofin" | "vantage" | "tiomarkets" | "assexmarkets",
+    partnerBrand: "blofin" as "blofin" | "coinbase" | "vantage" | "tiomarkets" | "assexmarkets",
     template: "default" as "default" | "forex-rebate",
     ctaLabel: "",
     ctaUrl: "",
@@ -191,6 +210,7 @@ export default function BannersAdminPanel({ onNotice, onError }: Props) {
     setTwoFactorNudgeLoading(true);
     setSiteAnnouncementLoading(true);
     setBlofinPartnerLoading(true);
+    setCoinbasePartnerLoading(true);
     setEmailStatsLoading(true);
     return Promise.all([
       fetch("/api/admin/promo-banner").then((r) => r.json()),
@@ -200,9 +220,10 @@ export default function BannersAdminPanel({ onNotice, onError }: Props) {
       fetch("/api/admin/two-factor-security-nudge-banner").then((r) => r.json()),
       fetch("/api/admin/site-announcement-banner").then((r) => r.json()),
       fetch("/api/admin/blofin-partner-promo").then((r) => r.json()),
+      fetch("/api/admin/coinbase-partner-promo").then((r) => r.json()),
       fetch("/api/admin/announcement-email").then((r) => r.json()),
     ])
-      .then(([promoData, memeBannerData, memeTableHintData, guestNudgeData, twoFactorNudgeData, siteAnnouncementData, blofinPartnerData, emailStatsData]) => {
+      .then(([promoData, memeBannerData, memeTableHintData, guestNudgeData, twoFactorNudgeData, siteAnnouncementData, blofinPartnerData, coinbasePartnerData, emailStatsData]) => {
         if (promoData.success && promoData.promo) {
           applyPromoDraft(promoData.promo as PromoBannerAdmin);
         } else onError?.(promoData.error ?? "Failed to load promo banner.");
@@ -267,6 +288,22 @@ export default function BannersAdminPanel({ onNotice, onError }: Props) {
           });
           setBlofinPartnerClicks((blofinPartnerData.clicks ?? []) as BlofinPartnerLinkClickRow[]);
         }
+        if (coinbasePartnerData.success && coinbasePartnerData.promo) {
+          const p = coinbasePartnerData.promo as CoinbasePartnerPromoAdmin;
+          setCoinbasePartner(p);
+          setCoinbasePartnerDraft({
+            registerUrl: p.registerUrl,
+            headline: p.headline,
+            bodyText: p.bodyText,
+            promoLabel: p.promoLabel,
+            ctaLabel: p.ctaLabel,
+            referralCode: p.referralCode ?? "",
+            showLogosInBanner: p.showLogosInBanner,
+            includeLogosInEmail: p.includeLogosInEmail,
+            includeLogosInBroadcast: p.includeLogosInBroadcast,
+          });
+          setCoinbasePartnerClicks((coinbasePartnerData.clicks ?? []) as CoinbasePartnerLinkClickRow[]);
+        }
         if (emailStatsData.success && emailStatsData.stats) {
           setEmailStats(
             emailStatsData.stats as {
@@ -287,6 +324,7 @@ export default function BannersAdminPanel({ onNotice, onError }: Props) {
         setTwoFactorNudgeLoading(false);
         setSiteAnnouncementLoading(false);
         setBlofinPartnerLoading(false);
+        setCoinbasePartnerLoading(false);
         setEmailStatsLoading(false);
       });
   }, [applyPromoDraft, applyMemeAgentDraft, onError]);
@@ -510,6 +548,43 @@ export default function BannersAdminPanel({ onNotice, onError }: Props) {
       onError?.("Update failed.");
     } finally {
       setBlofinPartnerSaving(false);
+    }
+  };
+
+  const patchCoinbasePartner = async (body: Record<string, unknown>) => {
+    setCoinbasePartnerSaving(true);
+    try {
+      const res = await fetch("/api/admin/coinbase-partner-promo", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const data = await res.json();
+      if (data.success && data.promo) {
+        const p = data.promo as CoinbasePartnerPromoAdmin;
+        setCoinbasePartner(p);
+        setCoinbasePartnerDraft({
+          registerUrl: p.registerUrl,
+          headline: p.headline,
+          bodyText: p.bodyText,
+          promoLabel: p.promoLabel,
+          ctaLabel: p.ctaLabel,
+          referralCode: p.referralCode ?? "",
+          showLogosInBanner: p.showLogosInBanner,
+          includeLogosInEmail: p.includeLogosInEmail,
+          includeLogosInBroadcast: p.includeLogosInBroadcast,
+        });
+        if (data.broadcastPublished) void load();
+        onNotice?.(
+          data.broadcastPublished
+            ? "Coinbase promo saved and in-app broadcast published."
+            : "Coinbase partner promo updated."
+        );
+      } else onError?.(data.error ?? "Update failed.");
+    } catch {
+      onError?.("Update failed.");
+    } finally {
+      setCoinbasePartnerSaving(false);
     }
   };
 
@@ -1245,6 +1320,125 @@ export default function BannersAdminPanel({ onNotice, onError }: Props) {
         </CardContent>
       </Card>
 
+      <Card className="border-blue-200/80 dark:border-blue-900/60">
+        <CardHeader>
+          <CardTitle className="text-base">Coinbase partner promo</CardTitle>
+          <p className="text-sm text-muted-foreground">
+            NovaStaris × Coinbase logos on Trading Bot and NovaScalper. Set register URL and referral code for the referral email preset.
+          </p>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {coinbasePartnerLoading ? (
+            <p className="text-muted-foreground text-sm">Loading…</p>
+          ) : coinbasePartner ? (
+            <>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span
+                  className={`text-xs font-semibold px-2 py-0.5 rounded-full border ${
+                    coinbasePartner.active
+                      ? "bg-blue-500/15 text-blue-800 dark:text-blue-200 border-blue-500/30"
+                      : "bg-zinc-500/10 text-zinc-600 dark:text-zinc-400 border-zinc-500/20"
+                  }`}
+                >
+                  {coinbasePartner.active ? "LIVE on bot screens" : coinbasePartner.enabled ? "ON (needs URL)" : "OFF"}
+                </span>
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    size="sm"
+                    variant={coinbasePartner.enabled ? "outline" : "default"}
+                    disabled={coinbasePartnerSaving}
+                    onClick={() => void patchCoinbasePartner({ enabled: !coinbasePartner.enabled })}
+                  >
+                    {coinbasePartnerSaving ? "…" : coinbasePartner.enabled ? "Turn off" : "Turn on"}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    disabled={coinbasePartnerSaving}
+                    onClick={() =>
+                      void patchCoinbasePartner({
+                        ...coinbasePartnerDraft,
+                        enabled: true,
+                        publishLaunchBroadcast: true,
+                      })
+                    }
+                  >
+                    Save + publish in-app broadcast
+                  </Button>
+                </div>
+              </div>
+              <label className="text-xs text-muted-foreground flex flex-col gap-1">
+                Coinbase / referral URL
+                <input
+                  value={coinbasePartnerDraft.registerUrl}
+                  onChange={(e) => setCoinbasePartnerDraft((d) => ({ ...d, registerUrl: e.target.value }))}
+                  placeholder="https://www.coinbase.com/futures"
+                  className="text-sm border border-zinc-300 dark:border-zinc-600 rounded-md px-2 py-1.5 bg-white dark:bg-zinc-800"
+                />
+              </label>
+              <label className="text-xs text-muted-foreground flex flex-col gap-1">
+                Referral code (for referral email template)
+                <input
+                  value={coinbasePartnerDraft.referralCode}
+                  onChange={(e) => setCoinbasePartnerDraft((d) => ({ ...d, referralCode: e.target.value }))}
+                  placeholder="YOUR_CODE"
+                  className="text-sm border border-zinc-300 dark:border-zinc-600 rounded-md px-2 py-1.5 bg-white dark:bg-zinc-800"
+                />
+              </label>
+              <label className="text-xs text-muted-foreground flex flex-col gap-1">
+                Headline
+                <input
+                  value={coinbasePartnerDraft.headline}
+                  onChange={(e) => setCoinbasePartnerDraft((d) => ({ ...d, headline: e.target.value }))}
+                  className="text-sm border border-zinc-300 dark:border-zinc-600 rounded-md px-2 py-1.5 bg-white dark:bg-zinc-800"
+                />
+              </label>
+              <label className="text-xs text-muted-foreground flex flex-col gap-1">
+                Body
+                <textarea
+                  rows={3}
+                  value={coinbasePartnerDraft.bodyText}
+                  onChange={(e) => setCoinbasePartnerDraft((d) => ({ ...d, bodyText: e.target.value }))}
+                  className="text-sm border border-zinc-300 dark:border-zinc-600 rounded-md px-2 py-1.5 bg-white dark:bg-zinc-800"
+                />
+              </label>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  size="sm"
+                  disabled={coinbasePartnerSaving}
+                  onClick={() => void patchCoinbasePartner({ ...coinbasePartnerDraft, enabled: coinbasePartner.enabled })}
+                >
+                  {coinbasePartnerSaving ? "Saving…" : "Save Coinbase promo"}
+                </Button>
+                <Button size="sm" variant="outline" asChild>
+                  <Link href="/admin/emails?preset=coinbase-partnership">Launch email</Link>
+                </Button>
+                <Button size="sm" variant="outline" asChild>
+                  <Link href="/admin/emails?preset=coinbase-referral">Referral email</Link>
+                </Button>
+              </div>
+              <p className="text-[11px] text-muted-foreground">
+                Link clicks: {coinbasePartner.registerClickCount}. Launch email body: {COINBASE_PARTNERSHIP_EMAIL.subject}
+              </p>
+              <div className="rounded-lg border border-dashed border-zinc-300 dark:border-zinc-600 p-3">
+                <p className="text-xs text-muted-foreground mb-2">Customer preview</p>
+                <CoinbasePartnerPromoBanner
+                  preview={{
+                    active: true,
+                    headline: coinbasePartnerDraft.headline,
+                    bodyText: coinbasePartnerDraft.bodyText,
+                    promoLabel: coinbasePartnerDraft.promoLabel,
+                    ctaLabel: coinbasePartnerDraft.ctaLabel,
+                    referralCode: coinbasePartnerDraft.referralCode,
+                    showLogosInBanner: coinbasePartnerDraft.showLogosInBanner,
+                  }}
+                />
+              </div>
+            </>
+          ) : null}
+        </CardContent>
+      </Card>
+
       <ForexBrokerPartnerSection
         broker="vantage"
         onLoadEmailTemplate={() => {
@@ -1311,6 +1505,14 @@ export default function BannersAdminPanel({ onNotice, onError }: Props) {
                     onClick={() => void patchSiteAnnouncement({ preset: "blofin-partnership" })}
                   >
                     Publish Blofin partnership
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    disabled={siteAnnouncementSaving}
+                    onClick={() => void patchSiteAnnouncement({ preset: "coinbase-partnership" })}
+                  >
+                    Publish Coinbase partnership
                   </Button>
                   <Button
                     size="sm"

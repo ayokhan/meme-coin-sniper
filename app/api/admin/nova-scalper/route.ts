@@ -3,9 +3,11 @@ import { getServerSession } from "next-auth";
 import { authOptions, canAccessTradingBot } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { getInstrument, isBlofinConfigured } from "@/lib/blofin";
+import { getInstrument as getCoinbaseInstrument, isCoinbaseConfigured } from "@/lib/coinbase";
 import { roundToTickSize } from "@/lib/blofin-tick";
 import { getBlofinConfigForUser } from "@/lib/blofin-user-config";
-import { parseScalperInstrument } from "@/lib/nova-scalper-instrument";
+import { getCoinbaseConfigForUser } from "@/lib/coinbase-user-config";
+import { parseScalperInstrument, type ScalperExchange } from "@/lib/nova-scalper-instrument";
 import { NOVA_SCALPER_MAX_CONFIGS } from "@/lib/nova-scalper-constants";
 
 export const dynamic = "force-dynamic";
@@ -63,9 +65,11 @@ async function normalizeStoredInstrument(row: { id: string; symbol: string; marg
 }
 
 function validateBody(body: Record<string, unknown>): string | undefined {
+  const exchange: ScalperExchange = body.exchange === "coinbase" ? "coinbase" : "blofin";
   const parsed = parseScalperInstrument(
     String(body.symbol ?? ""),
-    body.marginCurrency === "USDC" ? "USDC" : "USDT"
+    body.marginCurrency === "USDC" ? "USDC" : "USDT",
+    exchange
   );
   if (!parsed.base || !parsed.instId) return "Instrument is required (e.g. BTC/USDT or BTC/USDC).";
   const lev = Number(body.leverage);
@@ -92,7 +96,8 @@ function validateBody(body: Record<string, unknown>): string | undefined {
 function toConfig(row: Record<string, unknown>) {
   const base = String(row.symbol ?? "BTC");
   const quote = row.marginCurrency === "USDC" ? "USDC" : "USDT";
-  const { instId } = parseScalperInstrument(base, quote);
+  const exchange: ScalperExchange = row.exchange === "coinbase" ? "coinbase" : "blofin";
+  const { instId } = parseScalperInstrument(base, quote, exchange);
   const ownerForceOff = !!(row.ownerForceOff as boolean | undefined);
   const rawEnabled = !!row.enabled;
   return {
@@ -100,6 +105,7 @@ function toConfig(row: Record<string, unknown>) {
     slot: typeof row.slot === "number" ? row.slot : 1,
     enabled: rawEnabled && !ownerForceOff,
     ownerForceOff,
+    exchange,
     mode: row.mode === "live" ? "live" : "demo",
     symbol: base,
     marginCurrency: quote,
@@ -181,11 +187,14 @@ export async function PATCH(request: Request) {
     }
 
     const uid = sessionUserId;
-    const userCfg = await getBlofinConfigForUser(uid);
+    const userBlofinCfg = await getBlofinConfigForUser(uid);
+    const userCoinbaseCfg = await getCoinbaseConfigForUser(uid);
 
     const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
     const err = validateBody(body);
     if (err) return NextResponse.json({ success: false, error: err }, { status: 400 });
+
+    const exchange: ScalperExchange = body.exchange === "coinbase" ? "coinbase" : "blofin";
 
     let configId = String(body.configId ?? "").trim();
     if (!configId) {
@@ -218,20 +227,34 @@ export async function PATCH(request: Request) {
       );
     }
 
-    if (body.enabled === true && !isBlofinConfigured() && !userCfg) {
-      return NextResponse.json(
-        {
-          success: false,
-          error:
-            "Add your Blofin API keys below (or in Trading Bot) before enabling NovaScalper. VIP accounts use their own keys.",
-        },
-        { status: 400 }
-      );
+    if (body.enabled === true) {
+      if (exchange === "coinbase") {
+        if (!isCoinbaseConfigured() && !userCoinbaseCfg) {
+          return NextResponse.json(
+            {
+              success: false,
+              error:
+                "Add your Coinbase CDP API keys below (or in Trading Bot) before enabling NovaScalper on Coinbase.",
+            },
+            { status: 400 }
+          );
+        }
+      } else if (!isBlofinConfigured() && !userBlofinCfg) {
+        return NextResponse.json(
+          {
+            success: false,
+            error:
+              "Add your Blofin API keys below (or in Trading Bot) before enabling NovaScalper. VIP accounts use their own keys.",
+          },
+          { status: 400 }
+        );
+      }
     }
 
     const { base, quote } = parseScalperInstrument(
       String(body.symbol ?? ""),
-      body.marginCurrency === "USDC" ? "USDC" : "USDT"
+      body.marginCurrency === "USDC" ? "USDC" : "USDT",
+      exchange
     );
 
     const stopRaw = body.stopLossPrice;
@@ -240,11 +263,14 @@ export async function PATCH(request: Request) {
     const tpslTp = body.tpslTpPct != null && body.tpslTpPct !== "" ? Number(body.tpslTpPct) : null;
     const tpslSl = body.tpslSlPct != null && body.tpslSlPct !== "" ? Number(body.tpslSlPct) : null;
 
-    const { instId } = parseScalperInstrument(base, quote);
+    const { instId } = parseScalperInstrument(base, quote, exchange);
     let entryPrice = Number(body.entryPrice);
     let exitPrice = Number(body.exitPrice);
     try {
-      const inst = await getInstrument(instId);
+      const inst =
+        exchange === "coinbase"
+          ? await getCoinbaseInstrument(instId)
+          : await getInstrument(instId);
       const tick = inst?.tickSize ? Number(inst.tickSize) : NaN;
       if (Number.isFinite(tick) && tick > 0) {
         entryPrice = roundToTickSize(entryPrice, tick);
@@ -259,6 +285,7 @@ export async function PATCH(request: Request) {
       where: { id: row.id },
       data: {
         enabled: body.enabled === true,
+        exchange,
         mode: body.mode === "live" ? "live" : "demo",
         symbol: base,
         marginCurrency: quote,

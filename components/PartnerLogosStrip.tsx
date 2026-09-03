@@ -14,12 +14,14 @@ type Props = {
 
 const PARTNER_ALT: Record<PartnerBrand, string> = {
   blofin: "Blofin",
+  coinbase: "Coinbase",
   vantage: "Vantage",
   tiomarkets: "TIOmarkets",
   assexmarkets: "Assexmarkets",
 };
 
 function partnerSrc(partner: PartnerBrand, onLightBackground: boolean): string {
+  if (partner === "coinbase") return "/partners/coinbase-logo.svg";
   if (partner === "vantage") return "/partners/vantage-logo.png";
   if (partner === "tiomarkets") return "/partners/tiomarkets-logo.png";
   if (partner === "assexmarkets") return "/partners/assexmarkets-logo.png";

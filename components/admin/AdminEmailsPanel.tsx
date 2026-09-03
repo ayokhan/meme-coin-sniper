@@ -1364,6 +1364,7 @@ export default function AdminEmailsPanel({ onNotice, onError }: Props) {
                     }
                   >
                     <option value="blofin">Blofin</option>
+                    <option value="coinbase">Coinbase</option>
                     <option value="vantage">Vantage</option>
                     <option value="tiomarkets">TIOmarkets</option>
                     <option value="assexmarkets">Assexmarkets</option>

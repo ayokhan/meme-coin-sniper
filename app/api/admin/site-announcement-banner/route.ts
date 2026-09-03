@@ -10,6 +10,7 @@ import {
 import { AFFILIATE_LAUNCH_BANNER } from "@/lib/referral-program";
 import { PNL_CALCULATOR_LAUNCH_BANNER } from "@/lib/pnl-calculator-launch-email";
 import { BLOFIN_PARTNERSHIP_LAUNCH_BANNER, getBlofinPartnerPromoForAdmin } from "@/lib/blofin-partner-promo";
+import { COINBASE_PARTNERSHIP_LAUNCH_BANNER, getCoinbasePartnerPromoForAdmin } from "@/lib/coinbase-partner-promo";
 
 export async function GET() {
   const session = await getServerSession(authOptions);
@@ -47,6 +48,14 @@ export async function PATCH(request: Request) {
       const promo = await getBlofinPartnerPromoForAdmin().catch(() => null);
       const banner = await setSiteAnnouncementBanner({
         ...BLOFIN_PARTNERSHIP_LAUNCH_BANNER,
+        showPartnerLogos: promo?.includeLogosInBroadcast ?? true,
+      });
+      return NextResponse.json({ success: true, banner });
+    }
+    if (body.preset === "coinbase-partnership") {
+      const promo = await getCoinbasePartnerPromoForAdmin().catch(() => null);
+      const banner = await setSiteAnnouncementBanner({
+        ...COINBASE_PARTNERSHIP_LAUNCH_BANNER,
         showPartnerLogos: promo?.includeLogosInBroadcast ?? true,
       });
       return NextResponse.json({ success: true, banner });

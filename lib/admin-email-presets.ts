@@ -4,6 +4,7 @@ import {
   NOVA_FOREX_BOTS_LAUNCH_EMAIL,
 } from "@/lib/forex-broker-partner-promo";
 import { BLOFIN_PARTNERSHIP_EMAIL } from "@/lib/blofin-partner-promo";
+import { COINBASE_PARTNERSHIP_EMAIL, COINBASE_REFERRAL_EMAIL } from "@/lib/coinbase-partner-promo";
 import { PNL_CALCULATOR_LAUNCH_EMAIL } from "@/lib/pnl-calculator-launch-email";
 import { ROBINHOOD_HYPEREVM_LAUNCH_EMAIL } from "@/lib/robinhood-hyperevm-launch-email";
 import { GMGN_VIP_BOT_LAUNCH_EMAIL } from "@/lib/gmgn-vip-bot-launch-email";
@@ -62,7 +63,9 @@ export type AdminEmailPresetId =
   | "tio-partnership"
   | "vantage-partnership"
   | "assex-partnership"
-  | "blofin-partnership";
+  | "blofin-partnership"
+  | "coinbase-partnership"
+  | "coinbase-referral";
 
 export type AdminEmailPreset = {
   id: AdminEmailPresetId;
@@ -440,6 +443,32 @@ export const ADMIN_EMAIL_PRESETS: AdminEmailPreset[] = [
     partnerBrand: "blofin",
     ctaLabel: "Open NovaStaris",
     ctaUrl: "https://novastaris.ai",
+  },
+  {
+    id: "coinbase-partnership",
+    label: "Coinbase Futures launch",
+    blurb: "Announce Coinbase support — NovaStaris × Coinbase logos",
+    subject: COINBASE_PARTNERSHIP_EMAIL.subject,
+    body: COINBASE_PARTNERSHIP_EMAIL.body,
+    template: "default",
+    includePartnerLogos: true,
+    partnerBrand: "coinbase",
+    ctaLabel: "Open Trading Bot",
+    ctaUrl: "https://novastaris.ai/?tab=trading-bot",
+    defaultAudience: "newsletter",
+  },
+  {
+    id: "coinbase-referral",
+    label: "Coinbase referral invite",
+    blurb: "Personal referral link + code — edit {{REFERRAL_URL}} and {{REFERRAL_CODE}} before send",
+    subject: COINBASE_REFERRAL_EMAIL.subject,
+    body: COINBASE_REFERRAL_EMAIL.body,
+    template: "default",
+    includePartnerLogos: true,
+    partnerBrand: "coinbase",
+    ctaLabel: "Join on Coinbase",
+    ctaUrl: "https://www.coinbase.com/futures",
+    defaultAudience: "newsletter",
   },
 ];
 

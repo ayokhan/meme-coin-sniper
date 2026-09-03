@@ -1,15 +1,19 @@
 const APP_ORIGIN = (process.env.NEXT_PUBLIC_APP_URL ?? "https://novastaris.ai").replace(/\/$/, "");
 
-export type PartnerBrandEmail = "blofin" | "vantage" | "tiomarkets" | "assexmarkets";
+export type PartnerBrandEmail = "blofin" | "coinbase" | "vantage" | "tiomarkets" | "assexmarkets";
 
 const PARTNER_LABEL: Record<PartnerBrandEmail, string> = {
   blofin: "Blofin",
+  coinbase: "Coinbase",
   vantage: "Vantage Markets",
   tiomarkets: "TIOmarkets",
   assexmarkets: "Assexmarkets",
 };
 
 function partnerEmailImg(partner: PartnerBrandEmail): { src: string; alt: string; width: number } {
+  if (partner === "coinbase") {
+    return { src: `${APP_ORIGIN}/partners/coinbase-logo.svg`, alt: "Coinbase", width: 130 };
+  }
   if (partner === "vantage") {
     return { src: `${APP_ORIGIN}/partners/vantage-logo.png`, alt: "Vantage Markets", width: 150 };
   }

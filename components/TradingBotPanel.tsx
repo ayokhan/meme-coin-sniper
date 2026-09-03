@@ -28,6 +28,15 @@ import TradingRiskDisclaimer from "@/components/TradingRiskDisclaimer";
 import TradeJournalPanel from "@/components/TradeJournalPanel";
 import TradingBotJournalPanel from "@/components/TradingBotJournalPanel";
 import { BlofinPartnerPromoBanner } from "@/components/BlofinPartnerPromoBanner";
+import { CoinbasePartnerPromoBanner } from "@/components/CoinbasePartnerPromoBanner";
+import { ExchangeKeysStatus } from "@/components/ExchangeKeysStatus";
+import {
+  CoinbaseFuturesFormatNote,
+  ExchangeSetupSelector,
+  exchangeSetupShowsBlofin,
+  exchangeSetupShowsCoinbase,
+} from "@/components/ExchangeSetupSelector";
+import { useExchangeSetupMode } from "@/lib/use-exchange-setup-mode";
 import { buildAnalysisShareCaption } from "@/lib/pnl-share";
 import { DEFAULT_PNL_SHARE_FLAGS, type PnlShareFlags } from "@/lib/pnl-share-flags";
 import { NOVASTARIS_POLY_OPEN_RADAR_ANALYZE, NOVASTARIS_POLY_RADAR_ANALYZE_WALLET } from "@/lib/novastaris-polymarket-events";
@@ -321,6 +330,10 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
   const [savingCoinbaseKeys, setSavingCoinbaseKeys] = useState(false);
   const [clearingBlofinKeys, setClearingBlofinKeys] = useState(false);
   const [clearingCoinbaseKeys, setClearingCoinbaseKeys] = useState(false);
+  const { mode: exchangeSetup, setMode: setExchangeSetup } = useExchangeSetupMode(
+    "novastaris-exchange-trading-bot",
+    "blofin"
+  );
 
   const [form, setForm] = useState<Partial<Config>>({});
   const [botSubTab, setBotSubTab] = useState<"ai" | "scalper" | "polymarket">("ai");
@@ -370,6 +383,14 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
       cancelled = true;
     };
   }, []);
+
+  useEffect(() => {
+    if (exchangeSetup === "coinbase" && coinbaseTradingEnabled) {
+      setForm((f) => ({ ...f, provider: "coinbase", marginCurrency: "USDC" }));
+    } else if (exchangeSetup === "blofin") {
+      setForm((f) => ({ ...f, provider: "blofin" }));
+    }
+  }, [exchangeSetup, coinbaseTradingEnabled]);
 
   useEffect(() => {
     if (polyInnerTab === "radar" && !canAccessPolymarket) setPolyInnerTab("copilot");
@@ -1070,7 +1091,7 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          provider: form.provider ?? config?.provider ?? "blofin",
+          provider: form.provider ?? config?.provider ?? (exchangeSetup === "coinbase" ? "coinbase" : "blofin"),
           symbol: (form.symbol ?? "").trim().toUpperCase(),
           timeframe: (form.timeframe ?? "").trim(),
           leverage: form.leverage ?? 5,
@@ -2299,6 +2320,22 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
         </div>
       )}
 
+      <ExchangeSetupSelector
+        value={exchangeSetup}
+        onChange={setExchangeSetup}
+        coinbaseAvailable={coinbaseTradingEnabled}
+        blofinConnected={userBlofinConfigured}
+        coinbaseConnected={userCoinbaseConfigured}
+        title="AI Trading Bot exchange"
+        subtitle="Choose Blofin, Coinbase Futures, or both. Keys and bot config below match your selection."
+      />
+      <ExchangeKeysStatus
+        activeProvider={
+          exchangeSetup === "both" ? undefined : (form.provider ?? config?.provider ?? exchangeSetup)
+        }
+      />
+
+      {exchangeSetupShowsBlofin(exchangeSetup) && (
       <Card className="border-zinc-200/80 dark:border-zinc-700/80">
         <CardHeader className="pb-3">
           <CardTitle className="text-base font-semibold">Your Blofin API keys</CardTitle>
@@ -2339,13 +2376,16 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
           </div>
         </CardContent>
       </Card>
+      )}
 
-      {coinbaseTradingEnabled && (
-        <Card className="border-zinc-200/80 dark:border-zinc-700/80">
+      {exchangeSetupShowsCoinbase(exchangeSetup, coinbaseTradingEnabled) && (
+        <Card className="border-blue-500/20 dark:border-blue-800/40">
           <CardHeader className="pb-3">
             <CardTitle className="text-base font-semibold">Your Coinbase API keys</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
+            <CoinbasePartnerPromoBanner />
+            <CoinbaseFuturesFormatNote />
             <p className="text-sm text-muted-foreground">
               Connect your Coinbase CDP API key for Futures trading. Create keys at{" "}
               <a href="https://portal.cdp.coinbase.com" target="_blank" rel="noopener noreferrer" className="text-cyan-600 dark:text-cyan-400 hover:underline">
@@ -2381,6 +2421,7 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
           <CardTitle className="text-base font-semibold">Config</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
+          {exchangeSetup === "both" && (
           <div>
             <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Provider</label>
             <select
@@ -2400,10 +2441,17 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
             </select>
             <p className="text-xs text-muted-foreground mt-1">
               {(form.provider ?? config?.provider) === "coinbase"
-                ? "Coinbase perpetuals use USDC margin (e.g. BTC_USDC-PERPETUAL)."
+                ? "Coinbase nano perps · USDC margin · contract-based sizing."
                 : "Blofin uses USDT/USDC margin (e.g. BTC-USDT)."}
             </p>
           </div>
+          )}
+          {exchangeSetup !== "both" && (
+            <p className="text-xs rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900/50 px-3 py-2 text-muted-foreground">
+              Bot provider: <strong className="text-foreground">{exchangeSetup === "coinbase" ? "Coinbase Futures" : "Blofin"}</strong>
+              {exchangeSetup === "coinbase" && " · USDC margin · sizes in contracts on Coinbase"}
+            </p>
+          )}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Symbol</label>
@@ -2415,8 +2463,8 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
                 className="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-3 py-2 text-sm text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-cyan-500"
               />
               <p className="text-xs text-muted-foreground mt-1">
-                {(form.provider ?? config?.provider) === "coinbase"
-                  ? "BTC → BTC_USDC-PERPETUAL on Coinbase."
+                {(form.provider ?? config?.provider ?? exchangeSetup) === "coinbase"
+                  ? "BTC → BTC_USDC-PERPETUAL (nano BTC perp in Coinbase UI)."
                   : "BTC or BTC/USDT both work; converted to Blofin format (e.g. BTC-USDT)."}
               </p>
             </div>

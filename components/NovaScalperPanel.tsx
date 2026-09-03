@@ -12,6 +12,16 @@ import {
   scalperInstrumentPairFor,
 } from "@/lib/nova-scalper-prefill";
 import { BlofinPartnerPromoBanner } from "@/components/BlofinPartnerPromoBanner";
+import { CoinbasePartnerPromoBanner } from "@/components/CoinbasePartnerPromoBanner";
+import { ExchangeKeysStatus } from "@/components/ExchangeKeysStatus";
+import {
+  CoinbaseFuturesFormatNote,
+  ExchangeSetupSelector,
+  exchangeSetupShowsBlofin,
+  exchangeSetupShowsCoinbase,
+  type ExchangeSetupMode,
+} from "@/components/ExchangeSetupSelector";
+import { useExchangeSetupMode } from "@/lib/use-exchange-setup-mode";
 
 type ScalperConfig = {
   id: string;
@@ -20,6 +30,7 @@ type ScalperConfig = {
   enabled: boolean;
   /** True when owner used Admin → NovaScalper Disable; user cannot re-enable from here. */
   ownerForceOff?: boolean;
+  exchange?: "blofin" | "coinbase";
   mode: "demo" | "live";
   symbol: string;
   marginCurrency: string;
@@ -82,6 +93,15 @@ export default function NovaScalperPanel() {
   });
   const [savingBlofinKeys, setSavingBlofinKeys] = useState(false);
   const [clearingBlofinKeys, setClearingBlofinKeys] = useState(false);
+  const [coinbaseTradingEnabled, setCoinbaseTradingEnabled] = useState(false);
+  const [userCoinbaseConfigured, setUserCoinbaseConfigured] = useState<boolean | null>(null);
+  const [coinbaseKeysForm, setCoinbaseKeysForm] = useState({ apiKeyName: "", apiSecret: "", demoMode: false });
+  const [savingCoinbaseKeys, setSavingCoinbaseKeys] = useState(false);
+  const [clearingCoinbaseKeys, setClearingCoinbaseKeys] = useState(false);
+  const { mode: exchangeSetup, setMode: setExchangeSetup } = useExchangeSetupMode(
+    "novastaris-exchange-nova-scalper",
+    "blofin"
+  );
   const [pnl, setPnl] = useState<{
     loading: boolean;
     upl: number | null;
@@ -108,11 +128,38 @@ export default function NovaScalperPanel() {
     }
   }, []);
 
+  const loadUserCoinbaseConfig = useCallback(async () => {
+    try {
+      const res = await fetch("/api/user/coinbase-config", { credentials: "include" });
+      const data = await res.json().catch(() => ({}));
+      if (data.featureDisabled) {
+        setCoinbaseTradingEnabled(false);
+        setUserCoinbaseConfigured(false);
+        return;
+      }
+      setUserCoinbaseConfigured(data.success && data.configured === true);
+    } catch {
+      setUserCoinbaseConfigured(null);
+    }
+  }, []);
+
+  const loadFeatureFlags = useCallback(async () => {
+    try {
+      const res = await fetch("/api/feature-flags-public", { credentials: "include", cache: "no-store" });
+      const data = await res.json().catch(() => ({}));
+      setCoinbaseTradingEnabled(data?.coinbaseTrading === true);
+    } catch {
+      setCoinbaseTradingEnabled(false);
+    }
+  }, []);
+
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
       void loadUserBlofinConfig();
+      void loadUserCoinbaseConfig();
+      void loadFeatureFlags();
       const res = await fetch("/api/admin/nova-scalper", { credentials: "include", cache: "no-store" });
       const data = (await res.json().catch(() => ({}))) as {
         success?: boolean;
@@ -307,9 +354,16 @@ export default function NovaScalperPanel() {
   }, [autoSec, activeConfigId, configs, load, fetchPositionPnl]);
 
   const save = async (overrides?: Partial<ScalperConfig>) => {
-    const config = configs.find((c) => c.id === activeConfigId);
-    if (!config) return;
-    const merged = { ...config, ...overrides };
+    const row = configs.find((c) => c.id === activeConfigId) ?? configs[0];
+    if (!row) return;
+    const lockedExchange =
+      exchangeSetup === "coinbase" ? "coinbase" : exchangeSetup === "blofin" ? "blofin" : row.exchange;
+    const merged = {
+      ...row,
+      ...overrides,
+      ...(exchangeSetup !== "both" ? { exchange: lockedExchange } : {}),
+      ...(exchangeSetup === "coinbase" ? { marginCurrency: "USDC" } : {}),
+    };
     setSaving(true);
     setError(null);
     setSuccess(null);
@@ -351,9 +405,31 @@ export default function NovaScalperPanel() {
       const res = await fetch("/api/admin/nova-scalper", { method: "POST", credentials: "include" });
       const data = await res.json();
       if (data.success && Array.isArray(data.configs)) {
-        const list = (data.configs as ScalperConfig[]).map(normalizeConfigPayload);
+        let list = (data.configs as ScalperConfig[]).map(normalizeConfigPayload);
+        const newId = data.config?.id ? String(data.config.id) : list[list.length - 1]?.id;
+        const defaultExchange: "blofin" | "coinbase" =
+          exchangeSetup === "coinbase" ? "coinbase" : exchangeSetup === "blofin" ? "blofin" : "blofin";
+        if (newId && exchangeSetup !== "both") {
+          const patchRes = await fetch("/api/admin/nova-scalper", {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            credentials: "include",
+            body: JSON.stringify({
+              configId: newId,
+              exchange: defaultExchange,
+              marginCurrency: defaultExchange === "coinbase" ? "USDC" : "USDT",
+              symbol: "BTC",
+              enabled: false,
+            }),
+          });
+          const patchData = await patchRes.json();
+          if (patchData.success && patchData.config) {
+            const c = normalizeConfigPayload(patchData.config as ScalperConfig);
+            list = list.map((row) => (row.id === c.id ? c : row));
+          }
+        }
         setConfigs(list);
-        if (data.config?.id) setActiveConfigId(String(data.config.id));
+        if (newId) setActiveConfigId(newId);
         setSuccess("Added config.");
       } else setError(data.error ?? "Could not add config.");
     } catch (e) {
@@ -481,32 +557,70 @@ export default function NovaScalperPanel() {
     );
   }
 
-  const config = configs.find((c) => c.id === activeConfigId);
-  if (!config) {
+  const baseConfig = configs.find((c) => c.id === activeConfigId);
+  if (!baseConfig) {
     return <p className="text-sm text-muted-foreground py-4">Loading NovaScalper…</p>;
   }
 
+  const visibleConfigs =
+    exchangeSetup === "both"
+      ? configs
+      : configs.filter((c) => (c.exchange === "coinbase" ? "coinbase" : "blofin") === exchangeSetup);
+
+  const config = visibleConfigs.some((c) => c.id === activeConfigId)
+    ? baseConfig
+    : visibleConfigs[0] ?? baseConfig;
+
   const setField = <K extends keyof ScalperConfig>(key: K, value: ScalperConfig[K]) => {
-    setConfigs((list) => list.map((c) => (c.id === activeConfigId ? { ...c, [key]: value } : c)));
+    setConfigs((list) => list.map((c) => (c.id === config.id ? { ...c, [key]: value } : c)));
   };
 
-  const parsedInstrument = parseScalperInstrument(config.instrumentPair, config.marginCurrency);
+  const exchange =
+    exchangeSetup === "both"
+      ? config.exchange === "coinbase"
+        ? "coinbase"
+        : "blofin"
+      : exchangeSetup === "coinbase"
+        ? "coinbase"
+        : "blofin";
+  const parsedInstrument = parseScalperInstrument(config.instrumentPair, config.marginCurrency, exchange);
   const priceQuote = parsedInstrument.quote;
   const displayInstId = parsedInstrument.instId || config.instId || "";
+  const exchangeLabel = exchange === "coinbase" ? "Coinbase" : "Blofin";
+  const showBlofin = exchangeSetupShowsBlofin(exchangeSetup);
+  const showCoinbase = exchangeSetupShowsCoinbase(exchangeSetup, coinbaseTradingEnabled);
 
   return (
     <div className="space-y-6 max-w-2xl">
+      <ExchangeSetupSelector
+        value={exchangeSetup}
+        onChange={(m: ExchangeSetupMode) => {
+          setExchangeSetup(m);
+          const filtered =
+            m === "both"
+              ? configs
+              : configs.filter((c) => (c.exchange === "coinbase" ? "coinbase" : "blofin") === m);
+          if (filtered.length > 0 && !filtered.some((c) => c.id === activeConfigId)) {
+            setActiveConfigId(filtered[0]!.id);
+          }
+        }}
+        coinbaseAvailable={coinbaseTradingEnabled}
+        blofinConnected={userBlofinConfigured}
+        coinbaseConnected={userCoinbaseConfigured}
+        title="NovaScalper exchange"
+        subtitle="Choose Blofin, Coinbase Futures, or both. API keys and scalp configs below match your selection."
+      />
+      <ExchangeKeysStatus activeProvider={exchangeSetup === "both" ? undefined : exchange} />
       <p className="text-sm text-muted-foreground">
         <strong className="text-cyan-600 dark:text-cyan-400">NovaScalper</strong> repeats{" "}
-        <strong>enter → exit</strong> on Blofin futures using your prices. Use{" "}
+        <strong>enter → exit</strong> on Blofin or Coinbase futures using your prices. Pick an{" "}
+        <strong className="text-foreground">Exchange</strong> per config below. Use{" "}
         <strong className="text-foreground">Config 1, Config 2, …</strong> to run{" "}
         <strong className="text-foreground">different contracts in parallel</strong> (each has its own instrument and
         automation flag).{" "}
         <strong className="text-foreground">Check price</strong> and optional in-tab auto checks evaluate each enabled
-        config. If your host runs <strong className="text-foreground">overnight automation</strong> (when turned on in
-        admin), those runs do the same. Exits use{" "}
-        <strong>close position</strong> when price crosses your exit target (TP orders optional).{" "}
-        <strong>Entry, exit, and stop</strong> for this config are in {priceQuote} — same units as Blofin mark for{" "}
+        config. Exits use <strong>close position</strong> when price crosses your exit target.{" "}
+        <strong>Entry, exit, and stop</strong> for this config are in {priceQuote} — same units as {exchangeLabel} mark for{" "}
         <span className="font-mono text-xs">{displayInstId || "…"}</span>.
       </p>
 
@@ -544,6 +658,7 @@ export default function NovaScalperPanel() {
         </div>
       )}
 
+      {showBlofin && (
       <Card className="border-zinc-200/80 dark:border-zinc-700/80">
         <CardHeader className="pb-3">
           <CardTitle className="text-base font-semibold">Your Blofin API keys</CardTitle>
@@ -677,13 +792,112 @@ export default function NovaScalperPanel() {
           </div>
         </CardContent>
       </Card>
+      )}
+
+      {showCoinbase && (
+        <Card className="border-blue-500/20 dark:border-blue-800/40">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base font-semibold">Your Coinbase API keys</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <CoinbasePartnerPromoBanner compact />
+            <CoinbaseFuturesFormatNote />
+            <p className="text-sm text-muted-foreground">
+              Connect your Coinbase CDP API key for Futures. Create keys at{" "}
+              <a href="https://portal.cdp.coinbase.com" target="_blank" rel="noopener noreferrer" className="text-cyan-600 dark:text-cyan-400 hover:underline">
+                portal.cdp.coinbase.com
+              </a>{" "}
+              with <strong>view</strong> and <strong>trade</strong> permissions.
+            </p>
+            {userCoinbaseConfigured === true && (
+              <p className="text-sm text-emerald-600 dark:text-emerald-400">Coinbase keys are configured.</p>
+            )}
+            <div className="grid grid-cols-1 gap-3">
+              <div>
+                <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">API Key Name</label>
+                <input
+                  type="password"
+                  placeholder="organizations/…/apiKeys/…"
+                  value={coinbaseKeysForm.apiKeyName}
+                  onChange={(e) => setCoinbaseKeysForm((f) => ({ ...f, apiKeyName: e.target.value }))}
+                  className="w-full rounded border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2 py-1.5 text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">API Secret (PEM)</label>
+                <textarea
+                  placeholder="-----BEGIN EC PRIVATE KEY-----…"
+                  value={coinbaseKeysForm.apiSecret}
+                  onChange={(e) => setCoinbaseKeysForm((f) => ({ ...f, apiSecret: e.target.value }))}
+                  rows={3}
+                  className="w-full rounded border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2 py-1.5 text-sm font-mono"
+                />
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                size="sm"
+                disabled={savingCoinbaseKeys || !coinbaseKeysForm.apiKeyName || !coinbaseKeysForm.apiSecret}
+                onClick={async () => {
+                  setSavingCoinbaseKeys(true);
+                  try {
+                    const res = await fetch("/api/user/coinbase-config", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      credentials: "include",
+                      body: JSON.stringify({
+                        apiKeyName: coinbaseKeysForm.apiKeyName,
+                        apiSecret: coinbaseKeysForm.apiSecret,
+                        demoMode: coinbaseKeysForm.demoMode,
+                      }),
+                    });
+                    const data = await res.json();
+                    if (data.success) {
+                      setUserCoinbaseConfigured(true);
+                      setCoinbaseKeysForm((f) => ({ ...f, apiKeyName: "", apiSecret: "" }));
+                      setSuccess("Coinbase keys saved.");
+                    } else setError(data.error ?? "Save failed");
+                  } finally {
+                    setSavingCoinbaseKeys(false);
+                  }
+                }}
+              >
+                {savingCoinbaseKeys ? "Saving…" : "Save Coinbase keys"}
+              </Button>
+              {userCoinbaseConfigured && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={clearingCoinbaseKeys}
+                  onClick={async () => {
+                    setClearingCoinbaseKeys(true);
+                    try {
+                      const res = await fetch("/api/user/coinbase-config", { method: "DELETE", credentials: "include" });
+                      const data = await res.json();
+                      if (data.success) {
+                        setUserCoinbaseConfigured(false);
+                        setSuccess("Coinbase keys cleared.");
+                      }
+                    } finally {
+                      setClearingCoinbaseKeys(false);
+                      void loadUserCoinbaseConfig();
+                    }
+                  }}
+                >
+                  {clearingCoinbaseKeys ? "…" : "Clear keys"}
+                </Button>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <Card className="border-zinc-200/80 dark:border-zinc-700/80">
         <CardHeader className="pb-3 space-y-3">
           <CardTitle className="text-base font-semibold">NovaScalper configs</CardTitle>
           <div className="flex flex-wrap items-center gap-2">
             <div className="flex flex-wrap gap-1 p-1 rounded-lg bg-zinc-100 dark:bg-zinc-800/80 border border-zinc-200/80 dark:border-zinc-600/80">
-              {configs.map((c) => (
+              {visibleConfigs.map((c) => (
                 <button
                   key={c.id}
                   type="button"
@@ -695,9 +909,19 @@ export default function NovaScalperPanel() {
                   }`}
                 >
                   Config {c.slot}
+                  {exchangeSetup === "both" && (
+                    <span className="ml-1 opacity-80">
+                      ({c.exchange === "coinbase" ? "CB" : "BF"})
+                    </span>
+                  )}
                 </button>
               ))}
             </div>
+            {visibleConfigs.length === 0 && (
+              <p className="text-xs text-muted-foreground">
+                No configs for {exchangeSetup === "coinbase" ? "Coinbase" : "Blofin"} yet — add one below.
+              </p>
+            )}
             {configs.length < maxConfigs && (
               <Button type="button" size="sm" variant="outline" disabled={addingConfig} onClick={() => void addConfig()}>
                 {addingConfig ? "Adding…" : "+ Add config"}
@@ -759,6 +983,27 @@ export default function NovaScalperPanel() {
             </div>
           </div>
 
+          {exchangeSetup === "both" && (
+          <div>
+            <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">Exchange</label>
+            <select
+              value={exchange}
+              onChange={(e) => {
+                const next = e.target.value as "blofin" | "coinbase";
+                setField("exchange", next);
+                if (next === "coinbase") setField("marginCurrency", "USDC");
+              }}
+              className="w-full rounded border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-3 py-2 text-sm"
+            >
+              <option value="blofin">Blofin</option>
+              {coinbaseTradingEnabled && <option value="coinbase">Coinbase Futures</option>}
+            </select>
+            <p className="text-xs text-muted-foreground mt-1">
+              Each config uses one exchange. Coinbase configs use USDC margin and contract sizing per Coinbase rules.
+            </p>
+          </div>
+          )}
+
           <div>
             <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">Mode</label>
             <select
@@ -770,8 +1015,7 @@ export default function NovaScalperPanel() {
               <option value="live">Live</option>
             </select>
             <p className="text-xs text-muted-foreground mt-1">
-              Demo vs Live chooses Blofin&apos;s demo or production API host. It must match the API keys you use (saved
-              above or server env).
+              Demo vs Live must match the API keys you use for {exchangeLabel} (saved above or server env).
             </p>
           </div>
 
@@ -787,12 +1031,19 @@ export default function NovaScalperPanel() {
                 className="w-full rounded border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2 py-1.5 text-sm font-mono"
               />
               <p className="text-xs text-muted-foreground mt-1">
-                Blofin instrument id: <span className="font-mono">{displayInstId || "—"}</span>
+                {exchangeLabel} instrument id: <span className="font-mono">{displayInstId || "—"}</span>
               </p>
-              <p className="text-[11px] text-muted-foreground mt-1">
-                Metals shortcuts: <span className="font-mono">XAU</span>/<span className="font-mono">GOLD</span> → <span className="font-mono">XAU-USDT</span>,{" "}
-                <span className="font-mono">XAG</span>/<span className="font-mono">SILVER</span> → <span className="font-mono">XAG-USDT</span> on Blofin.
-              </p>
+              {exchange === "blofin" && (
+                <p className="text-[11px] text-muted-foreground mt-1">
+                  Metals shortcuts: <span className="font-mono">XAU</span>/<span className="font-mono">GOLD</span> → <span className="font-mono">XAU-USDT</span>,{" "}
+                  <span className="font-mono">XAG</span>/<span className="font-mono">SILVER</span> → <span className="font-mono">XAG-USDT</span> on Blofin.
+                </p>
+              )}
+              {exchange === "coinbase" && (
+                <p className="text-[11px] text-muted-foreground mt-1">
+                  Coinbase perps use USDC margin — e.g. <span className="font-mono">BTC/USDC</span> → <span className="font-mono">BTC_USDC-PERPETUAL</span>.
+                </p>
+              )}
             </div>
             <div>
               <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">Side</label>

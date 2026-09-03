@@ -4,23 +4,20 @@
  */
 
 import { prisma } from "@/lib/db";
-import {
-  getTicker,
-  getInstrument,
-  getPositions,
-  getOpenOrders,
-  setLeverage,
-  placeMarketOrder,
-  placeTPSLOrder,
-  closePositionViaApi,
-  getConfig as getBlofinEnvConfig,
-  roundBlofinSize,
-  clampBlofinLeverage,
-  type BlofinConfig,
-} from "@/lib/blofin";
-import { getBlofinConfigForUser } from "@/lib/blofin-user-config";
-import { parseScalperInstrument } from "@/lib/nova-scalper-instrument";
 import { stopLossForActualFill } from "@/lib/nova-scalp-agent";
+import {
+  resolveScalperExchangeSession,
+  scalperClosePosition,
+  scalperClampLeverage,
+  scalperGetInstrument,
+  scalperGetOpenOrders,
+  scalperGetPositions,
+  scalperGetTicker,
+  scalperPlaceMarketOrder,
+  scalperPlaceTPSL,
+  scalperRoundSize,
+  scalperSetLeverage,
+} from "@/lib/nova-scalper-exchange";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const db = prisma as any;
@@ -52,6 +49,7 @@ type ScalperRow = {
   attachTpsl: boolean;
   tpslTpPct: number | null;
   tpslSlPct: number | null;
+  exchange?: string | null;
   lastAction?: string | null;
   lastError?: string | null;
 };
@@ -144,26 +142,13 @@ export async function runNovaScalperTick(
     };
   }
 
-  let blofinConfig: BlofinConfig | null = await getBlofinConfigForUser(userId);
-  if (!blofinConfig && runOpts?.envFallbackForOwner) {
-    blofinConfig = getBlofinEnvConfig();
+  const resolved = await resolveScalperExchangeSession(userId, row, runOpts);
+  if ("error" in resolved) {
+    return { ok: false, error: resolved.error };
   }
-  if (!blofinConfig) {
-    return {
-      ok: false,
-      error: runOpts?.envFallbackForOwner
-        ? "Blofin API keys missing. Save keys under Trading Bot or set server BLOFIN_* env."
-        : "Blofin API keys missing. Save your keys in Trading Bot settings (server keys are owner-only).",
-    };
-  }
-
-  const isDemo = row.mode === "demo";
-  const blofinOpts = { demo: isDemo, config: blofinConfig };
+  const ex = resolved.session;
+  const { instId } = ex;
   const marginMode = (row.marginMode === "isolated" ? "isolated" : "cross") as "isolated" | "cross";
-  const { instId, base } = parseScalperInstrument(row.symbol, row.marginCurrency ?? "USDT");
-  if (!base || !instId) {
-    return { ok: false, error: "Invalid instrument. Save BTC/USDT or BTC/USDC (or base + margin) in NovaScalper." };
-  }
   const side = row.side === "short" ? "short" : "long";
 
   if (side === "long" && row.exitPrice <= row.entryPrice) {
@@ -173,7 +158,7 @@ export async function runNovaScalperTick(
     return { ok: false, error: "Short: exit price should be below entry price." };
   }
 
-  const ticker = await getTicker(instId, isDemo, { config: blofinConfig });
+  const ticker = await scalperGetTicker(ex);
   const price = ticker?.last ? parseFloatSafe(ticker.last) : 0;
   if (!Number.isFinite(price) || price <= 0) {
     await db.novaScalperConfig.update({
@@ -181,13 +166,13 @@ export async function runNovaScalperTick(
       data: {
         lastError: "No price",
         lastTickAt: new Date(),
-        lastAction: "Tick failed: could not read Blofin last price.",
+        lastAction: `Tick failed: could not read ${ex.label} last price.`,
       },
     });
     return { ok: false, error: "Could not read last price." };
   }
 
-  const positions = await getPositions(instId, blofinOpts);
+  const positions = await scalperGetPositions(ex);
   const hasExchangePosition = positions.length > 0;
 
   const updateRow = async (data: Record<string, unknown>) => {
@@ -234,7 +219,7 @@ export async function runNovaScalperTick(
     const fillForStop = posAvgPx > 0 ? posAvgPx : row.entryPrice;
     const stop = liveStopPrice(row, side, fillForStop);
     if (stop != null && Number.isFinite(stop) && stopHit(side, stop, price)) {
-      const cl = await closePositionViaApi(instId, marginMode, "net", blofinOpts);
+      const cl = await scalperClosePosition(ex, marginMode);
       if (!cl.ok) {
         const err = cl.error ?? "Stop close failed";
         await updateRow({
@@ -262,7 +247,7 @@ export async function runNovaScalperTick(
     }
 
     if (shouldExit(side, row.exitPrice, lastRef, price)) {
-      const cl = await closePositionViaApi(instId, marginMode, "net", blofinOpts);
+      const cl = await scalperClosePosition(ex, marginMode);
       if (!cl.ok) {
         const err = cl.error ?? "Exit close failed";
         await updateRow({
@@ -298,7 +283,7 @@ export async function runNovaScalperTick(
     return { ok: true, message: "Max rounds reached; not opening again." };
   }
 
-  const openOrders = await getOpenOrders({ demo: isDemo, instId, limit: 50, config: blofinConfig });
+  const openOrders = await scalperGetOpenOrders(ex);
   const pendingHere = openOrders.filter((o) => sameInstId(o.instId, instId));
   if (pendingHere.length > 0) {
     await updateRow({
@@ -325,7 +310,7 @@ export async function runNovaScalperTick(
     return { ok: true, message: "Flat; waiting for entry cross." };
   }
 
-  const instRes = await getInstrument(instId, { demo: isDemo, config: blofinConfig });
+  const instRes = await scalperGetInstrument(ex);
   if (!instRes) {
     await updateRow({
       lastError: "No instrument",
@@ -335,7 +320,7 @@ export async function runNovaScalperTick(
     return { ok: false, error: "Could not load instrument." };
   }
   if (instRes.state && instRes.state !== "live") {
-    const err = `${instId} is not live on Blofin (${instRes.state}).`;
+    const err = `${instId} is not live on ${ex.label} (${instRes.state}).`;
     await updateRow({
       lastError: err,
       lastTickAt: new Date(),
@@ -355,14 +340,14 @@ export async function runNovaScalperTick(
     return { ok: false, error: "Invalid contract value." };
   }
 
-  const { leverage: lev, clampedFrom } = clampBlofinLeverage(row.leverage || 1, instRes.maxLeverage);
+  const { leverage: lev, clampedFrom } = scalperClampLeverage(ex, row.leverage || 1, instRes.maxLeverage);
   const levNote =
     clampedFrom != null
-      ? ` Leverage clamped ${clampedFrom}x → ${lev}x (Blofin max for ${instId}${instRes.assetClass ? ` · ${instRes.assetClass}` : ""}).`
+      ? ` Leverage clamped ${clampedFrom}x → ${lev}x (${ex.label} max for ${instId}${instRes.assetClass ? ` · ${instRes.assetClass}` : ""}).`
       : "";
   const notionalUsdt = row.positionSizeUsdt * lev;
   const sizeContracts = notionalUsdt / (price * contractValue);
-  const sizeStr = roundBlofinSize(sizeContracts, minSize, lotSize);
+  const sizeStr = scalperRoundSize(ex, sizeContracts, minSize, lotSize);
   if (parseFloat(sizeStr) < minSize) {
     const err = `Size below minimum (${minSize} contracts). Increase margin or leverage.`;
     await updateRow({
@@ -373,7 +358,7 @@ export async function runNovaScalperTick(
     return { ok: false, error: err };
   }
 
-  const maxMarket = parseFloatSafe(instRes.maxMarketSize);
+  const maxMarket = parseFloatSafe(instRes.maxMarketSize ?? "");
   if (maxMarket > 0 && parseFloat(sizeStr) > maxMarket) {
     const err = `Size ${sizeStr} exceeds max market size ${maxMarket} for ${instId}. Lower margin.`;
     await updateRow({
@@ -384,7 +369,7 @@ export async function runNovaScalperTick(
     return { ok: false, error: err };
   }
 
-  const levRes = await setLeverage(instId, lev, marginMode, blofinOpts);
+  const levRes = await scalperSetLeverage(ex, lev, marginMode);
   if (!levRes.ok) {
     const err = levRes.error ?? "Set leverage failed";
     await updateRow({
@@ -395,7 +380,7 @@ export async function runNovaScalperTick(
     return { ok: false, error: err };
   }
   const orderSide = side === "long" ? "buy" : "sell";
-  const ord = await placeMarketOrder(instId, orderSide, sizeStr, marginMode, blofinOpts);
+  const ord = await scalperPlaceMarketOrder(ex, orderSide, sizeStr, marginMode);
   if (!ord.ok) {
     const err = ord.error ?? "Order failed";
     await updateRow({
@@ -410,14 +395,14 @@ export async function runNovaScalperTick(
 
   let fillPrice = price;
   try {
-    const opened = await getPositions(instId, blofinOpts);
+    const opened = await scalperGetPositions(ex);
     const avg = opened[0]?.avgPx ? parseFloatSafe(opened[0].avgPx) : 0;
     if (avg > 0) fillPrice = avg;
   } catch {
     /* ticker last is the fallback */
   }
 
-  const tickSize = parseFloatSafe(instRes.tickSize);
+  const tickSize = parseFloatSafe(instRes.tickSize ?? "");
   const slForFill = liveStopPrice(row, side, fillPrice, tickSize > 0 ? tickSize : null);
   const slTightened =
     slForFill != null &&
@@ -432,8 +417,8 @@ export async function runNovaScalperTick(
     const tpPct = row.tpslTpPct ?? 0;
     const slPct = row.tpslSlPct ?? 0;
     if (tpAbs || slAbs || tpPct > 0 || slPct > 0) {
-      const tpsl = await placeTPSLOrder(
-        instId,
+      const tpsl = await scalperPlaceTPSL(
+        ex,
         orderSide,
         sizeStr,
         marginMode,
@@ -442,13 +427,12 @@ export async function runNovaScalperTick(
         tpAbs ? 0 : tpPct,
         slAbs ? 0 : slPct,
         {
-          ...blofinOpts,
           tpTriggerPrice: tpAbs,
           slTriggerPrice: slAbs,
         }
       );
       tpslNote = tpsl.ok
-        ? ` TP/SL attached on Blofin${slForFill != null ? ` (SL ${slForFill})` : ""}.`
+        ? ` TP/SL attached on ${ex.label}${slForFill != null ? ` (SL ${slForFill})` : ""}.`
         : ` TP/SL attach failed: ${tpsl.error ?? "unknown"} (soft exit via cron still active).`;
     }
   }

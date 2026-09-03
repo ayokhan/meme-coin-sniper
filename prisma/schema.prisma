@@ -230,6 +230,7 @@ model User {
   referralCommissionsEarned  ReferralCommission[] @relation("ReferrerCommissions")
   referralCommissionsAsReferee ReferralCommission[] @relation("RefereeCommissions")
   blofinPartnerLinkClicks    BlofinPartnerLinkClick[]
+  coinbasePartnerLinkClicks  CoinbasePartnerLinkClick[]
   forexBrokerPartnerLinkClicks ForexBrokerPartnerLinkClick[]
   forexPartnerRebateEnrollments ForexPartnerRebateEnrollment[]
   userForexBrokerConfigs     UserForexBrokerConfig[]
@@ -644,6 +645,32 @@ model BlofinPartnerPromo {
 
 /** Tracked clicks on NovaStaris Blofin affiliate register link (not confirmed Blofin signups). */
 model BlofinPartnerLinkClick {
+  id        String   @id @default(cuid())
+  userId    String?
+  guestHash String?
+  clickedAt DateTime @default(now())
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  @@index([userId])
+  @@index([clickedAt])
+}
+
+/** Owner-managed Coinbase Futures partner promo (Trading Bot / NovaScalper). */
+model CoinbasePartnerPromo {
+  id                      String   @id @default("default")
+  enabled                 Boolean  @default(false)
+  registerUrl             String   @default("")
+  headline                String   @default("Trade Coinbase Futures with NovaStaris")
+  bodyText                String   @default("")
+  promoLabel              String   @default("Coinbase Futures live")
+  ctaLabel                String   @default("Open Coinbase Futures")
+  referralCode            String   @default("")
+  showLogosInBanner       Boolean  @default(true)
+  includeLogosInEmail     Boolean  @default(true)
+  includeLogosInBroadcast Boolean  @default(true)
+  updatedAt               DateTime @updatedAt
+}
+
+model CoinbasePartnerLinkClick {
   id        String   @id @default(cuid())
   userId    String?
   guestHash String?
@@ -1474,12 +1501,14 @@ model TradingBot {
   @@index([enabled])
 }
 
-// NovaScalper — per-user Blofin config (VIP + owner). symbol = base only e.g. BTC; marginCurrency = USDT|USDC.
+// NovaScalper — per-user exchange config (VIP + owner). symbol = base only e.g. BTC; marginCurrency = USDT|USDC.
 model NovaScalperConfig {
   id               String   @id @default(cuid())
   userId           String?
   /** 1-based slot per user: Config 1, Config 2, … for parallel contracts. */
   slot             Int      @default(1)
+  /** blofin | coinbase */
+  exchange         String   @default("blofin")
   enabled          Boolean  @default(false)
   /** When true (set by owner in Admin → NovaScalper), user cannot turn NovaScalper back on from the app until owner clears it. */
   ownerForceOff    Boolean  @default(false)
