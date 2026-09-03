@@ -1,12 +1,23 @@
 /**
- * Coinbase Global Derivatives REST client (Deribit-powered gateway).
- * Docs: https://docs.cdp.coinbase.com/coinbase-app/advanced-trade-apis/guides/derivatives/technical
- * Auth: CDP JWT → public/auth → Bearer access token (~15 min).
+ * Coinbase Futures via Advanced Trade CFM (US/Canada regulated futures).
+ * Canada and US CFM use api.coinbase.com — not the Global Derivatives Deribit gateway.
+ * Auth: per-request CDP JWT with `uri` claim (ES256 ECDSA).
  */
 
 import crypto from "crypto";
 
-const LIVE_BASE = "https://drb.coinbase.com/api/v2";
+const ADVANCED_TRADE_HOST = "api.coinbase.com";
+
+/** Known CFM perpetual product IDs (nano-style, far-dated). */
+const CFM_PERP_BY_SYMBOL: Record<string, string> = {
+  BTC: "BIP-20DEC30-CDE",
+  XBT: "BIP-20DEC30-CDE",
+  ETH: "ETP-20DEC30-CDE",
+  SOL: "SLP-20DEC30-CDE",
+  XRP: "XPP-20DEC30-CDE",
+  DOGE: "DOP-20DEC30-CDE",
+  AVAX: "AVP-20DEC30-CDE",
+};
 
 export type CoinbaseConfig = {
   apiKeyName: string;
@@ -14,16 +25,8 @@ export type CoinbaseConfig = {
   demo: boolean;
 };
 
-type TokenEntry = { token: string; expiresAt: number };
-const tokenCache = new Map<string, TokenEntry>();
-
-function cacheKey(config: CoinbaseConfig): string {
-  return `${config.apiKeyName}:${config.demo ? "demo" : "live"}`;
-}
-
-function getBaseUrl(_demo: boolean): string {
-  return LIVE_BASE;
-}
+/** Leverage remembered between setLeverage() and place*Order() (CFM applies leverage per order). */
+const leverageByInst = new Map<string, number>();
 
 function base64urlEncode(input: Buffer | string): string {
   const buf = typeof input === "string" ? Buffer.from(input, "utf8") : input;
@@ -62,10 +65,7 @@ function isEd25519Base64Secret(secret: string): boolean {
 /** Normalize CDP private key — PEM (EC), base64 Ed25519, or full CDP JSON download. */
 export function normalizeCoinbasePrivateKeyPem(secret: string): string {
   let s = secret.trim().replace(/^\uFEFF/, "");
-  if (
-    (s.startsWith('"') && s.endsWith('"')) ||
-    (s.startsWith("'") && s.endsWith("'"))
-  ) {
+  if ((s.startsWith('"') && s.endsWith('"')) || (s.startsWith("'") && s.endsWith("'"))) {
     s = s.slice(1, -1).trim();
   }
   s = s.replace(/\\n/g, "\n").replace(/\r\n/g, "\n").replace(/\r/g, "\n");
@@ -188,8 +188,13 @@ export function validateCoinbasePrivateKey(
   }
 }
 
-/** Create a short-lived CDP JWT for public/auth (ES256 or EdDSA). */
-export function createCdpJwt(apiKeyName: string, privateKeyMaterial: string): string {
+/** Create a short-lived CDP JWT for Advanced Trade (must include uri). */
+export function createAdvancedTradeJwt(
+  apiKeyName: string,
+  privateKeyMaterial: string,
+  method: string,
+  requestPath: string
+): string {
   const normalized = normalizeCoinbasePrivateKeyPem(privateKeyMaterial);
   const useEd = !/-----BEGIN/.test(normalized) && isEd25519Base64Secret(normalized);
   const key = useEd ? loadEd25519SigningKey(normalized) : loadCoinbaseSigningKey(normalized);
@@ -201,10 +206,15 @@ export function createCdpJwt(apiKeyName: string, privateKeyMaterial: string): st
     nonce,
   };
   const now = Math.floor(Date.now() / 1000);
-  const payload = { sub: apiKeyName, iss: "cdp", nbf: now, exp: now + 120 };
-  const headerB64 = base64urlEncode(JSON.stringify(header));
-  const payloadB64 = base64urlEncode(JSON.stringify(payload));
-  const signingInput = `${headerB64}.${payloadB64}`;
+  const pathOnly = requestPath.split("?")[0] || requestPath;
+  const payload = {
+    sub: apiKeyName,
+    iss: "cdp",
+    nbf: now,
+    exp: now + 120,
+    uri: `${method.toUpperCase()} ${ADVANCED_TRADE_HOST}${pathOnly}`,
+  };
+  const signingInput = `${base64urlEncode(JSON.stringify(header))}.${base64urlEncode(JSON.stringify(payload))}`;
 
   if (useEd) {
     const sig = crypto.sign(null, Buffer.from(signingInput), key);
@@ -216,6 +226,11 @@ export function createCdpJwt(apiKeyName: string, privateKeyMaterial: string): st
   sign.end();
   const sig = sign.sign({ key, dsaEncoding: "ieee-p1363" });
   return `${signingInput}.${base64urlEncode(sig)}`;
+}
+
+/** @deprecated Prefer createAdvancedTradeJwt — kept for scripts that exchange against drb. */
+export function createCdpJwt(apiKeyName: string, privateKeyMaterial: string): string {
+  return createAdvancedTradeJwt(apiKeyName, privateKeyMaterial, "GET", "/api/v3/brokerage/cfm/balance_summary");
 }
 
 export function getConfig(): CoinbaseConfig | null {
@@ -235,64 +250,6 @@ export function isCoinbaseConfigured(): boolean {
   return !!getConfig();
 }
 
-type JsonRpcResponse<T> = { jsonrpc: string; id: number; result?: T; error?: { code: number; message: string } };
-
-async function jsonRpc<T>(
-  method: string,
-  params: Record<string, unknown>,
-  config: CoinbaseConfig,
-  accessToken?: string
-): Promise<T> {
-  const base = getBaseUrl(config.demo);
-  const headers: Record<string, string> = { "Content-Type": "application/json" };
-  if (accessToken) headers.Authorization = `Bearer ${accessToken}`;
-  const res = await fetch(base, {
-    method: "POST",
-    headers,
-    body: JSON.stringify({ jsonrpc: "2.0", id: Date.now(), method, params }),
-    cache: "no-store",
-  });
-  const json = (await res.json().catch(() => ({}))) as JsonRpcResponse<T>;
-  if (json.error) {
-    throw new Error(json.error.message || `Coinbase RPC error ${json.error.code}`);
-  }
-  if (!res.ok) {
-    throw new Error(`Coinbase HTTP ${res.status}`);
-  }
-  return json.result as T;
-}
-
-/** Exchange CDP JWT for Deribit access token; cached ~14 min. */
-export async function getAccessToken(config: CoinbaseConfig): Promise<string> {
-  const ck = cacheKey(config);
-  const cached = tokenCache.get(ck);
-  if (cached && cached.expiresAt > Date.now() + 30_000) return cached.token;
-  let jwt: string;
-  try {
-    jwt = createCdpJwt(config.apiKeyName, config.apiSecret);
-  } catch (e) {
-    throw new Error(formatCoinbaseApiError(e));
-  }
-  try {
-    const result = await jsonRpc<{ access_token: string; expires_in?: number }>(
-      "public/auth",
-      { grant_type: "coinbase_cdp", token: jwt },
-      config
-    );
-    const token = result.access_token;
-    const ttlMs = (result.expires_in ?? 900) * 1000;
-    tokenCache.set(ck, { token, expiresAt: Date.now() + ttlMs - 60_000 });
-    return token;
-  } catch (e) {
-    throw new Error(formatCoinbaseApiError(e));
-  }
-}
-
-async function privateRpc<T>(method: string, params: Record<string, unknown>, config: CoinbaseConfig): Promise<T> {
-  const token = await getAccessToken(config);
-  return jsonRpc<T>(method, params, config, token);
-}
-
 export function formatCoinbaseApiError(err: unknown): string {
   const msg = err instanceof Error ? err.message : String(err);
   if (msg.includes("DECODER") || msg.includes("unsupported")) {
@@ -303,44 +260,123 @@ export function formatCoinbaseApiError(err: unknown): string {
   }
   if (/invalid_credentials|invalid credentials|unauthorized|authentication/i.test(msg)) {
     return (
-      "Coinbase Futures gateway rejected this CDP key (invalid_credentials). " +
-      "A valid ECDSA key can still work for Coinbase App / US CFM while Global Derivatives (INTX / drb.coinbase.com) is not enabled. " +
-      "On Coinbase: open coinbase.com/futures, finish derivatives onboarding, then retry. " +
-      "Cutover to the Deribit gateway is September 9, 2026 — until then INTX access is required. " +
-      "If you just created the key, confirm it is ECDSA and the PEM matches this key name."
+      "Coinbase rejected the API key. Use an ECDSA CDP key, set COINBASE_API_KEY_NAME + COINBASE_API_SECRET, " +
+      "and ensure Futures / CFM is enabled for this Coinbase account (Canada/US CFM uses Advanced Trade)."
     );
   }
   return msg;
 }
 
-/** Map symbol (BTC, BTC/USDT) → Coinbase instrument e.g. BTC_USDC-PERPETUAL. */
-export function toCoinbaseInstrument(symbol: string, marginCurrency = "USDC"): string {
-  const raw = symbol.trim().toUpperCase();
-  const base = raw.includes("/") ? raw.split("/")[0] : raw.includes("-") ? raw.split("-")[0] : raw;
-  const quote = marginCurrency.toUpperCase() === "USDT" ? "USDC" : marginCurrency.toUpperCase();
-  return `${base}_${quote}-PERPETUAL`;
+async function advancedTradeRequest<T>(
+  config: CoinbaseConfig,
+  method: string,
+  pathWithQuery: string,
+  body?: unknown
+): Promise<T> {
+  const pathOnly = pathWithQuery.split("?")[0] || pathWithQuery;
+  const fullPath = pathWithQuery.startsWith("/api/")
+    ? pathWithQuery
+    : `/api/v3/brokerage${pathWithQuery.startsWith("/") ? "" : "/"}${pathWithQuery}`;
+  const jwtPath = fullPath.startsWith("/api/") ? fullPath.split("?")[0]! : `/api/v3/brokerage${pathOnly}`;
+  let jwt: string;
+  try {
+    jwt = createAdvancedTradeJwt(config.apiKeyName, config.apiSecret, method, jwtPath);
+  } catch (e) {
+    throw new Error(formatCoinbaseApiError(e));
+  }
+  const url = fullPath.startsWith("http") ? fullPath : `https://${ADVANCED_TRADE_HOST}${fullPath}`;
+  const res = await fetch(url, {
+    method,
+    headers: {
+      Authorization: `Bearer ${jwt}`,
+      "Content-Type": "application/json",
+    },
+    body: body != null ? JSON.stringify(body) : undefined,
+    cache: "no-store",
+  });
+  const text = await res.text();
+  let json: Record<string, unknown> = {};
+  try {
+    json = text ? (JSON.parse(text) as Record<string, unknown>) : {};
+  } catch {
+    json = { message: text.slice(0, 300) };
+  }
+  if (!res.ok) {
+    const errMsg =
+      (typeof json.message === "string" && json.message) ||
+      (typeof json.error === "string" && json.error) ||
+      `Coinbase HTTP ${res.status}`;
+    throw new Error(formatCoinbaseApiError(new Error(errMsg)));
+  }
+  return json as T;
 }
 
-/** Display symbol from instrument name. */
+/** Quick connectivity check against CFM balance summary. */
+export async function getAccessToken(config: CoinbaseConfig): Promise<string> {
+  await advancedTradeRequest(config, "GET", "/api/v3/brokerage/cfm/balance_summary");
+  return "cfm-ok";
+}
+
+/** Map symbol (BTC, BTC/USDT, BTC_USDC-PERPETUAL) → CFM product id e.g. BIP-20DEC30-CDE. */
+export function toCoinbaseInstrument(symbol: string, _marginCurrency = "USDC"): string {
+  const raw = symbol.trim().toUpperCase();
+  if (/-CDE$/i.test(raw) || /-INTX$/i.test(raw)) return raw;
+  if (CFM_PERP_BY_SYMBOL[raw]) return CFM_PERP_BY_SYMBOL[raw]!;
+
+  const base = raw.includes("/")
+    ? raw.split("/")[0]!
+    : raw.includes("_")
+      ? raw.split("_")[0]!
+      : raw.includes("-")
+        ? raw.split("-")[0]!
+        : raw;
+  const mapped = CFM_PERP_BY_SYMBOL[base];
+  if (mapped) return mapped;
+  // Fallback: leave as-is so explicit product ids still work.
+  return raw;
+}
+
+/** Display symbol from CFM / legacy instrument name. */
 export function fromCoinbaseInstrument(instId: string): string {
+  const upper = instId.toUpperCase();
+  for (const [sym, pid] of Object.entries(CFM_PERP_BY_SYMBOL)) {
+    if (pid === upper && sym !== "XBT") return sym;
+  }
   const m = instId.match(/^([A-Z0-9]+)_[A-Z]+-PERPETUAL$/i);
-  return m ? m[1] : instId.replace(/_USDC-PERPETUAL$/i, "").replace(/-PERPETUAL$/i, "");
+  if (m) return m[1]!;
+  const cde = instId.match(/^([A-Z]{2,4})-.*-CDE$/i);
+  if (cde) {
+    const code = cde[1]!.toUpperCase();
+    if (code === "BIP") return "BTC";
+    if (code === "ETP") return "ETH";
+    if (code === "SLP") return "SOL";
+    if (code === "XPP") return "XRP";
+    if (code === "DOP") return "DOGE";
+    if (code === "AVP") return "AVAX";
+  }
+  return instId.replace(/_USDC-PERPETUAL$/i, "").replace(/-PERPETUAL$/i, "");
 }
 
 export function toCoinbaseBar(timeframe: string): string {
   const t = timeframe.trim();
   const map: Record<string, string> = {
-    "1m": "1",
-    "5m": "5",
-    "15m": "15",
-    "1h": "60",
-    "1H": "60",
-    "4h": "240",
-    "4H": "240",
-    "1D": "1D",
-    "1d": "1D",
+    "1m": "ONE_MINUTE",
+    "1": "ONE_MINUTE",
+    "5m": "FIVE_MINUTE",
+    "5": "FIVE_MINUTE",
+    "15m": "FIFTEEN_MINUTE",
+    "15": "FIFTEEN_MINUTE",
+    "30m": "THIRTY_MINUTE",
+    "30": "THIRTY_MINUTE",
+    "1h": "ONE_HOUR",
+    "60": "ONE_HOUR",
+    "2h": "TWO_HOUR",
+    "4h": "FOUR_HOUR",
+    "6h": "SIX_HOUR",
+    "1D": "ONE_DAY",
+    "1d": "ONE_DAY",
   };
-  return map[t] ?? "15";
+  return map[t] ?? "FIFTEEN_MINUTE";
 }
 
 /** Candle: [ts, open, high, low, close, vol] — Blofin-compatible shape for trading-bot-run. */
@@ -375,40 +411,24 @@ export type CoinbaseInstrumentInfo = {
   assetClass: string;
 };
 
-function mapPosition(p: Record<string, unknown>): PositionRow | null {
-  const instId = String(p.instrument_name ?? p.instrumentName ?? "");
-  const sizeRaw = p.size ?? p.amount;
-  const size = typeof sizeRaw === "number" ? sizeRaw : parseFloat(String(sizeRaw ?? "0"));
-  if (!Number.isFinite(size) || size === 0) return null;
-  const posSide = size >= 0 ? "long" : "short";
-  const avgPx = String(p.average_price ?? p.averagePrice ?? p.avg_price ?? "0");
-  const markPx = p.mark_price ?? p.markPrice ?? p.index_price;
-  const upl = p.floating_profit_loss ?? p.unrealized_pnl ?? p.upl;
-  const leverage = p.leverage;
-  const initialMargin = p.initial_margin ?? p.margin;
-  const liqPx = p.estimated_liquidation_price ?? p.liquidation_price;
-  const marginMode = p.margin_type ?? p.margin_mode;
-  const entry = parseFloat(avgPx);
-  const mark = markPx != null ? Number(markPx) : NaN;
-  let ratio: string | undefined;
-  if (Number.isFinite(entry) && entry > 0 && Number.isFinite(mark) && upl != null) {
-    const lev = leverage != null ? Number(leverage) : 1;
-    const priceMove = posSide === "long" ? (mark - entry) / entry : (entry - mark) / entry;
-    if (lev > 0) ratio = String(priceMove * lev);
-  }
+function mapCfmPosition(p: Record<string, unknown>): PositionRow | null {
+  const instId = String(p.product_id ?? "");
+  const contracts = parseFloat(String(p.number_of_contracts ?? "0"));
+  if (!Number.isFinite(contracts) || contracts === 0) return null;
+  const sideRaw = String(p.side ?? "").toUpperCase();
+  const posSide = sideRaw.includes("SHORT") ? "short" : "long";
+  const avgPx = String(p.avg_entry_price ?? "0");
+  const markPx = p.current_price != null ? String(p.current_price) : undefined;
+  const upl = p.unrealized_pnl != null ? String(p.unrealized_pnl) : undefined;
   return {
     instId,
     posSide,
-    pos: String(Math.abs(size)),
+    pos: String(Math.abs(contracts)),
     avgPx,
     rawPositionSide: "net",
-    liqPx: liqPx != null ? String(liqPx) : undefined,
-    margin: initialMargin != null ? String(initialMargin) : undefined,
-    upl: upl != null ? String(upl) : undefined,
-    unrealizedPnlRatio: ratio,
-    leverage: leverage != null ? String(leverage) : undefined,
-    marginMode: marginMode != null ? String(marginMode) : undefined,
-    markPx: markPx != null ? String(markPx) : undefined,
+    upl,
+    markPx,
+    marginMode: "cross",
   };
 }
 
@@ -421,34 +441,44 @@ export async function getCandles(
 ): Promise<Candle[]> {
   const config = options?.config ?? getConfig();
   if (!config) return [];
-  const resolution = toCoinbaseBar(bar);
+  const productId = toCoinbaseInstrument(instId);
+  const granularity = toCoinbaseBar(bar);
   const endSec = Math.floor(Date.now() / 1000);
-  const barSec = resolution === "1D" ? 86400 : parseInt(resolution, 10) * 60;
-  const startSec = endSec - barSec * limit;
-  const result = await jsonRpc<{
-    status?: string;
-    ticks?: number[];
-    open?: number[];
-    high?: number[];
-    low?: number[];
-    close?: number[];
-    volume?: number[];
-  }>(
-    "public/get_tradingview_chart_data",
-    { instrument_name: instId, start_timestamp: startSec * 1000, end_timestamp: endSec * 1000, resolution },
-    config
+  const barSec =
+    granularity === "ONE_DAY"
+      ? 86400
+      : granularity === "SIX_HOUR"
+        ? 21600
+        : granularity === "FOUR_HOUR"
+          ? 14400
+          : granularity === "TWO_HOUR"
+            ? 7200
+            : granularity === "ONE_HOUR"
+              ? 3600
+              : granularity === "THIRTY_MINUTE"
+                ? 1800
+                : granularity === "FIFTEEN_MINUTE"
+                  ? 900
+                  : granularity === "FIVE_MINUTE"
+                    ? 300
+                    : 60;
+  const startSec = endSec - barSec * Math.max(limit, 10);
+  const path = `/api/v3/brokerage/products/${encodeURIComponent(productId)}/candles?start=${startSec}&end=${endSec}&granularity=${granularity}`;
+  const result = await advancedTradeRequest<{ candles?: { start?: string; open?: string; high?: string; low?: string; close?: string; volume?: string }[] }>(
+    config,
+    "GET",
+    path
   );
-  const ticks = result.ticks ?? [];
-  const candles: Candle[] = [];
-  for (let i = ticks.length - 1; i >= 0; i--) {
-    const ts = String(ticks[i]);
-    const o = String(result.open?.[i] ?? "0");
-    const h = String(result.high?.[i] ?? "0");
-    const l = String(result.low?.[i] ?? "0");
-    const c = String(result.close?.[i] ?? "0");
-    const v = String(result.volume?.[i] ?? "0");
-    candles.push([ts, o, h, l, c, v, v, v, "1"]);
-  }
+  const rows = result.candles ?? [];
+  const candles: Candle[] = rows.map((c) => {
+    const ts = String(c.start ?? "0");
+    const o = String(c.open ?? "0");
+    const h = String(c.high ?? "0");
+    const l = String(c.low ?? "0");
+    const cl = String(c.close ?? "0");
+    const v = String(c.volume ?? "0");
+    return [ts, o, h, l, cl, v, v, v, "1"];
+  });
   return candles.slice(0, limit);
 }
 
@@ -459,61 +489,66 @@ export async function getTicker(
 ): Promise<{ last: string } | null> {
   const config = options?.config ?? getConfig();
   if (!config) return null;
-  const result = await jsonRpc<{ last_price?: number; mark_price?: number }>(
-    "public/ticker",
-    { instrument_name: instId },
-    config
+  const productId = toCoinbaseInstrument(instId);
+  const product = await advancedTradeRequest<{ price?: string; mid_market_price?: string }>(
+    config,
+    "GET",
+    `/api/v3/brokerage/products/${encodeURIComponent(productId)}`
   );
-  const last = result.last_price ?? result.mark_price;
-  if (last == null) return null;
+  const last = product.price || product.mid_market_price;
+  if (!last) return null;
   return { last: String(last) };
 }
 
-/**
- * Coinbase / Deribit linear perps:
- * - `contract_size` = base coin per 1 contract (e.g. nano BTC ≈ 0.01)
- * - UI "Amount (Contract)" = number of contracts
- * - API `amount` = base coin; API `contracts` = contract count (preferred to match UI)
- */
 export async function getInstrument(
   instId: string,
   options?: { demo?: boolean; config?: CoinbaseConfig | null }
 ): Promise<CoinbaseInstrumentInfo | null> {
   const config = options?.config ?? getConfig();
   if (!config) return null;
-  const result = await jsonRpc<{ result?: Record<string, unknown>[] } | Record<string, unknown>[]>(
-    "public/get_instruments",
-    { currency: "USDC", kind: "future" },
-    config
-  );
-  const list = Array.isArray(result) ? result : (result as { result?: Record<string, unknown>[] }).result ?? [];
-  const row = list.find((r) => String(r.instrument_name ?? "") === instId);
-  if (!row) return null;
-  const contractSize = Number(row.contract_size ?? row.contractSize ?? 0.01);
-  const minTradeBase = Number(row.min_trade_amount ?? contractSize ?? 0.01);
-  const minContracts =
-    contractSize > 0 ? Math.max(1, Math.ceil(minTradeBase / contractSize - 1e-12)) : 1;
-  const tick = Number(row.tick_size ?? 0.01);
-  const maxLev = Number(row.max_leverage ?? row.leverage ?? 50);
-  return {
-    /** Minimum order size in contracts (matches Coinbase Advanced "Amount (Contract)"). */
-    minSize: String(minContracts),
-    /** Base coin per 1 contract (e.g. 0.01 for nano BTC). */
-    contractValue: String(contractSize > 0 ? contractSize : 0.01),
-    settleCurrency: "USDC",
-    tickSize: String(tick),
-    lotSize: "1",
-    maxLeverage: String(Number.isFinite(maxLev) && maxLev > 0 ? Math.min(50, maxLev) : 50),
-    maxMarketSize: String(row.max_liquidation_allocation ?? "100000"),
-    state: row.is_active === false ? "inactive" : "live",
-    assetClass: "perpetual",
-  };
+  const productId = toCoinbaseInstrument(instId);
+  try {
+    const row = await advancedTradeRequest<{
+      product_id?: string;
+      base_min_size?: string;
+      base_max_size?: string;
+      price_increment?: string;
+      base_increment?: string;
+      status?: string;
+      trading_disabled?: boolean;
+      quote_currency_id?: string;
+    }>(config, "GET", `/api/v3/brokerage/products/${encodeURIComponent(productId)}`);
+    const minContracts = Math.max(1, parseFloat(String(row.base_min_size ?? "1")) || 1);
+    const tick = String(row.price_increment ?? row.base_increment ?? "0.01");
+    const sym = fromCoinbaseInstrument(productId).toUpperCase();
+    // CFM nano-style multipliers (base coin per 1 contract) used for margin→contracts sizing.
+    const contractBySym: Record<string, string> = {
+      BTC: "0.01",
+      ETH: "0.1",
+      SOL: "1",
+      XRP: "10",
+      DOGE: "100",
+      AVAX: "1",
+    };
+    return {
+      minSize: String(minContracts),
+      contractValue: contractBySym[sym] ?? "0.01",
+      settleCurrency: String(row.quote_currency_id ?? "USD"),
+      tickSize: tick,
+      lotSize: "1",
+      maxLeverage: "10",
+      maxMarketSize: String(row.base_max_size ?? "5000"),
+      state: row.trading_disabled ? "inactive" : "live",
+      assetClass: "perpetual",
+    };
+  } catch {
+    return null;
+  }
 }
 
 /** Convert margin / contracts input into Coinbase order size (contracts + base amount). */
 export function computeCoinbaseSizeFromConfig(input: {
   sizeMode: "margin" | "contracts";
-  /** Margin in USDC when sizeMode=margin; contract count when sizeMode=contracts. */
   sizeValue: number;
   leverage: number;
   price: number;
@@ -527,7 +562,7 @@ export function computeCoinbaseSizeFromConfig(input: {
   margin: number;
   sizeStr: string;
 } {
-  const contractSize = input.contractSize > 0 ? input.contractSize : 0.01;
+  const contractSize = input.contractSize > 0 ? input.contractSize : 1;
   const minC = Math.max(1, input.minContracts || 1);
   const lot = Math.max(1, input.lotSize || 1);
   const lev = Math.max(1, input.leverage || 1);
@@ -561,20 +596,19 @@ export async function getFuturesBalance(options?: {
 }): Promise<{ currency: string; available: string; balance: string }[]> {
   const config = options?.config ?? getConfig();
   if (!config) return [];
-  const summary = await privateRpc<{
-    equity?: number;
-    available_funds?: number;
-    balance?: number;
-    currency?: string;
-  }>("private/get_account_summary", { currency: "USDC" }, config);
-  const currency = summary.currency ?? "USDC";
-  return [
-    {
-      currency,
-      available: String(summary.available_funds ?? summary.balance ?? 0),
-      balance: String(summary.equity ?? summary.balance ?? 0),
-    },
-  ];
+  const result = await advancedTradeRequest<{
+    balance_summary?: {
+      futures_buying_power?: { value?: string; currency?: string };
+      available_margin?: { value?: string; currency?: string };
+      cfm_usd_balance?: { value?: string; currency?: string };
+      total_usd_balance?: { value?: string; currency?: string };
+    };
+  }>(config, "GET", "/api/v3/brokerage/cfm/balance_summary");
+  const s = result.balance_summary ?? {};
+  const available = s.futures_buying_power?.value ?? s.available_margin?.value ?? "0";
+  const balance = s.cfm_usd_balance?.value ?? s.total_usd_balance?.value ?? available;
+  const currency = s.futures_buying_power?.currency ?? s.cfm_usd_balance?.currency ?? "USD";
+  return [{ currency, available: String(available), balance: String(balance) }];
 }
 
 export async function getPositions(
@@ -583,15 +617,15 @@ export async function getPositions(
 ): Promise<PositionRow[]> {
   const config = options?.config ?? getConfig();
   if (!config) return [];
-  const result = await privateRpc<Record<string, unknown>[] | { result?: Record<string, unknown>[] }>(
-    "private/get_positions",
-    { currency: "USDC", kind: "future" },
-    config
+  const result = await advancedTradeRequest<{ positions?: Record<string, unknown>[] }>(
+    config,
+    "GET",
+    "/api/v3/brokerage/cfm/positions"
   );
-  const list = Array.isArray(result) ? result : (result as { result?: Record<string, unknown>[] }).result ?? [];
-  const mapped = list.map((p) => mapPosition(p)).filter((p): p is PositionRow => p != null);
+  const mapped = (result.positions ?? []).map((p) => mapCfmPosition(p)).filter((p): p is PositionRow => p != null);
   if (!instId) return mapped;
-  return mapped.filter((p) => p.instId === instId);
+  const want = toCoinbaseInstrument(instId);
+  return mapped.filter((p) => p.instId === want || p.instId === instId);
 }
 
 export function clampCoinbaseLeverage(requested: number, maxLeverageStr?: string | null): {
@@ -600,17 +634,16 @@ export function clampCoinbaseLeverage(requested: number, maxLeverageStr?: string
   maxLeverage: number;
 } {
   const maxParsed = maxLeverageStr != null ? Number(maxLeverageStr) : NaN;
-  const maxLeverage = Number.isFinite(maxParsed) && maxParsed > 0 ? Math.min(50, maxParsed) : 50;
-  const want = Math.max(1, Math.min(50, Number(requested) || 1));
+  const maxLeverage = Number.isFinite(maxParsed) && maxParsed > 0 ? Math.min(10, maxParsed) : 10;
+  const want = Math.max(1, Math.min(10, Number(requested) || 1));
   const leverage = Math.min(want, maxLeverage);
   return { leverage, clampedFrom: want > maxLeverage ? want : null, maxLeverage };
 }
 
 export function roundCoinbaseSize(size: number, minSize: number, lotSize: number): string {
-  const step = Math.max(lotSize > 0 ? lotSize : 0, minSize > 0 ? minSize : 0, 1e-8);
+  const step = Math.max(lotSize > 0 ? lotSize : 0, minSize > 0 ? minSize : 0, 1);
   const n = Math.max(minSize, Math.floor(size / step + 1e-12) * step);
-  const decimals = step < 1 ? Math.min(8, String(step).split(".")[1]?.length ?? 4) : 0;
-  return n.toFixed(decimals);
+  return String(Math.max(1, Math.round(n)));
 }
 
 export async function setLeverage(
@@ -621,47 +654,62 @@ export async function setLeverage(
 ): Promise<{ ok: boolean; error?: string }> {
   const config = options?.config ?? getConfig();
   if (!config) return { ok: false, error: "Coinbase API keys not configured" };
-  try {
-    await privateRpc("private/set_leverage", { instrument_name: instId, leverage }, config);
-    return { ok: true };
-  } catch (e) {
-    return { ok: false, error: formatCoinbaseApiError(e) };
-  }
+  const productId = toCoinbaseInstrument(instId);
+  const { leverage: lev } = clampCoinbaseLeverage(leverage);
+  leverageByInst.set(productId, lev);
+  return { ok: true };
+}
+
+function resolveLeverage(instId: string, fallback = 1): number {
+  return leverageByInst.get(toCoinbaseInstrument(instId)) ?? fallback;
 }
 
 export async function placeMarketOrder(
   instId: string,
   side: "buy" | "sell",
   size: string,
-  _marginMode: "isolated" | "cross" = "cross",
+  marginMode: "isolated" | "cross" = "cross",
   options?: {
     demo?: boolean;
     reduceOnly?: boolean;
     config?: CoinbaseConfig | null;
-    /** Prefer contracts to match Coinbase Advanced Trade UI (Amount = contracts). */
     sizeUnit?: "contracts" | "amount";
-    /** Base-coin amount when sizeUnit=contracts (for TP/SL attach). */
     amountBase?: number;
+    leverage?: number;
   }
 ): Promise<{ ok: boolean; orderId?: string; error?: string }> {
   const config = options?.config ?? getConfig();
   if (!config) return { ok: false, error: "Coinbase API keys not configured" };
-  const method = side === "buy" ? "private/buy" : "private/sell";
-  const n = parseFloat(size);
-  const params: Record<string, unknown> = {
-    instrument_name: instId,
-    type: "market",
+  const productId = toCoinbaseInstrument(instId);
+  const contracts = String(Math.max(1, Math.round(parseFloat(size) || 0)));
+  const lev = options?.leverage ?? resolveLeverage(productId, 1);
+  const body: Record<string, unknown> = {
+    client_order_id: crypto.randomUUID(),
+    product_id: productId,
+    side: side.toUpperCase(),
+    order_configuration: {
+      market_market_ioc: {
+        base_size: contracts,
+      },
+    },
+    leverage: String(lev),
+    margin_type: marginMode === "isolated" ? "ISOLATED" : "CROSS",
   };
-  if (options?.sizeUnit === "amount") {
-    params.amount = n;
-  } else {
-    // Default: contracts — same unit as Coinbase Advanced "Amount (Contract)"
-    params.contracts = n;
-  }
-  if (options?.reduceOnly) params.reduce_only = true;
+  if (options?.reduceOnly) body.reduce_only = true;
   try {
-    const result = await privateRpc<{ order?: { order_id?: string }; order_id?: string }>(method, params, config);
-    const orderId = result.order?.order_id ?? result.order_id;
+    const result = await advancedTradeRequest<{
+      success?: boolean;
+      success_response?: { order_id?: string };
+      error_response?: { message?: string; error?: string };
+      order_id?: string;
+    }>(config, "POST", "/api/v3/brokerage/orders", body);
+    if (result.success === false) {
+      return {
+        ok: false,
+        error: result.error_response?.message || result.error_response?.error || "Order rejected",
+      };
+    }
+    const orderId = result.success_response?.order_id ?? result.order_id;
     return { ok: true, orderId: orderId != null ? String(orderId) : undefined };
   } catch (e) {
     return { ok: false, error: formatCoinbaseApiError(e) };
@@ -673,19 +721,39 @@ export async function placeLimitOrder(
   side: "buy" | "sell",
   size: string,
   price: string,
-  _marginMode: "isolated" | "cross" = "cross",
-  options?: { demo?: boolean; config?: CoinbaseConfig | null }
+  marginMode: "isolated" | "cross" = "cross",
+  options?: { demo?: boolean; config?: CoinbaseConfig | null; leverage?: number }
 ): Promise<{ ok: boolean; orderId?: string; error?: string }> {
   const config = options?.config ?? getConfig();
   if (!config) return { ok: false, error: "Coinbase API keys not configured" };
-  const method = side === "buy" ? "private/buy" : "private/sell";
+  const productId = toCoinbaseInstrument(instId);
+  const contracts = String(Math.max(1, Math.round(parseFloat(size) || 0)));
+  const lev = options?.leverage ?? resolveLeverage(productId, 1);
+  const body = {
+    client_order_id: crypto.randomUUID(),
+    product_id: productId,
+    side: side.toUpperCase(),
+    order_configuration: {
+      limit_limit_gtc: {
+        base_size: contracts,
+        limit_price: String(price),
+        post_only: false,
+      },
+    },
+    leverage: String(lev),
+    margin_type: marginMode === "isolated" ? "ISOLATED" : "CROSS",
+  };
   try {
-    const result = await privateRpc<{ order?: { order_id?: string }; order_id?: string }>(
-      method,
-      { instrument_name: instId, amount: parseFloat(size), type: "limit", price: parseFloat(price) },
-      config
-    );
-    const orderId = result.order?.order_id ?? result.order_id;
+    const result = await advancedTradeRequest<{
+      success?: boolean;
+      success_response?: { order_id?: string };
+      error_response?: { message?: string };
+      order_id?: string;
+    }>(config, "POST", "/api/v3/brokerage/orders", body);
+    if (result.success === false) {
+      return { ok: false, error: result.error_response?.message || "Order rejected" };
+    }
+    const orderId = result.success_response?.order_id ?? result.order_id;
     return { ok: true, orderId: orderId != null ? String(orderId) : undefined };
   } catch (e) {
     return { ok: false, error: formatCoinbaseApiError(e) };
@@ -700,11 +768,28 @@ export async function closePositionViaApi(
 ): Promise<{ ok: boolean; error?: string }> {
   const config = options?.config ?? getConfig();
   if (!config) return { ok: false, error: "Coinbase API keys not configured" };
+  const productId = toCoinbaseInstrument(instId);
   try {
-    await privateRpc("private/close_position", { instrument_name: instId, type: "market" }, config);
+    await advancedTradeRequest(config, "POST", "/api/v3/brokerage/orders/close_position", {
+      client_order_id: crypto.randomUUID(),
+      product_id: productId,
+    });
     return { ok: true };
   } catch (e) {
-    return { ok: false, error: formatCoinbaseApiError(e) };
+    // Fallback: flatten via opposite market order from current position size.
+    try {
+      const positions = await getPositions(productId, { config });
+      const pos = positions[0];
+      if (!pos) return { ok: false, error: "No open position to close" };
+      const side = pos.posSide === "long" ? "sell" : "buy";
+      const placed = await placeMarketOrder(productId, side, pos.pos, "cross", {
+        config,
+        reduceOnly: true,
+      });
+      return placed.ok ? { ok: true } : { ok: false, error: placed.error ?? formatCoinbaseApiError(e) };
+    } catch (e2) {
+      return { ok: false, error: formatCoinbaseApiError(e2) };
+    }
   }
 }
 
@@ -712,7 +797,7 @@ export async function placeTPSLOrder(
   instId: string,
   side: "buy" | "sell",
   size: string,
-  _marginMode: "isolated" | "cross",
+  marginMode: "isolated" | "cross",
   entryPrice: number,
   tpPct: number,
   slPct: number,
@@ -721,15 +806,13 @@ export async function placeTPSLOrder(
     config?: CoinbaseConfig | null;
     tpTriggerPrice?: number | null;
     slTriggerPrice?: number | null;
-    /** Base-coin size for OTOCO legs when `size` is contracts. */
     amountBase?: number;
   }
 ): Promise<{ ok: boolean; error?: string }> {
   const config = options?.config ?? getConfig();
   if (!config) return { ok: false, error: "Coinbase API keys not configured" };
   const isLong = side === "buy";
-  const closeDir = isLong ? "sell" : "buy";
-  let tpPrice =
+  const tpPrice =
     options?.tpTriggerPrice != null && options.tpTriggerPrice > 0
       ? options.tpTriggerPrice
       : tpPct > 0
@@ -737,7 +820,7 @@ export async function placeTPSLOrder(
           ? entryPrice * (1 + tpPct / 100)
           : entryPrice * (1 - tpPct / 100)
         : null;
-  let slPrice =
+  const slPrice =
     options?.slTriggerPrice != null && options.slTriggerPrice > 0
       ? options.slTriggerPrice
       : slPct > 0
@@ -746,43 +829,35 @@ export async function placeTPSLOrder(
           : entryPrice * (1 + slPct / 100)
         : null;
   if (tpPrice == null && slPrice == null) return { ok: false, error: "No TP or SL level to attach" };
-  // `size` is contracts (Coinbase UI unit).
-  const contracts = parseFloat(size);
-  const amountBase = options?.amountBase != null && options.amountBase > 0 ? options.amountBase : contracts;
-  const otoco: Record<string, unknown>[] = [];
-  if (tpPrice != null) {
-    otoco.push({
-      type: "take_limit",
-      direction: closeDir,
-      contracts,
-      amount: amountBase,
-      price: tpPrice,
-      trigger: "last_price",
-    });
-  }
-  if (slPrice != null) {
-    otoco.push({
-      type: "stop_market",
-      direction: closeDir,
-      contracts,
-      amount: amountBase,
-      trigger_price: slPrice,
-      trigger: "mark_price",
-    });
-  }
-  const method = side === "buy" ? "private/buy" : "private/sell";
+
+  const productId = toCoinbaseInstrument(instId);
+  const contracts = String(Math.max(1, Math.round(parseFloat(size) || 0)));
+  const lev = resolveLeverage(productId, 1);
+  const bracket: Record<string, string> = { base_size: contracts };
+  if (tpPrice != null) bracket.take_profit_price = String(tpPrice);
+  if (slPrice != null) bracket.stop_trigger_price = String(slPrice);
+
+  const body = {
+    client_order_id: crypto.randomUUID(),
+    product_id: productId,
+    side: side.toUpperCase(),
+    order_configuration: {
+      market_market_ioc: { base_size: contracts },
+    },
+    attached_order_configuration: {
+      trigger_bracket_gtc: bracket,
+    },
+    leverage: String(lev),
+    margin_type: marginMode === "isolated" ? "ISOLATED" : "CROSS",
+  };
   try {
-    await privateRpc(
-      method,
-      {
-        instrument_name: instId,
-        contracts,
-        type: "market",
-        linked_order_type: "one_triggers_one_cancels_other",
-        otoco_config: otoco,
-      },
-      config
-    );
+    const result = await advancedTradeRequest<{
+      success?: boolean;
+      error_response?: { message?: string };
+    }>(config, "POST", "/api/v3/brokerage/orders", body);
+    if (result.success === false) {
+      return { ok: false, error: result.error_response?.message || "TP/SL order rejected" };
+    }
     return { ok: true };
   } catch (e) {
     return { ok: false, error: formatCoinbaseApiError(e) };
@@ -790,14 +865,16 @@ export async function placeTPSLOrder(
 }
 
 export async function cancelOrder(
-  instId: string,
+  _instId: string,
   orderId: string,
   options?: { demo?: boolean; config?: CoinbaseConfig | null }
 ): Promise<{ ok: boolean; error?: string }> {
   const config = options?.config ?? getConfig();
   if (!config) return { ok: false, error: "Coinbase API keys not configured" };
   try {
-    await privateRpc("private/cancel", { order_id: orderId, instrument_name: instId }, config);
+    await advancedTradeRequest(config, "POST", "/api/v3/brokerage/orders/batch_cancel", {
+      order_ids: [orderId],
+    });
     return { ok: true };
   } catch (e) {
     return { ok: false, error: formatCoinbaseApiError(e) };
@@ -814,19 +891,39 @@ export async function getOpenOrders(options?: {
 > {
   const config = options?.config ?? getConfig();
   if (!config) return [];
-  const params: Record<string, unknown> = { currency: "USDC", kind: "future", count: options?.limit ?? 50 };
-  if (options?.instId) params.instrument_name = options.instId;
-  const result = await privateRpc<Record<string, unknown>[]>("private/get_open_orders_by_currency", params, config);
-  return (result ?? []).map((o) => ({
-    orderId: String(o.order_id ?? o.orderId ?? ""),
-    instId: String(o.instrument_name ?? ""),
-    side: String(o.direction ?? o.side ?? ""),
-    orderType: String(o.order_type ?? o.type ?? ""),
-    size: String(o.amount ?? o.size ?? "0"),
-    price: String(o.price ?? "0"),
-    state: String(o.order_state ?? o.state ?? "open"),
-    createdAt: o.creation_timestamp != null ? String(o.creation_timestamp) : undefined,
-  }));
+  const params = new URLSearchParams({
+    order_status: "OPEN",
+    limit: String(Math.min(100, options?.limit ?? 50)),
+  });
+  if (options?.instId) params.set("product_id", toCoinbaseInstrument(options.instId));
+  const result = await advancedTradeRequest<{
+    orders?: {
+      order_id?: string;
+      product_id?: string;
+      side?: string;
+      order_type?: string;
+      status?: string;
+      created_time?: string;
+      filled_size?: string;
+      average_filled_price?: string;
+      order_configuration?: Record<string, Record<string, string>>;
+    }[];
+  }>(config, "GET", `/api/v3/brokerage/orders/historical/batch?${params.toString()}`);
+
+  return (result.orders ?? []).map((o) => {
+    const cfg = o.order_configuration ?? {};
+    const first = Object.values(cfg)[0] ?? {};
+    return {
+      orderId: String(o.order_id ?? ""),
+      instId: String(o.product_id ?? ""),
+      side: String(o.side ?? "").toLowerCase(),
+      orderType: String(o.order_type ?? ""),
+      size: String(first.base_size ?? o.filled_size ?? "0"),
+      price: String(first.limit_price ?? o.average_filled_price ?? "0"),
+      state: String(o.status ?? "open").toLowerCase(),
+      createdAt: o.created_time,
+    };
+  });
 }
 
 export type CoinbaseFillHistoryRow = {
@@ -851,21 +948,36 @@ export async function getFillsHistory(options?: {
 }): Promise<CoinbaseFillHistoryRow[]> {
   const config = options?.config ?? getConfig();
   if (!config) return [];
-  const params: Record<string, unknown> = { currency: "USDC", kind: "future", count: Math.min(100, options?.limit ?? 50) };
-  if (options?.instId) params.instrument_name = options.instId;
-  if (options?.beginMs) params.start_timestamp = options.beginMs;
-  const result = await privateRpc<Record<string, unknown>[]>("private/get_user_trades_by_currency", params, config);
-  return (result ?? []).map((r) => ({
-    instId: String(r.instrument_name ?? ""),
-    tradeId: String(r.trade_id ?? r.trade_seq ?? ""),
+  const params = new URLSearchParams({
+    limit: String(Math.min(100, options?.limit ?? 50)),
+  });
+  if (options?.instId) params.set("product_id", toCoinbaseInstrument(options.instId));
+  if (options?.beginMs) params.set("start_sequence_timestamp", new Date(options.beginMs).toISOString());
+  const result = await advancedTradeRequest<{
+    fills?: {
+      product_id?: string;
+      trade_id?: string;
+      order_id?: string;
+      price?: string;
+      size?: string;
+      commission?: string;
+      side?: string;
+      trade_time?: string;
+      realized_pl?: string;
+    }[];
+  }>(config, "GET", `/api/v3/brokerage/orders/historical/fills?${params.toString()}`);
+
+  return (result.fills ?? []).map((r) => ({
+    instId: String(r.product_id ?? ""),
+    tradeId: String(r.trade_id ?? ""),
     orderId: String(r.order_id ?? ""),
     fillPrice: String(r.price ?? "0"),
-    fillSize: String(r.amount ?? "0"),
-    fillPnl: String(r.profit_loss ?? r.pnl ?? "0"),
-    positionSide: String(r.direction ?? ""),
-    side: String(r.direction ?? ""),
-    fee: String(r.fee ?? "0"),
-    ts: String(r.timestamp ?? r.trade_timestamp ?? ""),
+    fillSize: String(r.size ?? "0"),
+    fillPnl: String(r.realized_pl ?? "0"),
+    positionSide: String(r.side ?? "").toLowerCase(),
+    side: String(r.side ?? "").toLowerCase(),
+    fee: String(r.commission ?? "0"),
+    ts: String(r.trade_time ?? ""),
   }));
 }
 
@@ -894,23 +1006,42 @@ export async function getOrderHistory(options?: {
 > {
   const config = options?.config ?? getConfig();
   if (!config) return [];
-  const params: Record<string, unknown> = { currency: "USDC", kind: "future", count: Math.min(100, options?.limit ?? 50) };
-  if (options?.instId) params.instrument_name = options.instId;
-  if (options?.beginMs) params.start_timestamp = options.beginMs;
-  const result = await privateRpc<Record<string, unknown>[]>("private/get_order_history_by_currency", params, config);
-  return (result ?? []).map((o) => ({
-    orderId: String(o.order_id ?? ""),
-    instId: String(o.instrument_name ?? ""),
-    side: String(o.direction ?? o.side ?? ""),
-    orderType: String(o.order_type ?? o.type ?? ""),
-    size: String(o.amount ?? "0"),
-    price: String(o.price ?? "0"),
-    state: String(o.order_state ?? o.state ?? ""),
-    fillPrice: o.average_price != null ? String(o.average_price) : undefined,
-    averagePrice: o.average_price != null ? String(o.average_price) : undefined,
-    leverage: o.leverage != null ? String(o.leverage) : undefined,
-    createdAt: o.creation_timestamp != null ? String(o.creation_timestamp) : undefined,
-    filledAt: o.last_update_timestamp != null ? String(o.last_update_timestamp) : undefined,
-    pnl: o.profit_loss != null ? String(o.profit_loss) : undefined,
-  }));
+  const params = new URLSearchParams({
+    limit: String(Math.min(100, options?.limit ?? 50)),
+  });
+  if (options?.instId) params.set("product_id", toCoinbaseInstrument(options.instId));
+  if (options?.beginMs) params.set("start_date", new Date(options.beginMs).toISOString());
+  const result = await advancedTradeRequest<{
+    orders?: {
+      order_id?: string;
+      product_id?: string;
+      side?: string;
+      order_type?: string;
+      status?: string;
+      created_time?: string;
+      last_fill_time?: string;
+      filled_size?: string;
+      average_filled_price?: string;
+      total_fees?: string;
+      order_configuration?: Record<string, Record<string, string>>;
+    }[];
+  }>(config, "GET", `/api/v3/brokerage/orders/historical/batch?${params.toString()}`);
+
+  return (result.orders ?? []).map((o) => {
+    const cfg = o.order_configuration ?? {};
+    const first = Object.values(cfg)[0] ?? {};
+    return {
+      orderId: String(o.order_id ?? ""),
+      instId: String(o.product_id ?? ""),
+      side: String(o.side ?? "").toLowerCase(),
+      orderType: String(o.order_type ?? ""),
+      size: String(first.base_size ?? o.filled_size ?? "0"),
+      price: String(first.limit_price ?? o.average_filled_price ?? "0"),
+      state: String(o.status ?? "").toLowerCase(),
+      fillPrice: o.average_filled_price,
+      averagePrice: o.average_filled_price,
+      createdAt: o.created_time,
+      filledAt: o.last_fill_time,
+    };
+  });
 }

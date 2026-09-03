@@ -2707,7 +2707,7 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
               />
               <p className="text-xs text-muted-foreground mt-1">
                 {(form.provider ?? config?.provider ?? exchangeSetup) === "coinbase"
-                  ? "BTC → BTC_USDC-PERPETUAL (nano BTC perp in Coinbase UI)."
+                  ? "BTC → BIP-20DEC30-CDE (Coinbase CFM BTC PERP)."
                   : "BTC or BTC/USDT both work; converted to Blofin format (e.g. BTC-USDT)."}
               </p>
             </div>

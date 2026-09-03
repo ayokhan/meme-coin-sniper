@@ -1084,7 +1084,7 @@ export default function NovaScalperPanel() {
               )}
               {exchange === "coinbase" && (
                 <p className="text-[11px] text-muted-foreground mt-1">
-                  Coinbase perps use USDC margin — e.g. <span className="font-mono">BTC/USDC</span> → <span className="font-mono">BTC_USDC-PERPETUAL</span>.
+                  Coinbase CFM perps — e.g. <span className="font-mono">BTC</span> → <span className="font-mono">BIP-20DEC30-CDE</span>.
                 </p>
               )}
             </div>

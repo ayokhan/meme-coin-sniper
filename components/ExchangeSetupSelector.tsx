@@ -296,8 +296,7 @@ export function CoinbaseFuturesFormatNote({ className = "" }: { className?: stri
         <p className="font-semibold text-blue-200">Coinbase Futures format</p>
         <ul className="list-disc pl-4 space-y-0.5 text-blue-100/75">
           <li>
-            Instruments map to <span className="font-mono text-blue-200/90">BTC_USDC-PERPETUAL</span> (nano BTC perp in
-            the Coinbase UI).
+            Instruments map to CFM products like <span className="font-mono text-blue-200/90">BIP-20DEC30-CDE</span> (BTC PERP).
           </li>
           <li>
             Prefer <strong className="text-blue-100">Size mode → Contracts</strong> so Amount matches Coinbase Advanced
@@ -309,7 +308,7 @@ export function CoinbaseFuturesFormatNote({ className = "" }: { className?: stri
           </li>
           <li>
             <strong className="text-blue-100">Max leverage</strong> is fetched from Coinbase per instrument and clamped
-            automatically (often up to 50×).
+            automatically (CFM often up to 10×).
           </li>
         </ul>
       </div>
