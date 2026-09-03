@@ -136,6 +136,8 @@ export default function AdminEmailsPanel({ onNotice, onError }: Props) {
   const [stats, setStats] = useState<EmailStats | null>(null);
   const [campaigns, setCampaigns] = useState<CampaignRow[]>([]);
   const [welcomeLogs, setWelcomeLogs] = useState<WelcomeLogRow[]>([]);
+  const [fromAddress, setFromAddress] = useState<string | null>(null);
+  const [replyToAddress, setReplyToAddress] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [confirm, setConfirm] = useState(false);
@@ -282,6 +284,8 @@ export default function AdminEmailsPanel({ onNotice, onError }: Props) {
         });
         setCampaigns(Array.isArray(data.campaigns) ? (data.campaigns as CampaignRow[]) : []);
         setWelcomeLogs(Array.isArray(data.welcomeLogs) ? (data.welcomeLogs as WelcomeLogRow[]) : []);
+        if (typeof data.fromAddress === "string") setFromAddress(data.fromAddress);
+        setReplyToAddress(typeof data.replyTo === "string" ? data.replyTo : null);
       } else {
         onError?.(data.error || "Could not load email stats.");
       }
@@ -586,11 +590,19 @@ export default function AdminEmailsPanel({ onNotice, onError }: Props) {
         ctaLabel: p.ctaLabel,
         ctaUrl: p.ctaUrl,
       });
+      if (id === "investor-partnership") {
+        setRecipients([]);
+        setSelectedNewEmails(new Set());
+        setRecipientsLocked(true);
+        onNotice?.(
+          "Investor preset loaded. Clear {{FIRST_NAME}}, then add each investor email under Recipients (do not use customer audiences)."
+        );
+      }
       if (p.defaultAudience === "new") {
         setNewWindowDays(id.startsWith("deepdive-") || id === "vip-soft-pitch" ? 7 : 1);
       }
     },
-    [strategyCallUrl]
+    [strategyCallUrl, onNotice]
   );
 
   useEffect(() => {
@@ -1458,6 +1470,20 @@ export default function AdminEmailsPanel({ onNotice, onError }: Props) {
               />
               Include logos when emailing plain text (optional)
             </label>
+          )}
+
+          {fromAddress && (
+            <p className="text-xs text-muted-foreground rounded-md border border-zinc-200 dark:border-zinc-700 px-3 py-2">
+              Sends from <span className="font-medium text-foreground">{fromAddress}</span>
+              {replyToAddress ? (
+                <>
+                  {" "}
+                  · replies go to <span className="font-medium text-foreground">{replyToAddress}</span>
+                </>
+              ) : (
+                <> · set <code className="text-[11px]">RESEND_REPLY_TO</code> if you want replies on a monitored inbox</>
+              )}
+            </p>
           )}
 
           <div className="space-y-2">

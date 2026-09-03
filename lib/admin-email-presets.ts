@@ -1,3 +1,4 @@
+import { INVESTOR_PARTNERSHIP_EMAIL } from "@/lib/investor-partnership-email";
 import {
   FOREX_PARTNERSHIP_EMAIL,
   FOREX_PARTNER_REBATE_EMAIL,
@@ -65,7 +66,8 @@ export type AdminEmailPresetId =
   | "assex-partnership"
   | "blofin-partnership"
   | "coinbase-partnership"
-  | "coinbase-referral";
+  | "coinbase-referral"
+  | "investor-partnership";
 
 export type AdminEmailPreset = {
   id: AdminEmailPresetId;
@@ -469,6 +471,18 @@ export const ADMIN_EMAIL_PRESETS: AdminEmailPreset[] = [
     ctaLabel: "Join on Coinbase",
     ctaUrl: "https://coinbase.com/join/WGVMDA2?src=referral-link",
     defaultAudience: "newsletter",
+  },
+  {
+    id: "investor-partnership",
+    label: "Investor / partnership outreach",
+    blurb: "Professional intro for strategic investors & partners — add recipients manually",
+    subject: INVESTOR_PARTNERSHIP_EMAIL.subject,
+    body: INVESTOR_PARTNERSHIP_EMAIL.body,
+    template: "nova-branded",
+    includePartnerLogos: false,
+    partnerBrand: "blofin",
+    ctaLabel: INVESTOR_PARTNERSHIP_EMAIL.ctaLabel,
+    ctaUrl: INVESTOR_PARTNERSHIP_EMAIL.ctaUrl,
   },
 ];
 

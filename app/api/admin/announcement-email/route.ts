@@ -22,7 +22,14 @@ export async function GET() {
       listRecentAnnouncementCampaigns(20),
       listRecentWelcomeEmailLogs(40),
     ]);
-    return NextResponse.json({ success: true, stats, campaigns, welcomeLogs });
+    return NextResponse.json({
+      success: true,
+      stats,
+      campaigns,
+      welcomeLogs,
+      fromAddress: process.env.RESEND_FROM ?? "NovaStaris <onboarding@resend.dev>",
+      replyTo: process.env.RESEND_REPLY_TO ?? null,
+    });
   } catch (e) {
     console.error("admin announcement-email GET:", e);
     return NextResponse.json({ success: false, error: "Failed to load email stats." }, { status: 500 });
