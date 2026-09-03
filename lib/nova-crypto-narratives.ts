@@ -43,6 +43,42 @@ type CotSpec = {
   displayLabel: string;
 };
 
+function parsePubDateMs(pubDate?: string): number | null {
+  if (!pubDate) return null;
+  const t = Date.parse(pubDate);
+  return Number.isFinite(t) ? t : null;
+}
+
+function dedupeHeadlines(headlines: NewsHeadline[]): NewsHeadline[] {
+  const seen = new Set<string>();
+  const out: NewsHeadline[] = [];
+  for (const h of headlines) {
+    const key = h.link.trim();
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    out.push(h);
+  }
+  return out;
+}
+
+function sortHeadlinesByPubDateDesc(headlines: NewsHeadline[]): NewsHeadline[] {
+  return [...headlines].sort((a, b) => {
+    const ta = parsePubDateMs(a.pubDate) ?? 0;
+    const tb = parsePubDateMs(b.pubDate) ?? 0;
+    return tb - ta;
+  });
+}
+
+async function fetchWithTimeout(input: string, init: RequestInit, timeoutMs: number) {
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(input, { ...init, signal: controller.signal });
+  } finally {
+    clearTimeout(id);
+  }
+}
+
 function normalizeSymbol(raw: string): string {
   const upper = raw.trim().toUpperCase();
   return upper.replace(/\/USDT$/i, "").replace(/-USDT$/i, "").replace(/\/USD$/i, "").trim() || "BTC";
@@ -124,20 +160,38 @@ export async function fetchCotSnapshot(symbol: string): Promise<CotSnapshot | nu
   const spec = cotSpecForSymbol(symbol);
   if (!spec) return null;
   const url = `${CFTC_TFF_BASE}?$where=${encodeURIComponent(spec.where)}&$order=${encodeURIComponent("report_date_as_yyyy_mm_dd DESC")}&$limit=2`;
-  const res = await fetch(url, { cache: "no-store" });
+  const res = await fetchWithTimeout(url, { cache: "no-store" }, 15000);
   if (!res.ok) return null;
   const rows = (await res.json()) as CotRow[];
   if (!Array.isArray(rows) || rows.length === 0) return null;
   return rowToSnapshot(rows[0]!, spec, rows[1] ?? null);
 }
 
-export async function fetchGoogleNewsHeadlines(query: string, limit = 14): Promise<NewsHeadline[]> {
+export async function fetchGoogleNewsHeadlines(query: string, limit = 14, recencyHours = 36): Promise<NewsHeadline[]> {
   const q = encodeURIComponent(query);
-  const url = `https://news.google.com/rss/search?q=${q}&hl=en-US&gl=US&ceid=US:en`;
-  const res = await fetch(url, { cache: "no-store", headers: { "User-Agent": "NovaStarisBot/1.0" } });
+  // tbs=qdr:d => "past day" style filter. We also do our own recency filtering since feeds can include older items.
+  const url = `https://news.google.com/rss/search?q=${q}&hl=en-US&gl=US&ceid=US:en&tbs=qdr:d`;
+  const res = await fetchWithTimeout(
+    url,
+    { cache: "no-store", headers: { "User-Agent": "NovaStarisBot/1.0" } },
+    15000
+  );
   if (!res.ok) return [];
   const xml = await res.text();
-  return parseRssItems(xml, limit);
+
+  const raw = parseRssItems(xml, limit * 3);
+  const deduped = dedupeHeadlines(raw);
+  const sorted = sortHeadlinesByPubDateDesc(deduped);
+
+  const cutoff = Date.now() - recencyHours * 60 * 60 * 1000;
+  const strictRecent = sorted.filter((h) => {
+    const t = parsePubDateMs(h.pubDate);
+    return t != null && t >= cutoff;
+  });
+
+  // If we didn't get enough "recent" items, fall back to the freshest overall feed.
+  const candidate = strictRecent.length >= Math.min(limit, 6) ? strictRecent : sorted;
+  return candidate.slice(0, limit);
 }
 
 function parseRssItems(xml: string, limit: number): NewsHeadline[] {
@@ -238,27 +292,39 @@ Respond with ONLY a JSON object (no markdown fences):
 
 Rules: "mixed" if headlines conflict. Do not promise profit. Be skeptical of single-source hype.`;
 
-  const msg = await anthropic.messages.create({
-    model: CLAUDE_SONNET_MODEL,
-    max_tokens: 600,
-    messages: [{ role: "user", content: prompt }],
-  });
-  const text =
-    msg.content?.find((b) => b.type === "text")?.type === "text"
-      ? (msg.content.find((b) => b.type === "text") as { type: "text"; text: string }).text
-      : "";
-  const obj = extractJsonObject(text);
-  if (!obj) return null;
-  const noiseSummary = typeof obj.noiseSummary === "string" ? obj.noiseSummary : "";
-  const institutionalNarrative = typeof obj.institutionalNarrative === "string" ? obj.institutionalNarrative : "";
-  const nd = String(obj.narrativeDirection ?? "").toLowerCase();
-  const narrativeDirection: "bullish" | "bearish" | "mixed" =
-    nd === "bullish" || nd === "bearish" ? nd : "mixed";
-  const dc = String(obj.directionConfidence ?? "").toLowerCase();
-  const directionConfidence: "low" | "medium" | "high" =
-    dc === "high" ? "high" : dc === "low" ? "low" : "medium";
-  if (!noiseSummary) return null;
-  return { noiseSummary, narrativeDirection, directionConfidence, institutionalNarrative: institutionalNarrative || templateInstitutional(cot, symbol) };
+  try {
+    const msg = await anthropic.messages.create({
+      model: CLAUDE_SONNET_MODEL,
+      max_tokens: 600,
+      messages: [{ role: "user", content: prompt }],
+    });
+    const text =
+      msg.content?.find((b) => b.type === "text")?.type === "text"
+        ? (msg.content.find((b) => b.type === "text") as { type: "text"; text: string }).text
+        : "";
+    const obj = extractJsonObject(text);
+    if (!obj) return null;
+    const noiseSummary = typeof obj.noiseSummary === "string" ? obj.noiseSummary : "";
+    const institutionalNarrative = typeof obj.institutionalNarrative === "string" ? obj.institutionalNarrative : "";
+    const nd = String(obj.narrativeDirection ?? "").toLowerCase();
+    const narrativeDirection: "bullish" | "bearish" | "mixed" =
+      nd === "bullish" || nd === "bearish" ? nd : "mixed";
+    const dc = String(obj.directionConfidence ?? "").toLowerCase();
+    const directionConfidence: "low" | "medium" | "high" =
+      dc === "high" ? "high" : dc === "low" ? "low" : "medium";
+    if (!noiseSummary) return null;
+    return {
+      noiseSummary,
+      narrativeDirection,
+      directionConfidence,
+      institutionalNarrative: institutionalNarrative || templateInstitutional(cot, symbol),
+    };
+  } catch (e) {
+    // If Claude errors (429/network/bad JSON/etc.), fall back to the headline heuristic instead
+    // of failing the whole tab.
+    console.error("synthesizeWithClaude failed:", e);
+    return null;
+  }
 }
 
 function newsQueryForSymbol(symbol: string): string {
@@ -271,8 +337,12 @@ function newsQueryForSymbol(symbol: string): string {
 export async function buildNovaCryptoNarratives(symbolRaw: string): Promise<NovaCryptoNarrativesResult> {
   const symbol = normalizeSymbol(symbolRaw);
   const query = newsQueryForSymbol(symbol);
+  const fetchedAt = new Date();
 
-  const [newsHeadlines, cot] = await Promise.all([fetchGoogleNewsHeadlines(query, 14), fetchCotSnapshot(symbol)]);
+  const [newsHeadlines, cot] = await Promise.all([
+    fetchGoogleNewsHeadlines(query, 14, 36),
+    fetchCotSnapshot(symbol),
+  ]);
 
   const heuristic = heuristicFromHeadlines(newsHeadlines);
   let aiGenerated = false;
@@ -294,6 +364,10 @@ export async function buildNovaCryptoNarratives(symbolRaw: string): Promise<Nova
     narrativeDirection = "mixed";
     directionConfidence = "low";
   }
+
+  // Surface recency to the user so they know they are seeing a fresh run.
+  const fetchedAtStr = fetchedAt.toLocaleString();
+  noiseSummary = `${noiseSummary} (Headlines scanned at ${fetchedAtStr}).`;
 
   const disclaimer =
     "Nova Crypto Narratives aggregates third-party headlines and delayed CFTC positioning. It is not investment advice. Always verify sources and report dates.";
