@@ -91,7 +91,7 @@ function closedTradeToShareInput(t: ClosedTradeRow, mode: "demo" | "live"): Clos
 type Strategy = "simple" | "indicators" | "ai" | "hybrid";
 
 type Config = {
-  provider: "blofin";
+  provider: "blofin" | "coinbase";
   symbol: string;
   timeframe: string;
   leverage: number;
@@ -261,6 +261,8 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
   const [orderHistoryError, setOrderHistoryError] = useState<string | null>(null);
   const [blofinPanelMeta, setBlofinPanelMeta] = useState<{
     blofinDemo?: boolean;
+    coinbaseDemo?: boolean;
+    demo?: boolean;
     credentialSource?: string;
     modeMismatchHint?: string;
   } | null>(null);
@@ -311,9 +313,14 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
   const [lastDeepMessage, setLastDeepMessage] = useState<string | null>(null);
   const [cancelingAll, setCancelingAll] = useState(false);
   const [userBlofinConfigured, setUserBlofinConfigured] = useState<boolean | null>(null);
+  const [userCoinbaseConfigured, setUserCoinbaseConfigured] = useState<boolean | null>(null);
+  const [coinbaseTradingEnabled, setCoinbaseTradingEnabled] = useState(false);
   const [blofinKeysForm, setBlofinKeysForm] = useState({ apiKey: "", secretKey: "", passphrase: "", demoMode: true, brokerId: "" });
+  const [coinbaseKeysForm, setCoinbaseKeysForm] = useState({ apiKeyName: "", apiSecret: "", demoMode: false });
   const [savingBlofinKeys, setSavingBlofinKeys] = useState(false);
+  const [savingCoinbaseKeys, setSavingCoinbaseKeys] = useState(false);
   const [clearingBlofinKeys, setClearingBlofinKeys] = useState(false);
+  const [clearingCoinbaseKeys, setClearingCoinbaseKeys] = useState(false);
 
   const [form, setForm] = useState<Partial<Config>>({});
   const [botSubTab, setBotSubTab] = useState<"ai" | "scalper" | "polymarket">("ai");
@@ -345,15 +352,18 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
     fetch("/api/feature-flags-public")
       .then((r) => r.json())
       .then((data) => {
-        if (cancelled || !data?.pnlShare) return;
-        setPnlShareFlags({
-          showUsd: data.pnlShare.showUsd !== false,
-          showInvested: data.pnlShare.showInvested !== false,
-          showHeldFor: data.pnlShare.showHeldFor !== false,
-          showLeverage: data.pnlShare.showLeverage !== false,
-          cardMessage: data.pnlShare.cardMessage === true,
-          showReferral: data.pnlShare.showReferral !== false,
-        });
+        if (cancelled) return;
+        if (data?.pnlShare) {
+          setPnlShareFlags({
+            showUsd: data.pnlShare.showUsd !== false,
+            showInvested: data.pnlShare.showInvested !== false,
+            showHeldFor: data.pnlShare.showHeldFor !== false,
+            showLeverage: data.pnlShare.showLeverage !== false,
+            cardMessage: data.pnlShare.cardMessage === true,
+            showReferral: data.pnlShare.showReferral !== false,
+          });
+        }
+        setCoinbaseTradingEnabled(data?.coinbaseTrading === true);
       })
       .catch(() => {});
     return () => {
@@ -719,6 +729,8 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
       const data = await res.json().catch(() => ({}));
       if (data.success && Array.isArray(data.positions)) {
         if (data.blofin) setBlofinPanelMeta(data.blofin);
+        if (data.coinbase) setBlofinPanelMeta(data.coinbase);
+        if (data.exchange) setBlofinPanelMeta(data.exchange);
         setPositionsData({
           positions: data.positions,
           totalUnrealizedPnl: data.totalUnrealizedPnl ?? 0,
@@ -740,6 +752,16 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
     setError(null);
     setSuccess(null);
   };
+
+  const loadUserCoinbaseConfig = useCallback(async () => {
+    try {
+      const res = await fetch("/api/user/coinbase-config");
+      const data = await res.json().catch(() => ({}));
+      setUserCoinbaseConfigured(data.success && data.configured === true);
+    } catch {
+      setUserCoinbaseConfigured(null);
+    }
+  }, []);
 
   const loadUserBlofinConfig = useCallback(async () => {
     try {
@@ -770,6 +792,7 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
       setLoading(true);
       clearFeedback();
       loadUserBlofinConfig();
+      loadUserCoinbaseConfig();
       loadUserPolymarketConfig();
       const res = await fetch("/api/admin/trading-bot");
       const data = await res.json().catch(() => ({}));
@@ -799,7 +822,7 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
           setDeepTfSecondary("1D");
         }
         setForm({
-          provider: "blofin",
+          provider: (data.config.provider === "coinbase" ? "coinbase" : "blofin") as "blofin" | "coinbase",
           symbol: data.config.symbol,
           timeframe: data.config.timeframe,
           leverage: data.config.leverage,
@@ -858,6 +881,8 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
       const data = await res.json().catch(() => ({}));
       if (data.success && Array.isArray(data.orders)) {
         if (data.blofin) setBlofinPanelMeta(data.blofin);
+        if (data.coinbase) setBlofinPanelMeta(data.coinbase);
+        if (data.exchange) setBlofinPanelMeta(data.exchange);
         setOrderHistory(data.orders);
       } else {
         setOrderHistory([]);
@@ -896,6 +921,8 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
         setClosedTradesTotal(typeof data.totalRealized === "number" ? data.totalRealized : 0);
         if (typeof data.periodLabel === "string") setClosedTradesPeriodLabel(data.periodLabel);
         if (data.blofin) setBlofinPanelMeta(data.blofin);
+        if (data.coinbase) setBlofinPanelMeta(data.coinbase);
+        if (data.exchange) setBlofinPanelMeta(data.exchange);
       } else {
         setClosedTrades([]);
         setClosedTradesTotal(0);
@@ -916,6 +943,8 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
       const data = await res.json().catch(() => ({}));
       if (data.success && Array.isArray(data.orders)) {
         if (data.blofin) setBlofinPanelMeta(data.blofin);
+        if (data.coinbase) setBlofinPanelMeta(data.coinbase);
+        if (data.exchange) setBlofinPanelMeta(data.exchange);
         setOpenOrders(data.orders);
       } else {
         setOpenOrders([]);
@@ -1041,7 +1070,7 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          provider: "blofin",
+          provider: form.provider ?? config?.provider ?? "blofin",
           symbol: (form.symbol ?? "").trim().toUpperCase(),
           timeframe: (form.timeframe ?? "").trim(),
           leverage: form.leverage ?? 5,
@@ -2311,6 +2340,42 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
         </CardContent>
       </Card>
 
+      {coinbaseTradingEnabled && (
+        <Card className="border-zinc-200/80 dark:border-zinc-700/80">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base font-semibold">Your Coinbase API keys</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <p className="text-sm text-muted-foreground">
+              Connect your Coinbase CDP API key for Futures trading. Create keys at{" "}
+              <a href="https://portal.cdp.coinbase.com" target="_blank" rel="noopener noreferrer" className="text-cyan-600 dark:text-cyan-400 hover:underline">
+                portal.cdp.coinbase.com
+              </a>{" "}
+              with <strong>view</strong> and <strong>trade</strong> permissions. Keys are encrypted at rest.
+            </p>
+            {userCoinbaseConfigured === true && (
+              <p className="text-sm text-emerald-600 dark:text-emerald-400">Coinbase keys are configured.</p>
+            )}
+            <div className="grid grid-cols-1 gap-3">
+              <div>
+                <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">API Key Name</label>
+                <input type="password" placeholder="organizations/…/apiKeys/…" value={coinbaseKeysForm.apiKeyName} onChange={(e) => setCoinbaseKeysForm((f) => ({ ...f, apiKeyName: e.target.value }))} className="w-full rounded border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2 py-1.5 text-sm" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">API Secret (PEM private key)</label>
+                <textarea placeholder="-----BEGIN EC PRIVATE KEY-----…" value={coinbaseKeysForm.apiSecret} onChange={(e) => setCoinbaseKeysForm((f) => ({ ...f, apiSecret: e.target.value }))} rows={3} className="w-full rounded border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2 py-1.5 text-sm font-mono" />
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <Button size="sm" disabled={savingCoinbaseKeys || !coinbaseKeysForm.apiKeyName || !coinbaseKeysForm.apiSecret} onClick={async () => { setSavingCoinbaseKeys(true); try { const res = await fetch("/api/user/coinbase-config", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ apiKeyName: coinbaseKeysForm.apiKeyName, apiSecret: coinbaseKeysForm.apiSecret, demoMode: coinbaseKeysForm.demoMode }) }); const data = await res.json(); if (data.success) { setUserCoinbaseConfigured(true); setCoinbaseKeysForm((f) => ({ ...f, apiKeyName: "", apiSecret: "" })); setSuccess("Coinbase keys saved."); } else setError(data.error ?? "Save failed"); } finally { setSavingCoinbaseKeys(false); } }}>{savingCoinbaseKeys ? "Saving…" : "Save Coinbase keys"}</Button>
+              {userCoinbaseConfigured && (
+                <Button size="sm" variant="outline" disabled={clearingCoinbaseKeys} onClick={async () => { setClearingCoinbaseKeys(true); try { const res = await fetch("/api/user/coinbase-config", { method: "DELETE" }); const data = await res.json(); if (data.success) { setUserCoinbaseConfigured(false); setSuccess("Coinbase keys cleared."); } } finally { setClearingCoinbaseKeys(false); loadUserCoinbaseConfig(); } }}>{clearingCoinbaseKeys ? "…" : "Clear keys"}</Button>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       <Card className="border-zinc-200/80 dark:border-zinc-700/80">
         <CardHeader className="pb-3">
           <CardTitle className="text-base font-semibold">Config</CardTitle>
@@ -2318,8 +2383,25 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
         <CardContent className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Provider</label>
-            <p className="rounded-md border border-zinc-300 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-800/80 px-3 py-2 text-sm text-zinc-700 dark:text-zinc-300">
-              Blofin
+            <select
+              value={form.provider ?? config?.provider ?? "blofin"}
+              onChange={(e) => {
+                const provider = e.target.value as "blofin" | "coinbase";
+                setForm({
+                  ...form,
+                  provider,
+                  marginCurrency: provider === "coinbase" ? "USDC" : form.marginCurrency ?? "USDT",
+                });
+              }}
+              className="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-3 py-2 text-sm text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+            >
+              <option value="blofin">Blofin</option>
+              {coinbaseTradingEnabled && <option value="coinbase">Coinbase Futures</option>}
+            </select>
+            <p className="text-xs text-muted-foreground mt-1">
+              {(form.provider ?? config?.provider) === "coinbase"
+                ? "Coinbase perpetuals use USDC margin (e.g. BTC_USDC-PERPETUAL)."
+                : "Blofin uses USDT/USDC margin (e.g. BTC-USDT)."}
             </p>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -2332,7 +2414,11 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
                 onChange={(e) => setForm({ ...form, symbol: e.target.value })}
                 className="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-3 py-2 text-sm text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-cyan-500"
               />
-              <p className="text-xs text-muted-foreground mt-1">BTC or BTC/USDT both work; converted to Blofin format (e.g. BTC-USDT).</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                {(form.provider ?? config?.provider) === "coinbase"
+                  ? "BTC → BTC_USDC-PERPETUAL on Coinbase."
+                  : "BTC or BTC/USDT both work; converted to Blofin format (e.g. BTC-USDT)."}
+              </p>
             </div>
             <div>
               <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">Timeframe</label>
@@ -3118,11 +3204,14 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
                 </div>
               </div>
               <p className="text-xs text-muted-foreground mb-2 -mt-1">
-                Open orders = pending (unfilled). Positions = open positions only. Order history = filled/canceled. Data comes from Blofin using your saved API keys and the bot&apos;s <strong>Demo/Live</strong> mode in config.
+                Open orders = pending (unfilled). Positions = open positions only. Order history = filled/canceled. Data comes from {(form.provider ?? config?.provider) === "coinbase" ? "Coinbase" : "Blofin"} using your saved API keys and the bot&apos;s <strong>Demo/Live</strong> mode in config.
               </p>
               {blofinPanelMeta && (
                 <p className="text-xs text-muted-foreground mb-1">
-                  Querying Blofin <strong>{blofinPanelMeta.blofinDemo ? "Demo" : "Live"}</strong>
+                  Querying {(form.provider ?? config?.provider) === "coinbase" ? "Coinbase" : "Blofin"}{" "}
+                  <strong>
+                    {(blofinPanelMeta.blofinDemo ?? blofinPanelMeta.coinbaseDemo ?? (blofinPanelMeta as { demo?: boolean }).demo) ? "Demo" : "Live"}
+                  </strong>
                   {blofinPanelMeta.credentialSource === "server" ? " · server env keys" : blofinPanelMeta.credentialSource === "saved" ? " · keys saved in settings" : null}
                 </p>
               )}

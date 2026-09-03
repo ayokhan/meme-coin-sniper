@@ -28,6 +28,12 @@ export const FEATURE_FLAG_KEYS = {
   PAGE_TAB_PROP_FIRM_BOT: 'page_tab_prop_firm_bot',
   /** Blofin auto-sync + API keys in Nova Prop Firm Challenge. When OFF, manual tracking only (no Blofin calls from prop firm). Default ON. */
   PROP_FIRM_BLOFIN: 'prop_firm_blofin',
+  /** Coinbase Futures trading in AI Trading Bot (connect keys, trade, PNL). Master switch. Default OFF until admin enables. */
+  COINBASE_TRADING: 'coinbase_trading',
+  /** When master ON: restrict Coinbase trading to owner only. Default ON (owner testing). Turn OFF for All VIP. */
+  COINBASE_TRADING_OWNER_ONLY: 'coinbase_trading_owner_only',
+  /** Coinbase auto-sync in Nova Prop Firm Challenge. When OFF, manual tracking only. Default OFF. */
+  PROP_FIRM_COINBASE: 'prop_firm_coinbase',
   /** VIP on-demand: Nova Ultimate tab (Solana meme tooling via Jupiter). Independent of AI Trading Bot tab. Default ON. */
   PAGE_TAB_NOVA_ULTIMATE: 'page_tab_nova_ultimate',
   PAGE_TAB_CT: 'page_tab_ct',

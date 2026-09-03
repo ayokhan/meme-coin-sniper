@@ -83,6 +83,14 @@ export const ADMIN_NAV_ITEMS: AdminNavItem[] = [
     ownerOnly: true,
   },
   {
+    href: "/admin/coinbase-users",
+    label: "Coinbase / bot users",
+    description: "Users with Coinbase CDP API keys for Nova bots",
+    icon: KeyRound,
+    group: "users",
+    ownerOnly: true,
+  },
+  {
     href: "/admin/forex-bot-users",
     label: "Forex bot users",
     description: "Users with MT4/MT5 logins for Nova Forex bots (Vantage/TIOmarkets)",

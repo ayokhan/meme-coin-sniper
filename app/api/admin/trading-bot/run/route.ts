@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions, canAccessTradingBot, isOwnerSession } from "@/lib/auth";
 import { runTradingBotCycle } from "@/lib/trading-bot-run";
 import { isBlofinConfigured } from "@/lib/blofin";
+import { isCoinbaseConfigured } from "@/lib/coinbase";
 import { prisma } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
@@ -16,15 +17,21 @@ async function runWithPreCheck(userId?: string, runOpts?: { envFallbackForOwner?
     return { ok: false, message: null, error: "No bot config. Save config first." };
   }
   const provider = ((bot as { provider?: string }).provider ?? "blofin").toLowerCase();
-  if (provider !== "blofin") {
-    return { ok: false, message: null, error: "Only Blofin is supported. Set provider to Blofin in config." };
+  if (!["blofin", "coinbase"].includes(provider)) {
+    return { ok: false, message: null, error: "Config must use Blofin or Coinbase." };
   }
-  // Require global Blofin keys only when running without a user (e.g. cron); per-user run uses user's keys
-  if (!userId && !isBlofinConfigured()) {
+  if (!userId && provider === "blofin" && !isBlofinConfigured()) {
     return {
       ok: false,
       message: null,
       error: "Blofin API keys not set. Set BLOFIN_API_KEY, BLOFIN_SECRET_KEY, BLOFIN_PASSPHRASE in your server env, then redeploy.",
+    };
+  }
+  if (!userId && provider === "coinbase" && !isCoinbaseConfigured()) {
+    return {
+      ok: false,
+      message: null,
+      error: "Coinbase API keys not set. Set COINBASE_API_KEY_NAME and COINBASE_API_SECRET in your server env, then redeploy.",
     };
   }
   const symbol = (bot.symbol ?? "").toString().trim();

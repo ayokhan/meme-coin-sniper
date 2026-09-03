@@ -134,7 +134,12 @@ const FLAG_GROUPS: { id: string; title: string; match: (key: string) => boolean 
   {
     id: "prop-firm",
     title: "Prop Firm Challenge",
-    match: (k) => k === "prop_firm_blofin",
+    match: (k) => k === "prop_firm_blofin" || k === "prop_firm_coinbase",
+  },
+  {
+    id: "coinbase-trading",
+    title: "Coinbase Futures",
+    match: (k) => k.startsWith("coinbase_trading"),
   },
   {
     id: "nova-forex-bots",
@@ -318,6 +323,21 @@ const FLAG_LABELS: Record<string, { label: string; description: string }> = {
     label: "Prop Firm — Blofin integration",
     description:
       "When ON, VIP users can connect Blofin API keys and auto-sync positions/PnL in Nova Prop Firm Challenge. When OFF, manual tracking only — no Blofin API calls from prop firm (saves CPU). Trading Bot Blofin is unaffected. Default ON.",
+  },
+  coinbase_trading: {
+    label: "Coinbase Futures trading",
+    description:
+      "When ON, VIP users can connect Coinbase CDP API keys and trade futures via the AI Trading Bot (same features as Blofin: PNL, positions, closed trades). Pair with coinbase_trading_owner_only for rollout. Default OFF.",
+  },
+  coinbase_trading_owner_only: {
+    label: "Coinbase trading — owner only",
+    description:
+      "When master ON: restrict Coinbase trading to owner session only. Default ON (owner testing). Turn OFF for All VIP.",
+  },
+  prop_firm_coinbase: {
+    label: "Prop Firm — Coinbase integration",
+    description:
+      "When ON, VIP users can connect Coinbase API keys and auto-sync positions/PnL in Nova Prop Firm Challenge. When OFF, manual tracking only. Default OFF.",
   },
   page_tab_nova_ultimate: {
     label: "Tab: Nova Ultimate",

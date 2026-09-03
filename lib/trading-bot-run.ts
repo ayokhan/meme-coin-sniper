@@ -23,6 +23,25 @@ import {
   type BlofinConfig,
 } from "@/lib/blofin";
 import { getBlofinConfigForUser } from "@/lib/blofin-user-config";
+import {
+  getCandles as getCandlesCoinbase,
+  getTicker as getTickerCoinbase,
+  getInstrument as getInstrumentCoinbase,
+  getPositions as getPositionsCoinbase,
+  setLeverage as setLeverageCoinbase,
+  placeMarketOrder as placeMarketOrderCoinbase,
+  placeLimitOrder as placeLimitOrderCoinbase,
+  placeTPSLOrder as placeTPSLOrderCoinbase,
+  closePositionViaApi as closePositionViaApiCoinbase,
+  toCoinbaseBar,
+  toCoinbaseInstrument,
+  isCoinbaseConfigured,
+  getConfig as getCoinbaseEnvConfig,
+  roundCoinbaseSize,
+  clampCoinbaseLeverage,
+  type CoinbaseConfig,
+} from "@/lib/coinbase";
+import { getCoinbaseConfigForUser } from "@/lib/coinbase-user-config";
 import { indicatorsSignal, maCrossoverSignal, candlePatternSignal, findSupportResistance, ema, rsi } from "@/lib/trading-bot-ta";
 import { getAITradingSignal, getAIDeepPositionReview, getAIOpenPositionTactic } from "@/lib/ai-trading-signal";
 
@@ -157,47 +176,50 @@ export async function runTradingBotCycle(
   }
 
   const provider = (bot.provider ?? "blofin").toLowerCase();
-  if (provider !== "blofin") {
-    return { ok: false, error: "Only Blofin is supported. Set provider to Blofin in config." };
-  }
+  const isCoinbase = provider === "coinbase";
+
   let blofinConfig: BlofinConfig | null = null;
-  if (userId) {
-    blofinConfig = await getBlofinConfigForUser(userId);
-  }
-  // Server env keys: cron (no userId), or explicit owner fallback — never for customers / VIP.
-  if (!blofinConfig && userId && runOpts?.envFallbackForOwner) {
-    blofinConfig = getBlofinEnvConfig();
-  }
-  if (!blofinConfig && !userId) {
-    blofinConfig = getBlofinEnvConfig();
-  }
-  if (!blofinConfig) {
-    if (userId) {
-      return { ok: false, error: "Your Blofin API keys are not set. Add your keys in Trading Bot settings." };
+  let coinbaseConfig: CoinbaseConfig | null = null;
+
+  if (isCoinbase) {
+    if (userId) coinbaseConfig = await getCoinbaseConfigForUser(userId);
+    if (!coinbaseConfig && userId && runOpts?.envFallbackForOwner) coinbaseConfig = getCoinbaseEnvConfig();
+    if (!coinbaseConfig && !userId) coinbaseConfig = getCoinbaseEnvConfig();
+    if (!coinbaseConfig) {
+      if (userId) {
+        return { ok: false, error: "Your Coinbase API keys are not set. Add your keys in Trading Bot settings." };
+      }
+      return { ok: false, error: "Coinbase API keys not set. Set COINBASE_API_KEY_NAME and COINBASE_API_SECRET in your server env (e.g. Vercel)." };
     }
-    return { ok: false, error: "Blofin API keys not set. Set BLOFIN_API_KEY, BLOFIN_SECRET_KEY, BLOFIN_PASSPHRASE in your server env (e.g. Vercel)." };
+  } else {
+    if (userId) blofinConfig = await getBlofinConfigForUser(userId);
+    if (!blofinConfig && userId && runOpts?.envFallbackForOwner) blofinConfig = getBlofinEnvConfig();
+    if (!blofinConfig && !userId) blofinConfig = getBlofinEnvConfig();
+    if (!blofinConfig) {
+      if (userId) {
+        return { ok: false, error: "Your Blofin API keys are not set. Add your keys in Trading Bot settings." };
+      }
+      return { ok: false, error: "Blofin API keys not set. Set BLOFIN_API_KEY, BLOFIN_SECRET_KEY, BLOFIN_PASSPHRASE in your server env (e.g. Vercel)." };
+    }
   }
+
   const isDemo = bot.mode === "demo";
-  const blofinOpts = { demo: isDemo, config: blofinConfig };
+  const blofinOpts = blofinConfig ? { demo: isDemo, config: blofinConfig } : undefined;
+  const coinbaseOpts = coinbaseConfig ? { demo: isDemo, config: coinbaseConfig } : undefined;
 
   const rawSymbol = (bot.symbol ?? "").trim().toUpperCase();
   if (!rawSymbol) {
     return { ok: false, error: "Symbol is required (e.g. BTC or BTC/USDT)." };
   }
-  const instId = rawSymbol.includes("/")
-    ? rawSymbol.replace("/", "-")
-    : `${rawSymbol}-${bot.marginCurrency ?? "USDT"}`;
-  const bar = toBlofinBar(bot.timeframe);
+  const instId = isCoinbase
+    ? toCoinbaseInstrument(rawSymbol, bot.marginCurrency ?? "USDC")
+    : rawSymbol.includes("/")
+      ? rawSymbol.replace("/", "-")
+      : `${rawSymbol}-${bot.marginCurrency ?? "USDT"}`;
+  const bar = isCoinbase ? toCoinbaseBar(bot.timeframe) : toBlofinBar(bot.timeframe);
   const strategy = bot.strategy ?? "simple";
   const needMoreCandles = strategy === "indicators" || strategy === "ai" || strategy === "hybrid";
   const candleLimit = needMoreCandles ? 250 : 50;
-
-  const getCandles = getCandlesBlofin;
-  const getTicker = getTickerBlofin;
-  const getInstrument = getInstrumentBlofin;
-  const getPositions = getPositionsBlofin;
-  const setLeverage = setLeverageBlofin;
-  const placeMarketOrder = placeMarketOrderBlofin;
 
   const updateLastRun = async (
     err: string | null,
@@ -222,12 +244,19 @@ export async function runTradingBotCycle(
   };
 
   try {
-    const [candlesRes, tickerRes, instRes, positionsRes] = await Promise.all([
-      getCandles(instId, bar, candleLimit, isDemo, blofinOpts),
-      getTicker(instId, isDemo, blofinOpts),
-      getInstrument(instId, blofinOpts),
-      getPositions(instId, blofinOpts),
-    ]);
+    const [candlesRes, tickerRes, instRes, positionsRes] = isCoinbase
+      ? await Promise.all([
+          getCandlesCoinbase(instId, bar, candleLimit, isDemo, coinbaseOpts),
+          getTickerCoinbase(instId, isDemo, coinbaseOpts),
+          getInstrumentCoinbase(instId, coinbaseOpts),
+          getPositionsCoinbase(instId, coinbaseOpts),
+        ])
+      : await Promise.all([
+          getCandlesBlofin(instId, bar, candleLimit, isDemo, blofinOpts),
+          getTickerBlofin(instId, isDemo, blofinOpts),
+          getInstrumentBlofin(instId, blofinOpts),
+          getPositionsBlofin(instId, blofinOpts),
+        ]);
 
     const minCandles = needMoreCandles ? Math.max(2, (bot.emaPeriod ?? 200) + 5) : 2;
     if (candlesRes.length < minCandles) {
@@ -281,11 +310,15 @@ export async function runTradingBotCycle(
     }
 
     // Position size in config = margin (USDT). Notional = margin × leverage so exchange margin matches.
-    const { leverage: lev } = clampBlofinLeverage(bot.leverage ?? 1, instRes.maxLeverage);
+    const { leverage: lev } = isCoinbase
+      ? clampCoinbaseLeverage(bot.leverage ?? 1, instRes.maxLeverage)
+      : clampBlofinLeverage(bot.leverage ?? 1, instRes.maxLeverage);
     const notionalUsdt = bot.positionSizeUsdt * lev;
     const sizeContracts = notionalUsdt / (lastPrice * contractValue);
     const lotSize = parseFloatSafe(instRes.lotSize) || minSize;
-    const sizeStr = roundBlofinSize(sizeContracts, minSize, lotSize);
+    const sizeStr = isCoinbase
+      ? roundCoinbaseSize(sizeContracts, minSize, lotSize)
+      : roundBlofinSize(sizeContracts, minSize, lotSize);
     if (parseFloat(sizeStr) < minSize) {
       const err = `Position size below minimum (min ${minSize} contracts)`;
       await updateLastRun(err, "no_trade", err);
@@ -293,7 +326,9 @@ export async function runTradingBotCycle(
     }
 
     const marginMode = ((bot as { marginMode?: string }).marginMode ?? "cross") as "isolated" | "cross";
-    const leverageOk = await setLeverage(instId, lev, marginMode, { demo: isDemo, config: blofinConfig });
+    const leverageOk = isCoinbase
+      ? await setLeverageCoinbase(instId, lev, marginMode, coinbaseOpts)
+      : await setLeverageBlofin(instId, lev, marginMode, blofinOpts);
     if (!leverageOk.ok) {
       const err = leverageOk.error ?? "Set leverage failed";
       await updateLastRun(err, "no_trade", err);
@@ -301,7 +336,9 @@ export async function runTradingBotCycle(
     }
 
     const side = signal === "long" ? "buy" : "sell";
-    const order = await placeMarketOrder(instId, side, sizeStr, marginMode, blofinOpts);
+    const order = isCoinbase
+      ? await placeMarketOrderCoinbase(instId, side, sizeStr, marginMode, coinbaseOpts)
+      : await placeMarketOrderBlofin(instId, side, sizeStr, marginMode, blofinOpts);
     if (!order.ok) {
       const err = order.error ?? "Order failed";
       await updateLastRun(err, "no_trade", err);
@@ -311,23 +348,16 @@ export async function runTradingBotCycle(
     const successMsg = `Opened ${signal} ${sizeStr} @ ${lastPrice}`;
 
     if (bot.tpPct > 0 || bot.slPct > 0) {
-      const tpsl = await placeTPSLOrderBlofin(
-        instId,
-        side,
-        sizeStr,
-        marginMode,
-        lastPrice,
-        bot.tpPct,
-        bot.slPct,
-        blofinOpts
-      );
+      const tpsl = isCoinbase
+        ? await placeTPSLOrderCoinbase(instId, side, sizeStr, marginMode, lastPrice, bot.tpPct, bot.slPct, coinbaseOpts)
+        : await placeTPSLOrderBlofin(instId, side, sizeStr, marginMode, lastPrice, bot.tpPct, bot.slPct, blofinOpts);
       if (!tpsl.ok) {
         const warn = `Opened ${signal} ${sizeStr} @ ${lastPrice}, but TP/SL attach failed: ${tpsl.error ?? "unknown"}`;
         console.warn("TP/SL order failed:", tpsl.error);
         await updateLastRun(tpsl.error ?? "TP/SL attach failed", signal, warn, resolved.message ?? undefined);
         return { ok: true, message: warn };
       }
-      const withTpsl = `${successMsg} · TP/SL attached on Blofin`;
+      const withTpsl = `${successMsg} · TP/SL attached on ${isCoinbase ? "Coinbase" : "Blofin"}`;
       await updateLastRun(null, signal, withTpsl, resolved.message ?? undefined);
       return { ok: true, message: withTpsl };
     }
@@ -349,35 +379,47 @@ export async function closeTradingBotPosition(options?: {
   closeInstId?: string;
   closeAll?: boolean;
   posSide?: "long" | "short" | "net";
-  blofinConfig: BlofinConfig;
+  blofinConfig?: BlofinConfig;
+  coinbaseConfig?: CoinbaseConfig;
 }): Promise<{ ok: boolean; message?: string; error?: string }> {
   const closeInstId = options?.closeInstId?.trim();
   const closeAll = options?.closeAll === true;
   const filterPosSide = options?.posSide;
   const blofinConfig = options?.blofinConfig;
-  if (!blofinConfig) return { ok: false, error: "Blofin config missing." };
+  const coinbaseConfig = options?.coinbaseConfig;
+  if (!blofinConfig && !coinbaseConfig) return { ok: false, error: "Exchange config missing." };
 
   const bot = await db.tradingBot.findFirst({ orderBy: { updatedAt: "desc" } });
   if (!bot) return { ok: false, error: "No bot config." };
 
-  const isDemo = blofinConfig.demo;
+  const isCoinbase = !!coinbaseConfig;
+  const isDemo = (coinbaseConfig ?? blofinConfig)!.demo;
   const marginMode = ((bot as { marginMode?: string }).marginMode ?? "cross") as "isolated" | "cross";
-  const blofinOpts = { demo: isDemo, config: blofinConfig };
+  const coinbaseOpts = coinbaseConfig ? { demo: isDemo, config: coinbaseConfig } : undefined;
+  const blofinOpts = blofinConfig ? { demo: isDemo, config: blofinConfig } : undefined;
+
+  const resolveInstId = () => {
+    if (closeInstId) {
+      return isCoinbase
+        ? closeInstId.includes("_") ? closeInstId : toCoinbaseInstrument(closeInstId, bot.marginCurrency ?? "USDC")
+        : closeInstId.replace("/", "-");
+    }
+    const rawSymbol = (bot.symbol ?? "").trim().toUpperCase();
+    if (!rawSymbol) return undefined;
+    return isCoinbase
+      ? toCoinbaseInstrument(rawSymbol, bot.marginCurrency ?? "USDC")
+      : rawSymbol.includes("/")
+        ? rawSymbol.replace("/", "-")
+        : `${rawSymbol}-${bot.marginCurrency ?? "USDT"}`;
+  };
 
   let positions = closeAll
-    ? await getPositionsBlofin(undefined, blofinOpts)
-    : await getPositionsBlofin(
-        closeInstId
-          ? closeInstId.replace("/", "-")
-          : (() => {
-              const rawSymbol = (bot.symbol ?? "").trim().toUpperCase();
-              if (!rawSymbol) return undefined;
-              return rawSymbol.includes("/")
-                ? rawSymbol.replace("/", "-")
-                : `${rawSymbol}-${bot.marginCurrency ?? "USDT"}`;
-            })(),
-        blofinOpts
-      );
+    ? isCoinbase
+      ? await getPositionsCoinbase(undefined, coinbaseOpts)
+      : await getPositionsBlofin(undefined, blofinOpts)
+    : isCoinbase
+      ? await getPositionsCoinbase(resolveInstId(), coinbaseOpts)
+      : await getPositionsBlofin(resolveInstId(), blofinOpts);
 
   if (filterPosSide) {
     positions = positions.filter((p) => {
@@ -391,8 +433,8 @@ export async function closeTradingBotPosition(options?: {
     return {
       ok: false,
       error: closeAll
-        ? "No open positions. Check Bot Mode (Demo/Live) and Blofin API permissions."
-        : "No open position found for this symbol. Check: (1) Bot Mode is Live if the position is on live Blofin. (2) Your Blofin API key has permission to read positions. (3) Symbol matches (e.g. BTC/USDT → BTC-USDT).",
+        ? "No open positions. Check Bot Mode (Demo/Live) and API permissions."
+        : `No open position found for this symbol. Check bot mode and ${isCoinbase ? "Coinbase" : "Blofin"} API permissions.`,
     };
   }
 
@@ -405,8 +447,10 @@ export async function closeTradingBotPosition(options?: {
     // Blofin one-way mode returns positionSide "net"; close-position API expects "net" in that case, not long/short.
     const rawPosSide = (pos as { rawPositionSide?: string }).rawPositionSide?.toLowerCase();
     const positionSide = (rawPosSide === "net" ? "net" : (pos.posSide === "long" || pos.posSide === "short" ? pos.posSide : "net")) as "long" | "short" | "net";
-    let result = await closePositionViaApiBlofin(instId, marginMode, positionSide, blofinOpts);
-    if (!result.ok && positionSide !== "net") {
+    let result = isCoinbase
+      ? await closePositionViaApiCoinbase(instId, marginMode, positionSide, coinbaseOpts)
+      : await closePositionViaApiBlofin(instId, marginMode, positionSide, blofinOpts);
+    if (!result.ok && positionSide !== "net" && !isCoinbase) {
       const errMsg = (result.error ?? "").toLowerCase();
       if (errMsg.includes("closed") || errMsg.includes("position")) {
         result = await closePositionViaApiBlofin(instId, marginMode, "net", blofinOpts);

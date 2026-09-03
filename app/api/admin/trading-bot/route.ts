@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions, canAccessTradingBot } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { isBlofinConfigured } from '@/lib/blofin';
+import { isCoinbaseConfigured } from '@/lib/coinbase';
 import {
   parseMonitorTpTargetsJson,
   parseMonitorTpAmountsJson,
@@ -121,20 +122,27 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ success: false, error: 'Owner only.' }, { status: 403 });
     }
     const body = await request.json().catch(() => ({}));
-    if (body.provider && body.provider !== 'blofin') {
-      return NextResponse.json({ success: false, error: 'Only Blofin is supported.' }, { status: 400 });
-    }
-    if (!isBlofinConfigured()) {
-      return NextResponse.json({
-        success: false,
-        error: 'Blofin API keys not set. Set BLOFIN_API_KEY, BLOFIN_SECRET_KEY, BLOFIN_PASSPHRASE in your server env (e.g. Vercel), then redeploy.',
-      }, { status: 400 });
+    if (body.provider && !['blofin', 'coinbase'].includes(body.provider)) {
+      return NextResponse.json({ success: false, error: 'Provider must be blofin or coinbase.' }, { status: 400 });
     }
     let bot = await db.tradingBot.findFirst({ orderBy: { updatedAt: 'desc' } });
     if (!bot) {
       bot = await db.tradingBot.create({
         data: { provider: 'blofin', symbol: 'BTC', timeframe: '15m', leverage: 5, tpPct: 2, slPct: 1, mode: 'demo', marginCurrency: 'USDT', positionSizeUsdt: 50, enabled: false },
       });
+    }
+    const targetProvider = (body.provider ?? (bot as { provider?: string }).provider ?? 'blofin').toLowerCase();
+    if (targetProvider === 'coinbase' && !isCoinbaseConfigured()) {
+      return NextResponse.json({
+        success: false,
+        error: 'Coinbase API keys not set. Set COINBASE_API_KEY_NAME and COINBASE_API_SECRET in your server env (e.g. Vercel), then redeploy.',
+      }, { status: 400 });
+    }
+    if (targetProvider === 'blofin' && !isBlofinConfigured()) {
+      return NextResponse.json({
+        success: false,
+        error: 'Blofin API keys not set. Set BLOFIN_API_KEY, BLOFIN_SECRET_KEY, BLOFIN_PASSPHRASE in your server env (e.g. Vercel), then redeploy.',
+      }, { status: 400 });
     }
     const merged = {
       symbol: (body.symbol ?? bot.symbol ?? '').toString().trim(),
@@ -153,7 +161,7 @@ export async function PATCH(request: Request) {
     if (validationError) {
       return NextResponse.json({ success: false, error: validationError }, { status: 400 });
     }
-    const updates: Record<string, unknown> = { provider: 'blofin' };
+    const updates: Record<string, unknown> = { provider: targetProvider };
     updates.symbol = merged.symbol.toUpperCase();
     updates.timeframe = merged.timeframe;
     updates.leverage = merged.leverage;
@@ -302,10 +310,16 @@ export async function POST(request: Request) {
     const enabled = action === 'start';
     if (enabled) {
       const provider = ((bot as { provider?: string }).provider ?? 'blofin').toLowerCase();
-      if (provider !== 'blofin') {
-        return NextResponse.json({ success: false, error: 'Only Blofin is supported. Config must use Blofin.' }, { status: 400 });
+      if (!['blofin', 'coinbase'].includes(provider)) {
+        return NextResponse.json({ success: false, error: 'Config must use Blofin or Coinbase.' }, { status: 400 });
       }
-      if (!isBlofinConfigured()) {
+      if (provider === 'coinbase' && !isCoinbaseConfigured()) {
+        return NextResponse.json({
+          success: false,
+          error: 'Coinbase API keys not set. Set COINBASE_API_KEY_NAME and COINBASE_API_SECRET in your server env (e.g. Vercel), then redeploy.',
+        }, { status: 400 });
+      }
+      if (provider === 'blofin' && !isBlofinConfigured()) {
         return NextResponse.json({
           success: false,
           error: 'Blofin API keys not set. Set BLOFIN_API_KEY, BLOFIN_SECRET_KEY, BLOFIN_PASSPHRASE in your server env (e.g. Vercel), then redeploy.',

@@ -21,6 +21,8 @@ export async function GET() {
     liveSupportChatEnabled: flags[FEATURE_FLAG_KEYS.LIVE_SUPPORT_CHAT] ?? false,
     enterLandingEnabled: flags[FEATURE_FLAG_KEYS.ENTER_LANDING_ENABLED] ?? true,
     pnlShare: pnlShareFlagsFromRecord(flags),
+    coinbaseTrading: flags[FEATURE_FLAG_KEYS.COINBASE_TRADING] ?? false,
+    coinbaseTradingOwnerOnly: flags[FEATURE_FLAG_KEYS.COINBASE_TRADING_OWNER_ONLY] ?? true,
   });
 }
 

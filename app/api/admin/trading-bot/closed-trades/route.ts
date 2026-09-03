@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { getFillsHistory, getOrderHistory } from "@/lib/blofin";
+import { getFillsHistory as getFillsHistoryBlofin, getOrderHistory as getOrderHistoryBlofin } from "@/lib/blofin";
+import { getFillsHistory as getFillsHistoryCoinbase, getOrderHistory as getOrderHistoryCoinbase } from "@/lib/coinbase";
 import {
   analyzeClosedTrades,
   closedTradesFromFills,
@@ -13,7 +14,7 @@ import {
   sumClosedTradesRealized,
   type ClosedTradesPeriod,
 } from "@/lib/closed-trades";
-import { getTradingBotBlofinMeta, resolveBlofinConfigForTradingBotSession } from "@/lib/trading-bot-blofin-session";
+import { resolveExchangeConfigForTradingBotSession, getTradingBotExchangeMeta } from "@/lib/trading-bot-exchange-session";
 import { prisma } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
@@ -33,12 +34,14 @@ async function getBotLeverage(): Promise<number> {
 export async function GET(req: Request) {
   try {
     const session = await getServerSession(authOptions);
-    const resolved = await resolveBlofinConfigForTradingBotSession(session);
+    const resolved = await resolveExchangeConfigForTradingBotSession(session);
     if (!resolved.ok) {
       return NextResponse.json({ success: false, error: resolved.error }, { status: resolved.status });
     }
-    const { config, credentialSource } = resolved;
-    const blofin = await getTradingBotBlofinMeta(config, credentialSource);
+    const { provider, credentialSource } = resolved;
+    const config = provider === "coinbase" ? resolved.coinbase! : resolved.blofin!;
+    const exchange = await getTradingBotExchangeMeta(provider, credentialSource, config);
+    const isDemo = exchange.demo;
     const leverage = await getBotLeverage();
     const { searchParams } = new URL(req.url);
     const limit = Math.min(100, Math.max(1, parseInt(searchParams.get("limit") ?? "100", 10) || 100));
@@ -48,20 +51,17 @@ export async function GET(req: Request) {
     const period: ClosedTradesPeriod = valid.includes(normalized as ClosedTradesPeriod)
       ? (normalized as ClosedTradesPeriod)
       : "7d";
-    // Fetch recent fills/orders without Blofin `begin` — short windows (24h) were returning
-    // empty sets from the API; period filtering is applied client-side below.
-    const [fills, orders] = await Promise.all([
-      getFillsHistory({
-        demo: blofin.blofinDemo,
-        limit,
-        config,
-      }).catch(() => []),
-      getOrderHistory({
-        demo: blofin.blofinDemo,
-        limit,
-        config,
-      }),
-    ]);
+
+    const [fills, orders] =
+      provider === "coinbase"
+        ? await Promise.all([
+            getFillsHistoryCoinbase({ demo: isDemo, limit, config: resolved.coinbase! }).catch(() => []),
+            getOrderHistoryCoinbase({ demo: isDemo, limit, config: resolved.coinbase! }),
+          ])
+        : await Promise.all([
+            getFillsHistoryBlofin({ demo: isDemo, limit, config: resolved.blofin! }).catch(() => []),
+            getOrderHistoryBlofin({ demo: isDemo, limit, config: resolved.blofin! }),
+          ]);
 
     const leverageByInst = new Map<string, number>();
     const leverageByOrderId = new Map<string, number>();
@@ -87,7 +87,10 @@ export async function GET(req: Request) {
       periodLabel: closedTradesPeriodLabel(period),
       periodDays: closedTradesPeriodDays(period),
       leverageUsed: leverage,
-      blofin,
+      provider,
+      exchange,
+      blofin: provider === "blofin" ? exchange : undefined,
+      coinbase: provider === "coinbase" ? exchange : undefined,
     });
   } catch (e) {
     console.error("Trading bot closed-trades:", e);

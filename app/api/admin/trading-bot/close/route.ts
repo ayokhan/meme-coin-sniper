@@ -1,16 +1,16 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { authOptions, canAccessTradingBot, isOwnerSession } from "@/lib/auth";
 import { closeTradingBotPosition } from "@/lib/trading-bot-run";
-import { resolveBlofinConfigForTradingBotSession } from "@/lib/trading-bot-blofin-session";
+import { resolveExchangeConfigForTradingBotSession } from "@/lib/trading-bot-exchange-session";
 
 export const dynamic = "force-dynamic";
 
-/** POST - Close open position(s) on the signed-in user's Blofin account. Body: { instId?: string }; { closeAll: true }; omit instId to close bot symbol from shared config. */
+/** POST - Close open position(s) on the signed-in user's exchange account. */
 export async function POST(req: Request) {
   try {
     const session = await getServerSession(authOptions);
-    const resolved = await resolveBlofinConfigForTradingBotSession(session);
+    const resolved = await resolveExchangeConfigForTradingBotSession(session);
     if (!resolved.ok) {
       return NextResponse.json({ success: false, error: resolved.error }, { status: resolved.status });
     }
@@ -29,7 +29,8 @@ export async function POST(req: Request) {
       closeInstId,
       closeAll,
       posSide,
-      blofinConfig: resolved.config,
+      blofinConfig: resolved.blofin,
+      coinbaseConfig: resolved.coinbase,
     });
     if (!result.ok) {
       return NextResponse.json(
