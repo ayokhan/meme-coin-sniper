@@ -2625,29 +2625,30 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
             <CoinbasePartnerPromoBanner />
             <CoinbaseFuturesFormatNote />
             <p className="text-sm text-muted-foreground">
-              Connect a <strong>Coinbase CDP</strong> API key (not the old Advanced Trade API secret). Create keys at{" "}
+              Connect a <strong>Coinbase CDP</strong> API key from{" "}
               <a href="https://portal.cdp.coinbase.com" target="_blank" rel="noopener noreferrer" className="text-cyan-600 dark:text-cyan-400 hover:underline">
                 portal.cdp.coinbase.com
-              </a>{" "}
-              with <strong>view</strong> and <strong>trade</strong> permissions. Download the key file and paste the{" "}
-              <strong>private key PEM</strong> (starts with <code className="text-[11px]">-----BEGIN EC PRIVATE KEY-----</code>) — a short API secret string will not work. Keys are encrypted at rest.
+              </a>
+              . Easiest: open your downloaded <code className="text-[11px]">cdp_api_key.json</code> and paste the{" "}
+              <strong>entire file</strong> into the private key box (we read <code className="text-[11px]">id</code> +{" "}
+              <code className="text-[11px]">privateKey</code>). Keys are encrypted at rest.
             </p>
             {userCoinbaseConfigured === true && (
               <p className="text-sm text-emerald-600 dark:text-emerald-400">Coinbase keys are configured.</p>
             )}
             <div className="grid grid-cols-1 gap-3">
               <div>
-                <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">API Key Name</label>
-                <input type="password" placeholder="organizations/…/apiKeys/…" value={coinbaseKeysForm.apiKeyName} onChange={(e) => setCoinbaseKeysForm((f) => ({ ...f, apiKeyName: e.target.value }))} className="w-full rounded border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2 py-1.5 text-sm" />
+                <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">API Key Name / id (optional if pasting full JSON)</label>
+                <input type="password" placeholder="uuid from cdp_api_key.json → id" value={coinbaseKeysForm.apiKeyName} onChange={(e) => setCoinbaseKeysForm((f) => ({ ...f, apiKeyName: e.target.value }))} className="w-full rounded border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2 py-1.5 text-sm" />
               </div>
               <div>
-                <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">CDP private key (PEM)</label>
-                <textarea placeholder={"-----BEGIN EC PRIVATE KEY-----\n…\n-----END EC PRIVATE KEY-----"} value={coinbaseKeysForm.apiSecret} onChange={(e) => setCoinbaseKeysForm((f) => ({ ...f, apiSecret: e.target.value }))} rows={4} className="w-full rounded border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2 py-1.5 text-sm font-mono" />
-                <p className="mt-1 text-[11px] text-muted-foreground">Not the HMAC “API secret”. Use the PEM from the CDP key download (or paste the whole JSON key file).</p>
+                <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">CDP private key or full JSON file</label>
+                <textarea placeholder={'Paste whole cdp_api_key.json here\n\nor privateKey only'} value={coinbaseKeysForm.apiSecret} onChange={(e) => setCoinbaseKeysForm((f) => ({ ...f, apiSecret: e.target.value }))} rows={5} className="w-full rounded border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2 py-1.5 text-sm font-mono" />
+                <p className="mt-1 text-[11px] text-muted-foreground">Supports new Ed25519 JSON downloads and older EC PEM keys. No Vercel env change needed if you save here.</p>
               </div>
             </div>
             <div className="flex gap-2">
-              <Button size="sm" disabled={savingCoinbaseKeys || !coinbaseKeysForm.apiKeyName || !coinbaseKeysForm.apiSecret} onClick={async () => { setSavingCoinbaseKeys(true); try { const res = await fetch("/api/user/coinbase-config", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ apiKeyName: coinbaseKeysForm.apiKeyName, apiSecret: coinbaseKeysForm.apiSecret, demoMode: coinbaseKeysForm.demoMode }) }); const data = await res.json(); if (data.success) { setUserCoinbaseConfigured(true); setCoinbaseKeysForm((f) => ({ ...f, apiKeyName: "", apiSecret: "" })); setSuccess("Coinbase keys saved."); } else setError(data.error ?? "Save failed"); } finally { setSavingCoinbaseKeys(false); } }}>{savingCoinbaseKeys ? "Saving…" : "Save Coinbase keys"}</Button>
+              <Button size="sm" disabled={savingCoinbaseKeys || !coinbaseKeysForm.apiSecret} onClick={async () => { setSavingCoinbaseKeys(true); try { const res = await fetch("/api/user/coinbase-config", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ apiKeyName: coinbaseKeysForm.apiKeyName, apiSecret: coinbaseKeysForm.apiSecret, demoMode: coinbaseKeysForm.demoMode }) }); const data = await res.json(); if (data.success) { setUserCoinbaseConfigured(true); setCoinbaseKeysForm((f) => ({ ...f, apiKeyName: "", apiSecret: "" })); setSuccess("Coinbase keys saved."); } else setError(data.error ?? "Save failed"); } finally { setSavingCoinbaseKeys(false); } }}>{savingCoinbaseKeys ? "Saving…" : "Save Coinbase keys"}</Button>
               {userCoinbaseConfigured && (
                 <Button size="sm" variant="outline" disabled={clearingCoinbaseKeys} onClick={async () => { setClearingCoinbaseKeys(true); try { const res = await fetch("/api/user/coinbase-config", { method: "DELETE" }); const data = await res.json(); if (data.success) { setUserCoinbaseConfigured(false); setSuccess("Coinbase keys cleared."); } } finally { setClearingCoinbaseKeys(false); loadUserCoinbaseConfig(); } }}>{clearingCoinbaseKeys ? "…" : "Clear keys"}</Button>
               )}

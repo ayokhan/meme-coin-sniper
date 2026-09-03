@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions, isOwnerSession } from "@/lib/auth";
-import { getConfig, validateCoinbasePrivateKey } from "@/lib/coinbase";
+import { getConfig, parseCdpApiKeyDownload, validateCoinbasePrivateKey } from "@/lib/coinbase";
 import {
   getCoinbaseConfigForUser,
   saveCoinbaseConfigForUser,
@@ -62,10 +62,25 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: false, error: "Coinbase trading is disabled." }, { status: 403 });
     }
     const body = await request.json().catch(() => ({}));
-    const apiKeyName = String(body.apiKeyName ?? "").trim();
-    const apiSecretRaw = String(body.apiSecret ?? "").trim();
+    let apiKeyName = String(body.apiKeyName ?? "").trim();
+    let apiSecretRaw = String(body.apiSecret ?? "").trim();
+    // Allow pasting the whole CDP download JSON into either field.
+    const fromJson =
+      parseCdpApiKeyDownload(apiSecretRaw) ??
+      (apiKeyName.startsWith("{") ? parseCdpApiKeyDownload(apiKeyName) : null);
+    if (fromJson) {
+      apiKeyName = fromJson.apiKeyId;
+      apiSecretRaw = fromJson.privateKey;
+    }
     if (!apiKeyName || !apiSecretRaw) {
-      return NextResponse.json({ success: false, error: "apiKeyName and apiSecret are required." }, { status: 400 });
+      return NextResponse.json(
+        {
+          success: false,
+          error:
+            "Paste your CDP key: API Key Name (id) + privateKey, or paste the whole cdp_api_key.json contents into the private key box.",
+        },
+        { status: 400 }
+      );
     }
     const keyCheck = validateCoinbasePrivateKey(apiSecretRaw);
     if (!keyCheck.ok) {

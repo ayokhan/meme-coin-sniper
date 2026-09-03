@@ -845,42 +845,42 @@ export default function NovaScalperPanel() {
             <CoinbasePartnerPromoBanner compact />
             <CoinbaseFuturesFormatNote />
             <p className="text-sm text-muted-foreground">
-              Connect a <strong>Coinbase CDP</strong> API key (not an HMAC API secret). Create keys at{" "}
+              Paste your CDP <code className="text-[11px]">cdp_api_key.json</code> (whole file) into the private key box, or paste{" "}
+              <code className="text-[11px]">id</code> + <code className="text-[11px]">privateKey</code> separately. From{" "}
               <a href="https://portal.cdp.coinbase.com" target="_blank" rel="noopener noreferrer" className="text-cyan-600 dark:text-cyan-400 hover:underline">
                 portal.cdp.coinbase.com
-              </a>{" "}
-              with <strong>view</strong> and <strong>trade</strong> permissions. Paste the private key PEM from the key download.
+              </a>
+              .
             </p>
             {userCoinbaseConfigured === true && (
               <p className="text-sm text-emerald-600 dark:text-emerald-400">Coinbase keys are configured.</p>
             )}
             <div className="grid grid-cols-1 gap-3">
               <div>
-                <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">API Key Name</label>
+                <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">API Key Name / id (optional if pasting full JSON)</label>
                 <input
                   type="password"
-                  placeholder="organizations/…/apiKeys/…"
+                  placeholder="uuid from cdp_api_key.json → id"
                   value={coinbaseKeysForm.apiKeyName}
                   onChange={(e) => setCoinbaseKeysForm((f) => ({ ...f, apiKeyName: e.target.value }))}
                   className="w-full rounded border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2 py-1.5 text-sm"
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">CDP private key (PEM)</label>
+                <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">CDP private key or full JSON file</label>
                 <textarea
-                  placeholder={"-----BEGIN EC PRIVATE KEY-----\n…\n-----END EC PRIVATE KEY-----"}
+                  placeholder={'Paste whole cdp_api_key.json here'}
                   value={coinbaseKeysForm.apiSecret}
                   onChange={(e) => setCoinbaseKeysForm((f) => ({ ...f, apiSecret: e.target.value }))}
-                  rows={4}
+                  rows={5}
                   className="w-full rounded border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2 py-1.5 text-sm font-mono"
                 />
-                <p className="mt-1 text-[11px] text-muted-foreground">Not the short HMAC “API secret”. Use the PEM (or whole JSON key file) from CDP.</p>
               </div>
             </div>
             <div className="flex flex-wrap gap-2">
               <Button
                 size="sm"
-                disabled={savingCoinbaseKeys || !coinbaseKeysForm.apiKeyName || !coinbaseKeysForm.apiSecret}
+                disabled={savingCoinbaseKeys || !coinbaseKeysForm.apiSecret}
                 onClick={async () => {
                   setSavingCoinbaseKeys(true);
                   try {
