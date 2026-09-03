@@ -1186,7 +1186,7 @@ export default function NovaScalperPanel() {
           <div className="rounded-md border border-zinc-200/90 dark:border-zinc-600/80 bg-zinc-50/80 dark:bg-zinc-900/40 p-3 text-xs text-muted-foreground space-y-1">
             <p>
               <strong className="text-foreground">Exit target:</strong> when price crosses your exit level (same
-              cross-style logic as entry, using last price), NovaScalper calls Blofin&apos;s{" "}
+              cross-style logic as entry, using last price), NovaScalper calls {exchangeLabel}&apos;s{" "}
               <strong className="text-foreground">close position</strong> API—the same mechanism the Crypto Futures bot uses
               for manual <strong className="text-foreground">Close</strong> on that symbol.
             </p>
@@ -1408,18 +1408,18 @@ export default function NovaScalperPanel() {
                   : "rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3"
                 : "rounded-xl border border-zinc-200/80 dark:border-zinc-700/70 bg-zinc-100/50 dark:bg-zinc-950/40 px-4 py-3"
             }
-            title="Unrealized PnL from your Blofin position for this contract. If the exchange does not return it directly, we estimate from mark vs average entry."
+            title={`Unrealized PnL from your ${exchangeLabel} position for this contract. If the exchange does not return it directly, we estimate from mark vs average entry.`}
           >
             <p className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground mb-1">
               Live unrealized PnL
             </p>
             {pnl.needsKeys ? (
-              <p className="text-sm text-muted-foreground">Save Blofin keys above to load from the exchange</p>
+              <p className="text-sm text-muted-foreground">Save {exchangeLabel} keys above to load from the exchange</p>
             ) : pnl.loading ? (
               <p className="text-sm text-muted-foreground animate-pulse">Fetching…</p>
             ) : !pnl.hasPosition ? (
               <p className="text-sm text-muted-foreground">
-                Flat on Blofin{displayInstId ? ` · ${displayInstId}` : ""}
+                Flat on {exchangeLabel}{displayInstId ? ` · ${displayInstId}` : ""}
               </p>
             ) : pnl.upl != null && Number.isFinite(pnl.upl) ? (
               <p
