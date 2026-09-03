@@ -22,7 +22,12 @@ import {
   downloadPnlCalculatorPostcard,
   drawPnlCalculatorPostcard,
 } from "@/lib/pnl-calculator-share-image";
-import { sharePnlWithFallback } from "@/lib/pnl-share";
+import {
+  buildCoinbasePartnerShareCaption,
+  downloadCoinbasePartnerPostcard,
+  drawCoinbasePartnerPostcard,
+} from "@/lib/coinbase-partner-share-image";
+import { openTelegramShare, sharePnlWithFallback } from "@/lib/pnl-share";
 
 type RecentRegistrant = {
   email: string;
@@ -899,6 +904,153 @@ export default function AdminEmailsPanel({ onNotice, onError }: Props) {
             >
               {announcementBusy ? "Publishing…" : "Publish in-app announcement"}
             </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card id="coinbase-postcard" className="border-blue-200/80 dark:border-blue-800/50 scroll-mt-24">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base">Coinbase × NovaStaris — social postcards</CardTitle>
+          <p className="text-sm text-muted-foreground">
+            Owner/admin marketing for X, Instagram, WhatsApp, and Telegram. Share or download the image, then paste the
+            caption. Includes the referral join link.
+          </p>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="rounded-lg border border-blue-200/70 dark:border-blue-800/40 overflow-hidden bg-zinc-950 max-w-sm">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/marketing/novastaris-coinbase-postcard-premium.png"
+              alt="NovaStaris Coinbase premium postcard preview"
+              className="w-full h-auto"
+            />
+          </div>
+          <div className="space-y-2">
+            <p className="text-xs font-semibold text-blue-800 dark:text-blue-200">Premium (recommended)</p>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                type="button"
+                size="sm"
+                disabled={postcardBusy}
+                onClick={async () => {
+                  setPostcardBusy(true);
+                  try {
+                    const blob = await drawCoinbasePartnerPostcard("premium");
+                    await sharePnlWithFallback(
+                      blob,
+                      `NovaStaris_Coinbase_Premium_${new Date().toISOString().slice(0, 10)}.png`,
+                      buildCoinbasePartnerShareCaption()
+                    );
+                    onNotice?.("Coinbase premium postcard shared or downloaded.");
+                  } finally {
+                    setPostcardBusy(false);
+                  }
+                }}
+              >
+                {postcardBusy ? "Preparing…" : "Share premium"}
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                disabled={postcardBusy}
+                onClick={async () => {
+                  setPostcardBusy(true);
+                  try {
+                    await downloadCoinbasePartnerPostcard("premium");
+                    onNotice?.("Coinbase premium postcard downloaded.");
+                  } finally {
+                    setPostcardBusy(false);
+                  }
+                }}
+              >
+                Download premium
+              </Button>
+            </div>
+          </div>
+          <div className="space-y-2">
+            <p className="text-xs font-semibold text-zinc-600 dark:text-zinc-400">Classic (generated)</p>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                type="button"
+                size="sm"
+                variant="secondary"
+                disabled={postcardBusy}
+                onClick={async () => {
+                  setPostcardBusy(true);
+                  try {
+                    const blob = await drawCoinbasePartnerPostcard("classic");
+                    await sharePnlWithFallback(
+                      blob,
+                      `NovaStaris_Coinbase_Classic_${new Date().toISOString().slice(0, 10)}.jpg`,
+                      buildCoinbasePartnerShareCaption()
+                    );
+                    onNotice?.("Coinbase classic postcard shared or downloaded.");
+                  } finally {
+                    setPostcardBusy(false);
+                  }
+                }}
+              >
+                Share classic
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                disabled={postcardBusy}
+                onClick={async () => {
+                  setPostcardBusy(true);
+                  try {
+                    await downloadCoinbasePartnerPostcard("classic");
+                    onNotice?.("Coinbase classic postcard downloaded.");
+                  } finally {
+                    setPostcardBusy(false);
+                  }
+                }}
+              >
+                Download classic
+              </Button>
+            </div>
+          </div>
+          <div className="pt-2 border-t border-blue-200/60 dark:border-blue-800/40 space-y-2">
+            <p className="text-xs text-muted-foreground">
+              Caption for WhatsApp / Telegram / IG (referral link included). On mobile, Share premium opens the system
+              share sheet (WA / TG / IG). On desktop, download then upload.
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={async () => {
+                  try {
+                    await navigator.clipboard.writeText(buildCoinbasePartnerShareCaption());
+                    onNotice?.("Coinbase caption copied — paste into WhatsApp / IG.");
+                  } catch {
+                    onError?.("Could not copy caption.");
+                  }
+                }}
+              >
+                Copy caption (WA / IG)
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  openTelegramShare(
+                    buildCoinbasePartnerShareCaption(),
+                    "https://coinbase.com/join/WGVMDA2?src=referral-link"
+                  );
+                  onNotice?.("Telegram share opened.");
+                }}
+              >
+                Open Telegram share
+              </Button>
+              <Button type="button" size="sm" variant="outline" asChild>
+                <Link href="/admin/emails?preset=coinbase-partnership">Load email preset</Link>
+              </Button>
+            </div>
           </div>
         </CardContent>
       </Card>

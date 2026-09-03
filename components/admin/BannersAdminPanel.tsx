@@ -1416,6 +1416,9 @@ export default function BannersAdminPanel({ onNotice, onError }: Props) {
                 <Button size="sm" variant="outline" asChild>
                   <Link href="/admin/emails?preset=coinbase-referral">Referral email</Link>
                 </Button>
+                <Button size="sm" variant="outline" asChild>
+                  <Link href="/admin/emails#coinbase-postcard">Social postcard</Link>
+                </Button>
               </div>
               <p className="text-[11px] text-muted-foreground">
                 Link clicks: {coinbasePartner.registerClickCount}. Launch email body: {COINBASE_PARTNERSHIP_EMAIL.subject}
