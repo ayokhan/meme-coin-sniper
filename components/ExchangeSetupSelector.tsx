@@ -219,6 +219,62 @@ export function ExchangeSetupSelector({
   );
 }
 
+/** Compact Blofin / Coinbase / Both switcher for the positions panel. */
+export function PositionsExchangeFilter({
+  value,
+  onChange,
+  coinbaseAvailable = true,
+  className = "",
+}: {
+  value: ExchangeSetupMode;
+  onChange: (mode: ExchangeSetupMode) => void;
+  coinbaseAvailable?: boolean;
+  className?: string;
+}) {
+  const options: { id: ExchangeSetupMode; label: string }[] = [
+    { id: "blofin", label: "Blofin" },
+    ...(coinbaseAvailable
+      ? [
+          { id: "coinbase" as const, label: "Coinbase" },
+          { id: "both" as const, label: "Both" },
+        ]
+      : []),
+  ];
+
+  return (
+    <div className={`flex flex-wrap items-center gap-2 ${className}`}>
+      <span className="text-[11px] text-muted-foreground shrink-0">Show</span>
+      <div
+        className="inline-flex rounded-md border border-zinc-300 dark:border-zinc-600 p-0.5 bg-zinc-100/90 dark:bg-zinc-800/90"
+        role="group"
+        aria-label="Filter positions by exchange"
+      >
+        {options.map((opt) => {
+          const active = value === opt.id;
+          return (
+            <button
+              key={opt.id}
+              type="button"
+              onClick={() => onChange(opt.id)}
+              className={`px-2.5 py-1 rounded text-xs font-medium transition-colors ${
+                active
+                  ? opt.id === "coinbase"
+                    ? "bg-blue-600 text-white"
+                    : opt.id === "both"
+                      ? "bg-zinc-800 text-white dark:bg-zinc-200 dark:text-zinc-900"
+                      : "bg-cyan-600 text-white"
+                  : "text-zinc-600 dark:text-zinc-300 hover:bg-zinc-200/80 dark:hover:bg-zinc-700/80"
+              }`}
+            >
+              {opt.label}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 export function CoinbaseFuturesFormatNote({ className = "" }: { className?: string }) {
   return (
     <div

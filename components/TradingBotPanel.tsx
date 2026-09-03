@@ -33,14 +33,18 @@ import { ExchangeKeysStatus } from "@/components/ExchangeKeysStatus";
 import {
   CoinbaseFuturesFormatNote,
   ExchangeSetupSelector,
+  PositionsExchangeFilter,
   exchangeSetupShowsBlofin,
   exchangeSetupShowsCoinbase,
+  type ExchangeSetupMode,
 } from "@/components/ExchangeSetupSelector";
 import { useExchangeSetupMode } from "@/lib/use-exchange-setup-mode";
 import { buildAnalysisShareCaption } from "@/lib/pnl-share";
 import { DEFAULT_PNL_SHARE_FLAGS, type PnlShareFlags } from "@/lib/pnl-share-flags";
 import { NOVASTARIS_POLY_OPEN_RADAR_ANALYZE, NOVASTARIS_POLY_RADAR_ANALYZE_WALLET } from "@/lib/novastaris-polymarket-events";
 import { useSession } from "next-auth/react";
+
+type ExchangeVenue = "blofin" | "coinbase";
 
 type PositionWithPnl = {
   instId: string;
@@ -56,6 +60,7 @@ type PositionWithPnl = {
   margin?: number | null;
   marginRatioBlofin?: number | null;
   initialMarginPct?: number | null;
+  exchange?: ExchangeVenue;
 };
 
 type ClosedTradeRow = {
@@ -71,7 +76,53 @@ type ClosedTradeRow = {
   openedAt: string | null;
   closedAt: string | null;
   source: "fills" | "orders";
+  exchange?: ExchangeVenue;
 };
+
+type OpenOrderRow = {
+  orderId: string;
+  instId: string;
+  side: string;
+  orderType: string;
+  size: string;
+  price: string;
+  state: string;
+  createdAt?: string;
+  exchange?: ExchangeVenue;
+};
+
+type OrderHistoryRow = OpenOrderRow & { fillPrice?: string; pnl?: string };
+
+type PanelMeta = {
+  blofinDemo?: boolean;
+  coinbaseDemo?: boolean;
+  demo?: boolean;
+  credentialSource?: string;
+  modeMismatchHint?: string;
+  provider?: ExchangeVenue;
+};
+
+function venueLabel(ex: ExchangeVenue): string {
+  return ex === "coinbase" ? "Coinbase" : "Blofin";
+}
+
+function withProviderQuery(url: string, provider: ExchangeVenue): string {
+  return `${url}${url.includes("?") ? "&" : "?"}provider=${provider}`;
+}
+
+async function fetchVenuePayload(url: string): Promise<{ ok: boolean; status: number; data: Record<string, unknown> }> {
+  const res = await fetch(url);
+  const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+  return { ok: res.ok && data.success === true, status: res.status, data };
+}
+
+function venuesForView(view: ExchangeSetupMode, coinbaseAvailable: boolean): ExchangeVenue[] {
+  if (!coinbaseAvailable) return ["blofin"];
+  if (view === "both") return ["blofin", "coinbase"];
+  return [view === "coinbase" ? "coinbase" : "blofin"];
+}
+
+const POSITIONS_VIEW_KEY = "novastaris-positions-view";
 
 function formatOrderSize(size: string): string {
   const n = parseFloat(size);
@@ -262,22 +313,15 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
     markPrice: number | null;
   } | null>(null);
   const [positionsLoading, setPositionsLoading] = useState(false);
-  /** Focus one open position at a time in the Positions tab (instId|posSide). */
-  const [focusedPositionKey, setFocusedPositionKey] = useState<string | null>(null);
-  const [orderHistory, setOrderHistory] = useState<{ orderId: string; instId: string; side: string; orderType: string; size: string; price: string; state: string; fillPrice?: string; createdAt?: string; pnl?: string }[]>([]);
+  const [orderHistory, setOrderHistory] = useState<OrderHistoryRow[]>([]);
   const [orderHistoryLoading, setOrderHistoryLoading] = useState(false);
-  const [openOrders, setOpenOrders] = useState<{ orderId: string; instId: string; side: string; orderType: string; size: string; price: string; state: string; createdAt?: string }[]>([]);
+  const [openOrders, setOpenOrders] = useState<OpenOrderRow[]>([]);
   const [openOrdersLoading, setOpenOrdersLoading] = useState(false);
   const [openOrdersError, setOpenOrdersError] = useState<string | null>(null);
   const [positionsFetchError, setPositionsFetchError] = useState<string | null>(null);
   const [orderHistoryError, setOrderHistoryError] = useState<string | null>(null);
-  const [blofinPanelMeta, setBlofinPanelMeta] = useState<{
-    blofinDemo?: boolean;
-    coinbaseDemo?: boolean;
-    demo?: boolean;
-    credentialSource?: string;
-    modeMismatchHint?: string;
-  } | null>(null);
+  const [blofinPanelMeta, setBlofinPanelMeta] = useState<PanelMeta | null>(null);
+  const [positionsSectionErrors, setPositionsSectionErrors] = useState<Partial<Record<ExchangeVenue, string | null>>>({});
   const [cancelingOrderId, setCancelingOrderId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<"open_orders" | "positions" | "orders">("positions");
   const [limitOrderPrice, setLimitOrderPrice] = useState("");
@@ -337,6 +381,29 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
     "novastaris-exchange-trading-bot",
     "blofin"
   );
+  const { mode: positionsView, setMode: setPositionsView, hydrated: positionsViewHydrated } = useExchangeSetupMode(
+    POSITIONS_VIEW_KEY,
+    "blofin"
+  );
+  const positionsViewBootstrapped = useRef(false);
+  const effectivePositionsView: ExchangeSetupMode = coinbaseTradingEnabled ? positionsView : "blofin";
+
+  useEffect(() => {
+    if (!positionsViewHydrated || positionsViewBootstrapped.current || config == null) return;
+    try {
+      const stored = localStorage.getItem(POSITIONS_VIEW_KEY);
+      if (stored === "blofin" || stored === "coinbase" || stored === "both") {
+        positionsViewBootstrapped.current = true;
+        return;
+      }
+    } catch {
+      /* ignore */
+    }
+    if (config.provider === "coinbase" && coinbaseTradingEnabled) {
+      setPositionsView("coinbase");
+    }
+    positionsViewBootstrapped.current = true;
+  }, [positionsViewHydrated, config, coinbaseTradingEnabled, setPositionsView]);
 
   const [form, setForm] = useState<Partial<Config>>({});
   const [botSubTab, setBotSubTab] = useState<"ai" | "scalper" | "polymarket">("ai");
@@ -751,30 +818,55 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
     iso ? new Date(iso).toLocaleString(undefined, { dateStyle: "short", timeStyle: "short" }) : null;
 
   const fetchPositions = useCallback(async () => {
+    const venues = venuesForView(effectivePositionsView, coinbaseTradingEnabled);
     try {
       setPositionsLoading(true);
       setPositionsFetchError(null);
-      const res = await fetch("/api/admin/trading-bot/positions");
-      const data = await res.json().catch(() => ({}));
-      if (data.success && Array.isArray(data.positions)) {
-        if (data.blofin) setBlofinPanelMeta(data.blofin);
-        if (data.coinbase) setBlofinPanelMeta(data.coinbase);
-        if (data.exchange) setBlofinPanelMeta(data.exchange);
-        setPositionsData({
-          positions: data.positions,
-          totalUnrealizedPnl: data.totalUnrealizedPnl ?? 0,
-          markPrice: data.markPrice ?? null,
-        });
-        setFocusedPositionKey((prev) => {
-          const keys = (data.positions as PositionWithPnl[]).map(
-            (p) => `${(p.instId ?? "").trim().toUpperCase()}|${p.posSide}`
+      const results = await Promise.all(
+        venues.map(async (provider) => {
+          const { ok, status, data } = await fetchVenuePayload(
+            withProviderQuery("/api/admin/trading-bot/positions", provider)
           );
-          if (prev && keys.includes(prev)) return prev;
-          return keys[0] ?? null;
-        });
+          return { provider, ok, status, data };
+        })
+      );
+      const positions: PositionWithPnl[] = [];
+      let totalUnrealizedPnl = 0;
+      let markPrice: number | null = null;
+      const errors: string[] = [];
+      const sectionErrors: Partial<Record<ExchangeVenue, string | null>> = {};
+      let lastMeta: PanelMeta | null = null;
+
+      for (const r of results) {
+        const meta = (r.data.exchange ?? r.data.blofin ?? r.data.coinbase) as PanelMeta | undefined;
+        if (meta) lastMeta = meta;
+        if (r.ok && Array.isArray(r.data.positions)) {
+          const tagged = (r.data.positions as PositionWithPnl[]).map((p) => ({
+            ...p,
+            exchange: p.exchange ?? r.provider,
+          }));
+          positions.push(...tagged);
+          totalUnrealizedPnl += Number(r.data.totalUnrealizedPnl) || 0;
+          if (venues.length === 1) {
+            markPrice = typeof r.data.markPrice === "number" ? r.data.markPrice : null;
+          }
+          sectionErrors[r.provider] = null;
+        } else {
+          const msg = String(r.data.error ?? (r.status ? `Error ${r.status}` : "Could not load positions."));
+          errors.push(`${venueLabel(r.provider)}: ${msg}`);
+          sectionErrors[r.provider] = msg;
+        }
+      }
+
+      if (lastMeta) setBlofinPanelMeta(lastMeta);
+      setPositionsSectionErrors(sectionErrors);
+
+      if (positions.length > 0 || errors.length < results.length) {
+        setPositionsData({ positions, totalUnrealizedPnl, markPrice });
+        setPositionsFetchError(positions.length === 0 && errors.length > 0 ? errors.join(" · ") : null);
       } else {
         setPositionsData(null);
-        setPositionsFetchError(data.error ?? (res.ok ? "Could not load positions." : `Error ${res.status}`));
+        setPositionsFetchError(errors.join(" · ") || "Could not load positions.");
       }
     } catch (e) {
       setPositionsData(null);
@@ -782,7 +874,7 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
     } finally {
       setPositionsLoading(false);
     }
-  }, []);
+  }, [effectivePositionsView, coinbaseTradingEnabled]);
 
   const clearFeedback = () => {
     setError(null);
@@ -911,32 +1003,83 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
   }, []);
 
   const fetchOrderHistory = useCallback(async () => {
+    const venues = venuesForView(effectivePositionsView, coinbaseTradingEnabled);
     try {
       setOrderHistoryLoading(true);
       setOrderHistoryError(null);
-      const res = await fetch("/api/admin/trading-bot/orders-history?limit=50");
-      const data = await res.json().catch(() => ({}));
-      if (data.success && Array.isArray(data.orders)) {
-        if (data.blofin) setBlofinPanelMeta(data.blofin);
-        if (data.coinbase) setBlofinPanelMeta(data.coinbase);
-        if (data.exchange) setBlofinPanelMeta(data.exchange);
-        setOrderHistory(data.orders);
-      } else {
-        setOrderHistory([]);
-        setOrderHistoryError(data.error ?? (res.ok ? "Could not load order history." : `Error ${res.status}`));
+      const results = await Promise.all(
+        venues.map(async (provider) => {
+          const { ok, status, data } = await fetchVenuePayload(
+            withProviderQuery("/api/admin/trading-bot/orders-history?limit=50", provider)
+          );
+          return { provider, ok, status, data };
+        })
+      );
+      const orders: OrderHistoryRow[] = [];
+      const errors: string[] = [];
+      let lastMeta: PanelMeta | null = null;
+      for (const r of results) {
+        const meta = (r.data.exchange ?? r.data.blofin ?? r.data.coinbase) as PanelMeta | undefined;
+        if (meta) lastMeta = meta;
+        if (r.ok && Array.isArray(r.data.orders)) {
+          orders.push(
+            ...(r.data.orders as OrderHistoryRow[]).map((o) => ({
+              ...o,
+              exchange: o.exchange ?? r.provider,
+            }))
+          );
+        } else {
+          errors.push(
+            `${venueLabel(r.provider)}: ${String(r.data.error ?? (r.status ? `Error ${r.status}` : "Could not load order history."))}`
+          );
+        }
       }
+      if (lastMeta) setBlofinPanelMeta(lastMeta);
+      setOrderHistory(orders);
+      setOrderHistoryError(orders.length === 0 && errors.length > 0 ? errors.join(" · ") : null);
     } catch (e) {
       setOrderHistory([]);
       setOrderHistoryError(e instanceof Error ? e.message : "Network error loading order history.");
     } finally {
       setOrderHistoryLoading(false);
     }
-  }, []);
+  }, [effectivePositionsView, coinbaseTradingEnabled]);
 
   const closedTradesAnalysis = useMemo(
     () => analyzeClosedTrades(closedTrades),
     [closedTrades]
   );
+
+  const positionGroups = useMemo(() => {
+    const list = positionsData?.positions ?? [];
+    const venues = venuesForView(effectivePositionsView, coinbaseTradingEnabled);
+    return venues.map((exchange) => ({
+      exchange,
+      rows: list.filter((p) => (p.exchange ?? exchange) === exchange),
+      unrealized: list
+        .filter((p) => (p.exchange ?? exchange) === exchange)
+        .reduce((sum, p) => sum + (Number.isFinite(p.unrealizedPnl) ? p.unrealizedPnl : 0), 0),
+    }));
+  }, [positionsData, effectivePositionsView, coinbaseTradingEnabled]);
+
+  const openOrderGroups = useMemo(() => {
+    const venues = venuesForView(effectivePositionsView, coinbaseTradingEnabled);
+    return venues.map((exchange) => ({
+      exchange,
+      rows: openOrders.filter((o) => (o.exchange ?? exchange) === exchange),
+    }));
+  }, [openOrders, effectivePositionsView, coinbaseTradingEnabled]);
+
+  const closedTradeGroups = useMemo(() => {
+    const venues = venuesForView(effectivePositionsView, coinbaseTradingEnabled);
+    return venues.map((exchange) => ({
+      exchange,
+      rows: closedTrades.filter((t) => (t.exchange ?? exchange) === exchange),
+      total: closedTrades
+        .filter((t) => (t.exchange ?? exchange) === exchange)
+        .reduce((sum, t) => sum + t.realizedPnlUsdt, 0),
+    }));
+  }, [closedTrades, effectivePositionsView, coinbaseTradingEnabled]);
 
   const analysisShareCaption = useMemo(
     () =>
@@ -949,55 +1092,94 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
   );
 
   const fetchClosedTrades = useCallback(async (period: ClosedTradesPeriod = closedTradesPeriod) => {
+    const venues = venuesForView(effectivePositionsView, coinbaseTradingEnabled);
     try {
       setClosedTradesLoading(true);
-      const res = await fetch(`/api/admin/trading-bot/closed-trades?limit=100&period=${period}`);
-      const data = await res.json().catch(() => ({}));
-      if (data.success && Array.isArray(data.closedTrades)) {
-        setClosedTrades(data.closedTrades);
-        setClosedTradesTotal(typeof data.totalRealized === "number" ? data.totalRealized : 0);
-        if (typeof data.periodLabel === "string") setClosedTradesPeriodLabel(data.periodLabel);
-        if (data.blofin) setBlofinPanelMeta(data.blofin);
-        if (data.coinbase) setBlofinPanelMeta(data.coinbase);
-        if (data.exchange) setBlofinPanelMeta(data.exchange);
-      } else {
-        setClosedTrades([]);
-        setClosedTradesTotal(0);
+      const results = await Promise.all(
+        venues.map(async (provider) => {
+          const { ok, data } = await fetchVenuePayload(
+            withProviderQuery(`/api/admin/trading-bot/closed-trades?limit=100&period=${period}`, provider)
+          );
+          return { provider, ok, data };
+        })
+      );
+      const trades: ClosedTradeRow[] = [];
+      let totalRealized = 0;
+      let periodLabel: string | null = null;
+      let lastMeta: PanelMeta | null = null;
+      for (const r of results) {
+        const meta = (r.data.exchange ?? r.data.blofin ?? r.data.coinbase) as PanelMeta | undefined;
+        if (meta) lastMeta = meta;
+        if (typeof r.data.periodLabel === "string") periodLabel = r.data.periodLabel;
+        if (r.ok && Array.isArray(r.data.closedTrades)) {
+          trades.push(
+            ...(r.data.closedTrades as ClosedTradeRow[]).map((t) => ({
+              ...t,
+              id: `${r.provider}:${t.id}`,
+              exchange: t.exchange ?? r.provider,
+            }))
+          );
+          totalRealized += typeof r.data.totalRealized === "number" ? r.data.totalRealized : 0;
+        }
       }
+      if (lastMeta) setBlofinPanelMeta(lastMeta);
+      setClosedTrades(trades);
+      setClosedTradesTotal(totalRealized);
+      if (periodLabel) setClosedTradesPeriodLabel(periodLabel);
     } catch {
       setClosedTrades([]);
       setClosedTradesTotal(0);
     } finally {
       setClosedTradesLoading(false);
     }
-  }, [closedTradesPeriod]);
+  }, [closedTradesPeriod, effectivePositionsView, coinbaseTradingEnabled]);
 
   const fetchOpenOrders = useCallback(async () => {
+    const venues = venuesForView(effectivePositionsView, coinbaseTradingEnabled);
     try {
       setOpenOrdersLoading(true);
       setOpenOrdersError(null);
-      const res = await fetch("/api/admin/trading-bot/open-orders?limit=50");
-      const data = await res.json().catch(() => ({}));
-      if (data.success && Array.isArray(data.orders)) {
-        if (data.blofin) setBlofinPanelMeta(data.blofin);
-        if (data.coinbase) setBlofinPanelMeta(data.coinbase);
-        if (data.exchange) setBlofinPanelMeta(data.exchange);
-        setOpenOrders(data.orders);
-      } else {
-        setOpenOrders([]);
-        setOpenOrdersError(data.error ?? (res.ok ? "Could not load open orders." : `Error ${res.status}`));
+      const results = await Promise.all(
+        venues.map(async (provider) => {
+          const { ok, status, data } = await fetchVenuePayload(
+            withProviderQuery("/api/admin/trading-bot/open-orders?limit=50", provider)
+          );
+          return { provider, ok, status, data };
+        })
+      );
+      const orders: OpenOrderRow[] = [];
+      const errors: string[] = [];
+      let lastMeta: PanelMeta | null = null;
+      for (const r of results) {
+        const meta = (r.data.exchange ?? r.data.blofin ?? r.data.coinbase) as PanelMeta | undefined;
+        if (meta) lastMeta = meta;
+        if (r.ok && Array.isArray(r.data.orders)) {
+          orders.push(
+            ...(r.data.orders as OpenOrderRow[]).map((o) => ({
+              ...o,
+              exchange: o.exchange ?? r.provider,
+            }))
+          );
+        } else {
+          errors.push(
+            `${venueLabel(r.provider)}: ${String(r.data.error ?? (r.status ? `Error ${r.status}` : "Could not load open orders."))}`
+          );
+        }
       }
+      if (lastMeta) setBlofinPanelMeta(lastMeta);
+      setOpenOrders(orders);
+      setOpenOrdersError(orders.length === 0 && errors.length > 0 ? errors.join(" · ") : null);
     } catch (e) {
       setOpenOrders([]);
       setOpenOrdersError(e instanceof Error ? e.message : "Network error loading open orders.");
     } finally {
       setOpenOrdersLoading(false);
     }
-  }, []);
+  }, [effectivePositionsView, coinbaseTradingEnabled]);
 
   useEffect(() => {
-    if (config != null) fetchPositions();
-  }, [config, fetchPositions]);
+    if (config != null && positionsViewHydrated) fetchPositions();
+  }, [config, fetchPositions, positionsViewHydrated]);
 
   useEffect(() => {
     if (activeTab === "open_orders") fetchOpenOrders();
@@ -1452,15 +1634,22 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
     }
   };
 
-  const cancelOpenOrder = async (orderId: string, instId: string) => {
+  const cancelOpenOrder = async (orderId: string, instId: string, exchange?: ExchangeVenue) => {
     if (!window.confirm(`Cancel limit order ${instId} @ ${orderId}?`)) return;
+    const provider =
+      exchange ??
+      (effectivePositionsView === "coinbase"
+        ? "coinbase"
+        : effectivePositionsView === "blofin"
+          ? "blofin"
+          : undefined);
     try {
       setCancelingOrderId(orderId);
       clearFeedback();
       const res = await fetch("/api/admin/trading-bot/cancel-order", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ orderId, instId }),
+        body: JSON.stringify({ orderId, instId, provider }),
       });
       const data = await res.json();
       if (data.success) {
@@ -1491,7 +1680,11 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
         const res = await fetch("/api/admin/trading-bot/cancel-order", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ orderId: o.orderId, instId: o.instId }),
+          body: JSON.stringify({
+            orderId: o.orderId,
+            instId: o.instId,
+            provider: o.exchange,
+          }),
         });
         const data = await res.json().catch(() => ({}));
         if (data.success) ok++;
@@ -1510,26 +1703,51 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
     }
   };
 
-  const closePosition = async (instId?: string, closeAll?: boolean) => {
+  const closePosition = async (instId?: string, closeAll?: boolean, exchange?: ExchangeVenue) => {
     const label = closeAll ? "all positions" : instId ?? config?.symbol ?? "position";
-    if (!window.confirm(`Close ${label}? NovaStaris will use Blofin's close-position API to exit.`)) return;
+    const venues: ExchangeVenue[] =
+      exchange != null
+        ? [exchange]
+        : closeAll && effectivePositionsView === "both"
+          ? ["blofin", "coinbase"]
+          : venuesForView(
+              effectivePositionsView === "both"
+                ? ((form.provider ?? config?.provider ?? "blofin") as ExchangeSetupMode)
+                : effectivePositionsView,
+              coinbaseTradingEnabled
+            );
+    const venueText =
+      venues.length > 1 ? "Blofin and Coinbase" : venueLabel(venues[0] ?? "blofin");
+    if (!window.confirm(`Close ${label} on ${venueText}?`)) return;
     try {
       setClosing(true);
       clearFeedback();
-      const res = await fetch("/api/admin/trading-bot/close", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(closeAll ? { closeAll: true } : instId ? { instId } : {}),
-      });
-      const data = await res.json();
-      if (data.success) {
-        setSuccess(data.message ?? "Position closed.");
-        setError(null);
+      let ok = 0;
+      let failMsg: string | null = null;
+      for (const provider of venues) {
+        const res = await fetch("/api/admin/trading-bot/close", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(
+            closeAll ? { closeAll: true, provider } : instId ? { instId, provider } : { provider }
+          ),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (data.success) ok++;
+        else failMsg = data.error ?? `Failed to close on ${venueLabel(provider)}.`;
+      }
+      if (ok > 0) {
+        setSuccess(
+          ok === venues.length
+            ? `Position closed on ${venueText}.`
+            : `Closed on ${ok}/${venues.length} exchange(s). ${failMsg ?? ""}`.trim()
+        );
+        setError(ok < venues.length ? failMsg : null);
         setPositionsData(null);
         fetchPositions();
         loadConfig();
       } else {
-        setError(data.error ?? "Failed to close position");
+        setError(failMsg ?? "Failed to close position");
         setSuccess(null);
       }
     } catch {
@@ -3282,9 +3500,9 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
           )}
           {config != null && (
             <div className="rounded-lg border border-zinc-200 dark:border-zinc-600 bg-zinc-50/80 dark:bg-zinc-900/40 p-3 text-sm">
-              <div className="flex items-center justify-between gap-2 mb-2">
+              <div className="flex flex-col gap-2 mb-2 sm:flex-row sm:items-center sm:justify-between">
                 <p className="font-semibold text-zinc-800 dark:text-zinc-200">Open orders, positions &amp; history</p>
-                <div className="flex gap-1">
+                <div className="flex gap-1 flex-wrap">
                   <button
                     type="button"
                     onClick={() => setActiveTab("open_orders")}
@@ -3308,19 +3526,28 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
                   </button>
                 </div>
               </div>
-              <p className="text-xs text-muted-foreground mb-2 -mt-1">
-                Open orders = pending (unfilled). Positions = open positions only. Order history = filled/canceled. Data comes from {(form.provider ?? config?.provider) === "coinbase" ? "Coinbase" : "Blofin"} using your saved API keys and the bot&apos;s <strong>Demo/Live</strong> mode in config.
+              <PositionsExchangeFilter
+                value={effectivePositionsView}
+                onChange={setPositionsView}
+                coinbaseAvailable={coinbaseTradingEnabled}
+                className="mb-2"
+              />
+              <p className="text-xs text-muted-foreground mb-2">
+                Open orders = pending. Positions = open only. Order history = filled/canceled.
+                {effectivePositionsView === "both"
+                  ? " Showing Blofin and Coinbase in separate sections — pick one exchange to hide the other."
+                  : ` Showing ${venueLabel(effectivePositionsView === "coinbase" ? "coinbase" : "blofin")} only.`}
               </p>
-              {blofinPanelMeta && (
+              {blofinPanelMeta && effectivePositionsView !== "both" && (
                 <p className="text-xs text-muted-foreground mb-1">
-                  Querying {(form.provider ?? config?.provider) === "coinbase" ? "Coinbase" : "Blofin"}{" "}
+                  Querying {venueLabel(effectivePositionsView === "coinbase" ? "coinbase" : "blofin")}{" "}
                   <strong>
-                    {(blofinPanelMeta.blofinDemo ?? blofinPanelMeta.coinbaseDemo ?? (blofinPanelMeta as { demo?: boolean }).demo) ? "Demo" : "Live"}
+                    {(blofinPanelMeta.blofinDemo ?? blofinPanelMeta.coinbaseDemo ?? blofinPanelMeta.demo) ? "Demo" : "Live"}
                   </strong>
                   {blofinPanelMeta.credentialSource === "server" ? " · server env keys" : blofinPanelMeta.credentialSource === "saved" ? " · keys saved in settings" : null}
                 </p>
               )}
-              {blofinPanelMeta?.modeMismatchHint && (
+              {blofinPanelMeta?.modeMismatchHint && effectivePositionsView !== "both" && (
                 <p className="text-xs text-slate-600 dark:text-slate-300 mb-2 rounded border border-cyan-500/30 bg-cyan-500/10 px-2 py-1.5">
                   {blofinPanelMeta.modeMismatchHint}
                 </p>
@@ -3402,24 +3629,60 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
                 <div className="mt-2 max-h-64 overflow-auto">
                   {openOrdersLoading ? (
                     <p className="text-muted-foreground text-xs">Loading open orders…</p>
-                  ) : openOrdersError ? (
+                  ) : openOrdersError && openOrders.length === 0 ? (
                     <p className="text-rose-600 dark:text-rose-400 text-xs">{openOrdersError}</p>
-                  ) : openOrders.length === 0 ? (
-                    <p className="text-muted-foreground text-xs">No open (pending) orders on this Blofin account ({config.mode === "demo" ? "Demo" : "Live"}).</p>
                   ) : (
-                    <div className="space-y-1 text-xs">
-                      {openOrders.map((o, i) => (
-                        <div key={o.orderId || i} className="flex flex-wrap items-center gap-x-2 gap-y-0.5 p-1.5 rounded border border-zinc-200 dark:border-zinc-600">
-                          <span className="font-medium">{o.instId}</span>
-                          <span className={o.side === "buy" ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}>{o.side.toUpperCase()}</span>
-                          <span>{o.orderType}</span>
-                          <span>size {o.size}</span>
-                          <span>@ {o.price}</span>
-                          <span className="text-muted-foreground">{o.state}</span>
-                          {o.createdAt != null && <span className="text-muted-foreground">{new Date(Number(o.createdAt)).toLocaleString()}</span>}
-                          <Button type="button" variant="outline" size="sm" className="ml-auto h-6 text-xs border-amber-500 text-slate-600 dark:text-slate-300" onClick={() => cancelOpenOrder(o.orderId, o.instId)} disabled={cancelingOrderId === o.orderId}>
-                            {cancelingOrderId === o.orderId ? "Canceling…" : "Cancel"}
-                          </Button>
+                    <div className="space-y-3 text-xs">
+                      {openOrderGroups.map((group) => (
+                        <div key={group.exchange} className="space-y-1">
+                          {effectivePositionsView === "both" && (
+                            <p className="text-[11px] font-semibold text-zinc-700 dark:text-zinc-200">
+                              {venueLabel(group.exchange)}
+                            </p>
+                          )}
+                          {group.rows.length === 0 ? (
+                            <p className="text-muted-foreground text-xs">
+                              No open orders on {venueLabel(group.exchange)} ({config.mode === "demo" ? "Demo" : "Live"}).
+                            </p>
+                          ) : (
+                            group.rows.map((o, i) => (
+                              <div
+                                key={`${group.exchange}-${o.orderId || i}`}
+                                className="flex flex-wrap items-center gap-x-2 gap-y-0.5 p-1.5 rounded border border-zinc-200 dark:border-zinc-600"
+                              >
+                                <span className="font-medium">{o.instId}</span>
+                                <span
+                                  className={`text-[10px] px-1.5 py-0.5 rounded ${
+                                    group.exchange === "coinbase"
+                                      ? "bg-blue-500/15 text-blue-700 dark:text-blue-300"
+                                      : "bg-cyan-500/15 text-cyan-700 dark:text-cyan-300"
+                                  }`}
+                                >
+                                  {venueLabel(group.exchange)}
+                                </span>
+                                <span className={o.side === "buy" ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}>
+                                  {o.side.toUpperCase()}
+                                </span>
+                                <span>{o.orderType}</span>
+                                <span>size {o.size}</span>
+                                <span>@ {o.price}</span>
+                                <span className="text-muted-foreground">{o.state}</span>
+                                {o.createdAt != null && (
+                                  <span className="text-muted-foreground">{new Date(Number(o.createdAt)).toLocaleString()}</span>
+                                )}
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  className="ml-auto h-6 text-xs border-amber-500 text-slate-600 dark:text-slate-300"
+                                  onClick={() => cancelOpenOrder(o.orderId, o.instId, group.exchange)}
+                                  disabled={cancelingOrderId === o.orderId}
+                                >
+                                  {cancelingOrderId === o.orderId ? "Canceling…" : "Cancel"}
+                                </Button>
+                              </div>
+                            ))
+                          )}
                         </div>
                       ))}
                     </div>
@@ -3440,270 +3703,168 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
                 <>
                   {positionsLoading && !positionsData ? (
                     <p className="text-muted-foreground text-xs">Loading…</p>
-                  ) : positionsFetchError ? (
+                  ) : positionsFetchError && !positionsData ? (
                     <p className="text-rose-600 dark:text-rose-400 text-xs">{positionsFetchError}</p>
-                  ) : positionsData && positionsData.positions.length > 0 ? (
-                    <div className="mt-2 space-y-3">
-                      {positionsData.positions.length > 1 && (
-                        <div className="space-y-1.5">
-                          <p className="text-[11px] text-muted-foreground">
-                            {positionsData.positions.length} open positions — select one to view details
-                          </p>
-                          <div className="flex flex-wrap gap-1.5">
-                            {positionsData.positions.map((p, i) => {
-                              const key = `${(p.instId ?? "").trim().toUpperCase()}|${p.posSide}`;
-                              const selected = focusedPositionKey === key || (!focusedPositionKey && i === 0);
-                              const pnlOk = p.unrealizedPnl >= 0;
-                              return (
-                                <button
-                                  key={key}
-                                  type="button"
-                                  onClick={() => setFocusedPositionKey(key)}
-                                  className={`rounded-lg border px-2.5 py-1.5 text-left text-xs transition-colors ${
-                                    selected
-                                      ? "border-cyan-500/60 bg-cyan-500/10 ring-1 ring-cyan-500/30"
-                                      : "border-zinc-600/70 bg-zinc-900/50 hover:border-zinc-500"
-                                  }`}
-                                >
-                                  <span className="font-semibold text-zinc-100">{formatInstDisplay(p.instId ?? "")}</span>
-                                  <span
-                                    className={`ml-1.5 ${
-                                      p.posSide === "long" ? "text-emerald-400" : "text-rose-400"
-                                    }`}
-                                  >
-                                    {p.posSide.toUpperCase()}
-                                  </span>
-                                  <span
-                                    className={`ml-2 tabular-nums font-medium ${
-                                      pnlOk ? "text-emerald-400" : "text-rose-400"
-                                    }`}
-                                  >
-                                    {pnlOk ? "+" : ""}
-                                    {p.unrealizedPnl.toLocaleString(undefined, {
-                                      minimumFractionDigits: 2,
-                                      maximumFractionDigits: 2,
-                                    })}
-                                  </span>
-                                </button>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      )}
-                      {(() => {
-                        const list = positionsData.positions;
-                        const focused =
-                          list.find(
-                            (p) =>
-                              `${(p.instId ?? "").trim().toUpperCase()}|${p.posSide}` === focusedPositionKey
-                          ) ?? list[0];
-                        if (!focused) return null;
-                        const p = focused;
+                  ) : positionsData ? (
+                    <div className="mt-2 space-y-4">
+                      {positionGroups.map((group) => (
+                        <div key={group.exchange} className="space-y-2">
+                          {effectivePositionsView === "both" && (
+                            <p className="text-[11px] font-semibold text-zinc-700 dark:text-zinc-200 border-b border-zinc-200/80 dark:border-zinc-600/80 pb-1">
+                              {group.exchange === "coinbase" ? "Coinbase Futures" : "Blofin"}
+                              <span className="ml-2 font-normal text-muted-foreground">
+                                {group.rows.length} open
+                              </span>
+                            </p>
+                          )}
+                          {positionsSectionErrors[group.exchange] && (
+                            <p className="text-rose-600 dark:text-rose-400 text-xs">
+                              {positionsSectionErrors[group.exchange]}
+                            </p>
+                          )}
+                          {group.rows.length === 0 && !positionsSectionErrors[group.exchange] ? (
+                            <p className="text-muted-foreground text-xs">
+                              No open positions on {venueLabel(group.exchange)} ({config.mode === "demo" ? "Demo" : "Live"}).
+                            </p>
+                          ) : (
+                            group.rows.map((p, i) => {
                         const instIdNorm = (p.instId ?? "").trim().toUpperCase().replace("/", "-");
                         const isPinned = instIdNorm && monitorBoardSymbols.includes(instIdNorm);
                         return (
-                          <div className="text-xs p-3 rounded-xl border border-zinc-600/80 bg-zinc-950/40 space-y-2">
-                            <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
-                              <span className="text-sm font-semibold text-zinc-100">{p.instId}</span>
-                              <span
-                                className={
-                                  p.posSide === "long"
-                                    ? "text-emerald-600 dark:text-emerald-400"
-                                    : "text-rose-600 dark:text-rose-400"
-                                }
-                              >
-                                {p.posSide.toUpperCase()}
-                              </span>
-                              {shareShowLeverage && p.leverage != null && p.leverage > 0 && (
-                                <span className="text-[10px] px-1.5 py-0.5 rounded bg-zinc-200/80 dark:bg-zinc-700/80 text-zinc-600 dark:text-zinc-300">
-                                  {Math.round(p.leverage)}X
-                                </span>
-                              )}
-                              {p.marginMode && (
-                                <span className="text-[10px] px-1.5 py-0.5 rounded bg-zinc-200/60 dark:bg-zinc-700/60 text-zinc-500 dark:text-zinc-400 capitalize">
-                                  {p.marginMode}
-                                </span>
-                              )}
-                            </div>
-                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-3 gap-y-1 text-muted-foreground">
-                              <span>
-                                Entry:{" "}
-                                {p.entryPrice.toLocaleString(undefined, {
-                                  minimumFractionDigits: 2,
-                                  maximumFractionDigits: 2,
-                                })}
-                              </span>
-                              {(p.markPrice ?? positionsData.markPrice) != null && (
-                                <span>
-                                  Mark:{" "}
-                                  {(p.markPrice ?? positionsData.markPrice)!.toLocaleString(undefined, {
-                                    minimumFractionDigits: 2,
-                                    maximumFractionDigits: 2,
-                                  })}
-                                </span>
-                              )}
-                              {p.liqPrice != null && Number.isFinite(p.liqPrice) && (
-                                <span>
-                                  Liq:{" "}
-                                  {p.liqPrice.toLocaleString(undefined, {
-                                    minimumFractionDigits: 2,
-                                    maximumFractionDigits: 2,
-                                  })}
-                                </span>
-                              )}
-                              {p.margin != null && Number.isFinite(p.margin) && (
-                                <span>
-                                  Margin:{" "}
-                                  {p.margin.toLocaleString(undefined, {
-                                    minimumFractionDigits: 2,
-                                    maximumFractionDigits: 2,
-                                  })}{" "}
-                                  USDT
-                                </span>
-                              )}
-                              {p.marginRatioBlofin != null && Number.isFinite(p.marginRatioBlofin) ? (
-                                <span title="Exchange margin ratio">
-                                  Margin ratio:{" "}
-                                  {p.marginRatioBlofin >= 100
-                                    ? p.marginRatioBlofin.toLocaleString(undefined, { maximumFractionDigits: 2 })
-                                    : p.marginRatioBlofin.toFixed(2)}
-                                  %
-                                </span>
-                              ) : p.initialMarginPct != null && Number.isFinite(p.initialMarginPct) ? (
-                                <span>Initial margin: {p.initialMarginPct.toFixed(2)}%</span>
-                              ) : null}
-                              <span title="Quantity (contracts)">
-                                Size:{" "}
-                                {(p.posSide === "short" ? -p.size : p.size).toLocaleString(undefined, {
-                                  maximumFractionDigits: 4,
-                                })}
-                              </span>
-                            </div>
+                          <div key={`${group.exchange}-${p.instId}-${i}`} className="text-xs p-2 rounded border border-zinc-200 dark:border-zinc-600 space-y-1">
+                          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                            <span className="text-zinc-600 dark:text-zinc-400 font-medium">{p.instId}</span>
+                            <span
+                              className={`text-[10px] px-1.5 py-0.5 rounded ${
+                                group.exchange === "coinbase"
+                                  ? "bg-blue-500/15 text-blue-700 dark:text-blue-300"
+                                  : "bg-cyan-500/15 text-cyan-700 dark:text-cyan-300"
+                              }`}
+                            >
+                              {venueLabel(group.exchange)}
+                            </span>
+                            <span className={p.posSide === "long" ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}>{p.posSide.toUpperCase()}</span>
+                            {shareShowLeverage && p.leverage != null && p.leverage > 0 && (
+                              <span className="text-[10px] px-1.5 py-0.5 rounded bg-zinc-200/80 dark:bg-zinc-700/80 text-zinc-600 dark:text-zinc-300">{Math.round(p.leverage)}X</span>
+                            )}
+                            {p.marginMode && (
+                              <span className="text-[10px] px-1.5 py-0.5 rounded bg-zinc-200/60 dark:bg-zinc-700/60 text-zinc-500 dark:text-zinc-400 capitalize">{p.marginMode}</span>
+                            )}
+                            <span className="text-muted-foreground">Entry: {p.entryPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                            {(p.markPrice ?? positionsData.markPrice) != null && <span className="text-muted-foreground">Mark: {(p.markPrice ?? positionsData.markPrice)!.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>}
                             {(() => {
                               const tpSaved = monitorTpForRow(instIdNorm, config?.monitorTpTargets);
                               const tpAmtSaved = monitorTpForRow(instIdNorm, config?.monitorTpAmountsQuote);
-                              if (tpSaved == null && tpAmtSaved == null) return null;
                               return (
-                                <div className="flex flex-wrap gap-x-3 text-muted-foreground">
+                                <>
                                   {tpSaved != null && (
-                                    <span>
-                                      TP price (saved):{" "}
-                                      {tpSaved.toLocaleString(undefined, {
-                                        minimumFractionDigits: 2,
-                                        maximumFractionDigits: 2,
-                                      })}
-                                    </span>
+                                    <span className="text-muted-foreground" title="Saved under AI Monitor → Deep check (Blofin often does not show TP here).">
+                                      TP price (saved): {tpSaved.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </span>
                                   )}
                                   {tpAmtSaved != null && (
-                                    <span>
-                                      PnL target (saved): +
-                                      {tpAmtSaved.toLocaleString(undefined, { maximumFractionDigits: 0 })} USDT
+                                    <span className="text-muted-foreground" title="Target unrealized PnL in USDT for AI coaching.">
+                                      PnL target (saved): +{tpAmtSaved.toLocaleString(undefined, { maximumFractionDigits: 0 })} USDT
                                     </span>
                                   )}
-                                </div>
+                                </>
                               );
                             })()}
-                            <div className="flex flex-wrap items-center gap-2 pt-1">
-                              <span
-                                className={`text-sm font-semibold tabular-nums ${
-                                  p.unrealizedPnl >= 0
-                                    ? "text-emerald-600 dark:text-[#0ecb81]"
-                                    : "text-rose-600 dark:text-[#f6465d]"
-                                }`}
-                              >
-                                PNL: {formatBlofinPnlLine(p.unrealizedPnl, p.pnlPct ?? null)}
-                              </span>
-                              {instIdNorm && (
-                                <Button
-                                  type="button"
-                                  variant="outline"
-                                  size="sm"
-                                  className="h-7 text-xs border-cyan-500 text-cyan-700 dark:text-cyan-300"
-                                  onClick={() => {
-                                    if (isPinned)
-                                      setMonitorBoardSymbols(monitorBoardSymbols.filter((x) => x !== instIdNorm));
-                                    else if (!monitorBoardSymbols.includes(instIdNorm))
-                                      setMonitorBoardSymbols([...monitorBoardSymbols, instIdNorm]);
-                                  }}
-                                >
-                                  {isPinned ? "Unpin" : "Pin to board"}
-                                </Button>
-                              )}
+                            {p.liqPrice != null && Number.isFinite(p.liqPrice) && <span className="text-muted-foreground">Liq: {p.liqPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>}
+                            {p.margin != null && Number.isFinite(p.margin) && <span className="text-muted-foreground">Margin: {p.margin.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USDT</span>}
+                            {p.marginRatioBlofin != null && Number.isFinite(p.marginRatioBlofin) ? (
+                              <span className="text-muted-foreground" title="Blofin margin ratio (risk metric)">Margin ratio: {p.marginRatioBlofin >= 100 ? p.marginRatioBlofin.toLocaleString(undefined, { maximumFractionDigits: 2 }) : p.marginRatioBlofin.toFixed(2)}%</span>
+                            ) : p.initialMarginPct != null && Number.isFinite(p.initialMarginPct) ? (
+                              <span className="text-muted-foreground" title="Initial margin as % of notional (Blofin margin ratio shown on exchange)">Initial margin: {p.initialMarginPct.toFixed(2)}%</span>
+                            ) : (
+                              <span className="text-muted-foreground" title="Margin ratio from exchange when available">Margin ratio: —</span>
+                            )}
+                            <span className="text-muted-foreground" title="Quantity of the asset (contracts). Long = positive, Short = negative.">Size: {(p.posSide === "short" ? -p.size : p.size).toLocaleString(undefined, { maximumFractionDigits: 4 })}</span>
+                            <span
+                              className={`font-semibold tabular-nums ${p.unrealizedPnl >= 0 ? "text-emerald-600 dark:text-[#0ecb81]" : "text-rose-600 dark:text-[#f6465d]"}`}
+                              title="Matches Blofin ROE % (margin × leverage)"
+                            >
+                              PNL: {formatBlofinPnlLine(p.unrealizedPnl, p.pnlPct ?? null)}
+                            </span>
+                            {instIdNorm && (
                               <Button
                                 type="button"
                                 variant="outline"
                                 size="sm"
-                                className="h-7 text-xs border-amber-500 text-slate-600 dark:text-slate-300"
-                                onClick={() => closePosition(p.instId)}
-                                disabled={closing}
+                                className="h-6 text-xs border-cyan-500 text-cyan-700 dark:text-cyan-300"
+                                onClick={() => {
+                                  if (isPinned) setMonitorBoardSymbols(monitorBoardSymbols.filter((x) => x !== instIdNorm));
+                                  else if (!monitorBoardSymbols.includes(instIdNorm)) setMonitorBoardSymbols([...monitorBoardSymbols, instIdNorm]);
+                                }}
                               >
-                                Close
+                                {isPinned ? "Unpin" : "Pin to board"}
                               </Button>
-                            </div>
-                            <PnlShareButtons
-                              compact
-                              kind="open"
-                              showUsdt={shareShowRealizedUsdt}
-                              showAmountInvested={shareShowAmountInvested}
-                              investedUsdt={p.margin != null && p.margin > 0 ? p.margin : null}
-                              symbol={formatInstDisplay(p.instId ?? "")}
-                              roiPct={p.pnlPct ?? 0}
-                              pnlUsdt={p.unrealizedPnl}
-                              filename={`NovaStaris_Open_${formatInstDisplay(p.instId ?? "").replace(/[^a-zA-Z0-9]/g, "_")}.jpg`}
-                              getBlob={() =>
-                                drawOpenPositionShareCard(
-                                  {
-                                    displaySymbol: formatInstDisplay(p.instId ?? ""),
-                                    direction: (p.posSide === "short" ? "short" : "long") as "long" | "short",
-                                    entryPrice: p.entryPrice,
-                                    markPrice: p.markPrice ?? p.entryPrice,
-                                    roiPct: p.pnlPct ?? 0,
-                                    unrealizedPnlUsdt: p.unrealizedPnl,
-                                    leverage: p.leverage ?? null,
-                                    modeLabel: config?.mode === "demo" ? "Demo" : "Live",
-                                    investedUsdt: p.margin != null && p.margin > 0 ? p.margin : null,
-                                  },
-                                  {
-                                    showRealizedUsdt: pnlShareFlags.showUsd && shareShowRealizedUsdt,
-                                    showAmountInvested: pnlShareFlags.showInvested && shareShowAmountInvested,
-                                    showHoldDuration: false,
-                                    showLeverage: pnlShareFlags.showLeverage && shareShowLeverage,
-                                    customMessage: pnlShareFlags.cardMessage ? shareCustomMessage.trim() || null : null,
-                                  }
-                                )
-                              }
-                            />
+                            )}
+                            <Button type="button" variant="outline" size="sm" className="h-6 text-xs border-amber-500 text-slate-600 dark:text-slate-300" onClick={() => closePosition(p.instId, false, group.exchange)} disabled={closing}>
+                              Close
+                            </Button>
+                          </div>
+                          <PnlShareButtons
+                            compact
+                            kind="open"
+                            showUsdt={shareShowRealizedUsdt}
+                            showAmountInvested={shareShowAmountInvested}
+                            investedUsdt={p.margin != null && p.margin > 0 ? p.margin : null}
+                            symbol={formatInstDisplay(p.instId ?? "")}
+                            roiPct={p.pnlPct ?? 0}
+                            pnlUsdt={p.unrealizedPnl}
+                            filename={`NovaStaris_Open_${formatInstDisplay(p.instId ?? "").replace(/[^a-zA-Z0-9]/g, "_")}.jpg`}
+                            getBlob={() =>
+                              drawOpenPositionShareCard(
+                                {
+                                  displaySymbol: formatInstDisplay(p.instId ?? ""),
+                                  direction: (p.posSide === "short" ? "short" : "long") as "long" | "short",
+                                  entryPrice: p.entryPrice,
+                                  markPrice: p.markPrice ?? p.entryPrice,
+                                  roiPct: p.pnlPct ?? 0,
+                                  unrealizedPnlUsdt: p.unrealizedPnl,
+                                  leverage: p.leverage ?? null,
+                                  modeLabel: config?.mode === "demo" ? "Demo" : "Live",
+                                  investedUsdt: p.margin != null && p.margin > 0 ? p.margin : null,
+                                },
+                                {
+                                  showRealizedUsdt: pnlShareFlags.showUsd && shareShowRealizedUsdt,
+                                  showAmountInvested: pnlShareFlags.showInvested && shareShowAmountInvested,
+                                  showHoldDuration: false,
+                                  showLeverage: pnlShareFlags.showLeverage && shareShowLeverage,
+                                  customMessage: pnlShareFlags.cardMessage ? shareCustomMessage.trim() || null : null,
+                                }
+                              )
+                            }
+                          />
                           </div>
                         );
-                      })()}
-                      <p className="pt-2 border-t border-zinc-200 dark:border-zinc-600 font-semibold text-sm">
+                      })
+                          )}
+                          {effectivePositionsView === "both" && group.rows.length > 0 && (
+                            <p className="text-xs font-medium tabular-nums text-muted-foreground">
+                              {venueLabel(group.exchange)} unrealized:{" "}
+                              <span className={group.unrealized >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}>
+                                {group.unrealized >= 0 ? "+" : ""}
+                                {group.unrealized.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USDT
+                              </span>
+                            </p>
+                          )}
+                        </div>
+                      ))}
+                      {positionsData.positions.length > 0 && (
+                      <>
+                      <p className="mt-2 pt-2 border-t border-zinc-200 dark:border-zinc-600 font-semibold">
                         Total unrealized:{" "}
-                        <span
-                          className={
-                            positionsData.totalUnrealizedPnl >= 0
-                              ? "text-emerald-600 dark:text-emerald-400"
-                              : "text-rose-600 dark:text-rose-400"
-                          }
-                        >
-                          {positionsData.totalUnrealizedPnl >= 0 ? "+" : ""}
-                          {positionsData.totalUnrealizedPnl.toLocaleString(undefined, {
-                            minimumFractionDigits: 2,
-                            maximumFractionDigits: 2,
-                          })}{" "}
-                          USDT
+                        <span className={positionsData.totalUnrealizedPnl >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}>
+                          {positionsData.totalUnrealizedPnl >= 0 ? "+" : ""}{positionsData.totalUnrealizedPnl.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USDT
                         </span>
                       </p>
-                      <div className="flex flex-wrap items-center gap-2">
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          className="h-7 text-xs"
-                          onClick={() => fetchPositions()}
-                          disabled={positionsLoading}
-                        >
+                      <div className="flex flex-wrap items-center gap-2 mt-2">
+                        <Button type="button" variant="ghost" size="sm" className="h-7 text-xs" onClick={() => fetchPositions()} disabled={positionsLoading}>
                           {positionsLoading ? "Refreshing…" : "Refresh PNL"}
                         </Button>
+                        <p className="text-[10px] text-muted-foreground">Share each position with Card / TG / IG below.</p>
                         <Button
                           type="button"
                           variant="outline"
@@ -3713,28 +3874,17 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
                             const total = positionsData.totalUnrealizedPnl;
                             const sign = total >= 0 ? "+" : "";
                             const text = `My NovaStaris PNL this week ${sign}${total.toFixed(2)} USDT 🚀\n\nTrack & trade with AI → novastaris.ai`;
-                            window.open(
-                              `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`,
-                              "_blank",
-                              "noopener,noreferrer"
-                            );
+                            window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`, "_blank", "noopener,noreferrer");
                           }}
                         >
                           Share to X / CT
                         </Button>
                       </div>
+                      </>
+                      )}
                     </div>
-                  ) : positionsData && positionsData.positions.length === 0 ? (
-                    <p className="text-muted-foreground text-xs">
-                      No open positions on this{" "}
-                      {(form.provider ?? config?.provider) === "coinbase" ? "Coinbase" : "Blofin"} account (
-                      {config.mode === "demo" ? "Demo" : "Live"}).
-                    </p>
                   ) : !positionsLoading ? (
-                    <p className="text-muted-foreground text-xs">
-                      Click Refresh PNL below after{" "}
-                      {(form.provider ?? config?.provider) === "coinbase" ? "Coinbase" : "Blofin"} keys are saved.
-                    </p>
+                    <p className="text-muted-foreground text-xs">Click Refresh PNL below after API keys are saved.</p>
                   ) : null}
                 </>
               )}
@@ -3748,10 +3898,29 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
                     {closedTradesLoading ? (
                       <p className="text-muted-foreground text-xs">Loading closed trades…</p>
                     ) : closedTrades.length === 0 ? (
-                      <p className="text-muted-foreground text-xs">No closed trades with PNL in {closedTradesPeriodLabel.toLowerCase()}. Close a position on Blofin or try a longer period, then Refresh.</p>
+                      <p className="text-muted-foreground text-xs">
+                        No closed trades with PNL in {closedTradesPeriodLabel.toLowerCase()}. Close a position
+                        {effectivePositionsView === "both"
+                          ? " on Blofin or Coinbase"
+                          : ` on ${venueLabel(effectivePositionsView === "coinbase" ? "coinbase" : "blofin")}`}{" "}
+                        or try a longer period, then Refresh.
+                      </p>
                     ) : (
-                      <div className="space-y-2 max-h-52 overflow-auto pr-1">
-                        {closedTrades.map((t) => {
+                      <div className="space-y-3 max-h-52 overflow-auto pr-1">
+                        {closedTradeGroups.map((group) => (
+                          <div key={group.exchange} className="space-y-2">
+                            {effectivePositionsView === "both" && (
+                              <p className="text-[11px] font-semibold text-zinc-700 dark:text-zinc-200 sticky top-0 bg-zinc-50/95 dark:bg-zinc-900/95 py-1">
+                                {venueLabel(group.exchange)}
+                                <span className="ml-2 font-normal text-muted-foreground">
+                                  {group.rows.length} trade{group.rows.length === 1 ? "" : "s"}
+                                </span>
+                              </p>
+                            )}
+                            {group.rows.length === 0 ? (
+                              <p className="text-muted-foreground text-xs">No closed trades on {venueLabel(group.exchange)}.</p>
+                            ) : (
+                              group.rows.map((t) => {
                           const profit = t.realizedPnlUsdt >= 0;
                           const invested = estimateInvestedMarginUsdt(t.realizedPnlUsdt, t.roiPct);
                           const heldFor = formatHeldForDuration(t.openedAt, t.closedAt);
@@ -3763,6 +3932,15 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
                               <div className="flex flex-wrap items-start justify-between gap-2">
                                 <div>
                                   <span className="font-bold text-sm text-zinc-800 dark:text-zinc-100">{t.displaySymbol}</span>
+                                  <span
+                                    className={`ml-2 text-[10px] px-1.5 py-0.5 rounded ${
+                                      (t.exchange ?? group.exchange) === "coinbase"
+                                        ? "bg-blue-500/15 text-blue-700 dark:text-blue-300"
+                                        : "bg-cyan-500/15 text-cyan-700 dark:text-cyan-300"
+                                    }`}
+                                  >
+                                    {venueLabel(t.exchange ?? group.exchange)}
+                                  </span>
                                   <span className={`ml-2 text-[10px] px-1.5 py-0.5 rounded font-semibold ${t.direction === "long" ? "bg-emerald-500/15 text-emerald-700 dark:text-[#0ecb81]" : "bg-rose-500/15 text-rose-700 dark:text-[#f6465d]"}`}>
                                     {t.direction.toUpperCase()}
                                   </span>
@@ -3826,7 +4004,10 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
                               />
                             </div>
                           );
-                        })}
+                        })
+                            )}
+                          </div>
+                        ))}
                       </div>
                     )}
                     {closedTrades.length > 0 && (
@@ -3852,8 +4033,19 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
                       ) : (
                         <div className="space-y-1">
                           {orderHistory.map((o, i) => (
-                            <div key={o.orderId || i} className="flex flex-wrap gap-x-2 gap-y-0.5 p-1.5 rounded border border-zinc-200 dark:border-zinc-600">
+                            <div key={`${o.exchange ?? "x"}-${o.orderId || i}`} className="flex flex-wrap gap-x-2 gap-y-0.5 p-1.5 rounded border border-zinc-200 dark:border-zinc-600">
                               <span className="font-medium">{o.instId}</span>
+                              {o.exchange && (
+                                <span
+                                  className={`text-[10px] px-1.5 py-0.5 rounded ${
+                                    o.exchange === "coinbase"
+                                      ? "bg-blue-500/15 text-blue-700 dark:text-blue-300"
+                                      : "bg-cyan-500/15 text-cyan-700 dark:text-cyan-300"
+                                  }`}
+                                >
+                                  {venueLabel(o.exchange)}
+                                </span>
+                              )}
                               <span className={o.side === "buy" ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}>{o.side.toUpperCase()}</span>
                               <span>{o.orderType}</span>
                               <span>size {formatOrderSize(o.size)}</span>

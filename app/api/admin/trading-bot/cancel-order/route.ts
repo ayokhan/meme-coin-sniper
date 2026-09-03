@@ -2,26 +2,36 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { cancelOrder as cancelOrderBlofin } from "@/lib/blofin";
-import { resolveBlofinConfigForTradingBotSession } from "@/lib/trading-bot-blofin-session";
+import { cancelOrder as cancelOrderCoinbase } from "@/lib/coinbase";
+import {
+  parseExchangeProviderParam,
+  resolveExchangeConfigForTradingBotSession,
+} from "@/lib/trading-bot-exchange-session";
 
 export const dynamic = "force-dynamic";
 
-/** POST - Cancel an open (pending) order on the signed-in user's Blofin account. Body: { orderId: string, instId: string }. */
+/** POST - Cancel an open (pending) order. Body: { orderId, instId, provider? }. */
 export async function POST(req: Request) {
   try {
     const session = await getServerSession(authOptions);
-    const resolved = await resolveBlofinConfigForTradingBotSession(session);
+    const body = await req.json().catch(() => ({}));
+    const orderId = typeof body.orderId === "string" ? body.orderId.trim() : "";
+    const instIdRaw = typeof body.instId === "string" ? body.instId.trim() : "";
+    if (!orderId || !instIdRaw) {
+      return NextResponse.json({ success: false, error: "orderId and instId are required." }, { status: 400 });
+    }
+    const resolved = await resolveExchangeConfigForTradingBotSession(session, {
+      provider: parseExchangeProviderParam(body.provider),
+    });
     if (!resolved.ok) {
       return NextResponse.json({ success: false, error: resolved.error }, { status: resolved.status });
     }
-    const body = await req.json().catch(() => ({}));
-    const orderId = typeof body.orderId === "string" ? body.orderId.trim() : "";
-    const instId = typeof body.instId === "string" ? body.instId.trim().toUpperCase().replace("/", "-") : "";
-    if (!orderId || !instId) {
-      return NextResponse.json({ success: false, error: "orderId and instId are required." }, { status: 400 });
-    }
-    const isDemo = resolved.config.demo;
-    const result = await cancelOrderBlofin(instId, orderId, { demo: isDemo, config: resolved.config });
+    const { provider } = resolved;
+    const instId = provider === "coinbase" ? instIdRaw : instIdRaw.toUpperCase().replace("/", "-");
+    const result =
+      provider === "coinbase"
+        ? await cancelOrderCoinbase(instId, orderId, { demo: resolved.coinbase!.demo, config: resolved.coinbase! })
+        : await cancelOrderBlofin(instId, orderId, { demo: resolved.blofin!.demo, config: resolved.blofin! });
     if (!result.ok) {
       return NextResponse.json({ success: false, error: result.error ?? "Failed to cancel order." }, { status: 400 });
     }

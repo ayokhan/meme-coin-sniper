@@ -14,7 +14,11 @@ import {
   sumClosedTradesRealized,
   type ClosedTradesPeriod,
 } from "@/lib/closed-trades";
-import { resolveExchangeConfigForTradingBotSession, getTradingBotExchangeMeta } from "@/lib/trading-bot-exchange-session";
+import {
+  resolveExchangeConfigForTradingBotSession,
+  getTradingBotExchangeMeta,
+  parseExchangeProviderParam,
+} from "@/lib/trading-bot-exchange-session";
 import { prisma } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
@@ -34,7 +38,10 @@ async function getBotLeverage(): Promise<number> {
 export async function GET(req: Request) {
   try {
     const session = await getServerSession(authOptions);
-    const resolved = await resolveExchangeConfigForTradingBotSession(session);
+    const { searchParams } = new URL(req.url);
+    const resolved = await resolveExchangeConfigForTradingBotSession(session, {
+      provider: parseExchangeProviderParam(searchParams.get("provider")),
+    });
     if (!resolved.ok) {
       return NextResponse.json({ success: false, error: resolved.error }, { status: resolved.status });
     }
@@ -43,7 +50,6 @@ export async function GET(req: Request) {
     const exchange = await getTradingBotExchangeMeta(provider, credentialSource, config);
     const isDemo = exchange.demo;
     const leverage = await getBotLeverage();
-    const { searchParams } = new URL(req.url);
     const limit = Math.min(100, Math.max(1, parseInt(searchParams.get("limit") ?? "100", 10) || 100));
     const periodRaw = searchParams.get("period") ?? "7d";
     const normalized = periodRaw === "1d" ? "24h" : periodRaw;
@@ -74,7 +80,10 @@ export async function GET(req: Request) {
     const fromFills = closedTradesFromFills(fills, leverage, leverageByInst, leverageByOrderId);
     const fromOrders = closedTradesFromOrders(orders, leverage);
     const allClosedTrades = mergeClosedTrades(fromFills, fromOrders);
-    const closedTrades = filterClosedTradesByPeriod(allClosedTrades, period);
+    const closedTrades = filterClosedTradesByPeriod(allClosedTrades, period).map((t) => ({
+      ...t,
+      exchange: provider,
+    }));
     const totalRealized = sumClosedTradesRealized(closedTrades);
     const analysis = analyzeClosedTrades(closedTrades);
 

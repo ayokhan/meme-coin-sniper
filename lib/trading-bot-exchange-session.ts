@@ -25,10 +25,17 @@ export type ExchangeResolveResult =
   | { ok: true; provider: ExchangeProvider; blofin?: BlofinConfig; coinbase?: CoinbaseConfig; credentialSource: "saved" | "server" }
   | { ok: false; status: number; error: string };
 
+export function parseExchangeProviderParam(raw: unknown): ExchangeProvider | null {
+  const p = String(raw ?? "").trim().toLowerCase();
+  if (p === "blofin" || p === "coinbase") return p;
+  return null;
+}
+
 export async function resolveExchangeConfigForTradingBotSession(
-  session: Session | null
+  session: Session | null,
+  opts?: { provider?: ExchangeProvider | null }
 ): Promise<ExchangeResolveResult> {
-  const provider = await getTradingBotProvider();
+  const provider = opts?.provider ?? (await getTradingBotProvider());
   if (provider === "coinbase") {
     const resolved = await resolveCoinbaseConfigForTradingBotSession(session);
     if (!resolved.ok) return resolved;

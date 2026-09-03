@@ -5,7 +5,11 @@ import { getPositions as getPositionsBlofin, getTicker as getTickerBlofin, getIn
 import { getPositions as getPositionsCoinbase, getTicker as getTickerCoinbase, getInstrument as getInstrumentCoinbase } from "@/lib/coinbase";
 import { resolveBlofinPositionPnl } from "@/lib/blofin-position-pnl";
 import { resolveCoinbasePositionPnl } from "@/lib/coinbase-position-pnl";
-import { resolveExchangeConfigForTradingBotSession, getTradingBotExchangeMeta } from "@/lib/trading-bot-exchange-session";
+import {
+  resolveExchangeConfigForTradingBotSession,
+  getTradingBotExchangeMeta,
+  parseExchangeProviderParam,
+} from "@/lib/trading-bot-exchange-session";
 
 export const dynamic = "force-dynamic";
 
@@ -15,10 +19,13 @@ function parseNum(s: string): number {
 }
 
 /** GET - All open positions with unrealized PNL for the signed-in user's exchange account. */
-export async function GET() {
+export async function GET(req: Request) {
   try {
     const session = await getServerSession(authOptions);
-    const resolved = await resolveExchangeConfigForTradingBotSession(session);
+    const { searchParams } = new URL(req.url);
+    const resolved = await resolveExchangeConfigForTradingBotSession(session, {
+      provider: parseExchangeProviderParam(searchParams.get("provider")),
+    });
     if (!resolved.ok) {
       return NextResponse.json({ success: false, error: resolved.error }, { status: resolved.status });
     }
@@ -102,6 +109,7 @@ export async function GET() {
         margin: Number.isFinite(marginNum) ? marginNum : null,
         marginRatioBlofin: marginRatioBlofin != null && Number.isFinite(marginRatioBlofin) ? marginRatioBlofin : null,
         initialMarginPct: initialMarginPct != null ? Math.round(initialMarginPct * 100) / 100 : null,
+        exchange: provider,
       };
     });
 
