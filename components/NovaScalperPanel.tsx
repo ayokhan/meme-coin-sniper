@@ -8,6 +8,7 @@ import { parseScalperInstrument } from "@/lib/nova-scalper-instrument";
 import {
   clearNovaScalperPrefill,
   readNovaScalperPrefill,
+  readNovaScalperExchangeSetup,
   scalperEntryTriggerFor,
   scalperInstrumentPairFor,
 } from "@/lib/nova-scalper-prefill";
@@ -197,7 +198,7 @@ export default function NovaScalperPanel() {
     void load();
   }, [load]);
 
-  // Apply a "Scalp this trade" hand-off from Nova Scalp Agent onto the active config.
+  // Apply a "Scalp this trade" hand-off from Nova Pulse / Nova Scalp onto a matching config.
   // We only pre-fill the form; the user reviews and clicks Save (never auto-trades).
   useEffect(() => {
     if (prefillAppliedRef.current) return;
@@ -205,14 +206,53 @@ export default function NovaScalperPanel() {
     const prefill = readNovaScalperPrefill();
     if (!prefill) return;
     prefillAppliedRef.current = true;
-    const leverage = Math.max(1, Math.min(125, Math.round(prefill.leverage) || 1));
-    const pair = scalperInstrumentPairFor(prefill.symbol);
+
+    const metals = (() => {
+      const s = String(prefill.symbol ?? "").trim().toUpperCase();
+      return s === "XAU" || s === "GOLD" || s === "XAG" || s === "SILVER";
+    })();
+    const setup = readNovaScalperExchangeSetup();
+    const wantedExchange: "blofin" | "coinbase" =
+      metals
+        ? "blofin"
+        : prefill.exchange === "coinbase" || prefill.exchange === "blofin"
+          ? prefill.exchange
+          : setup === "coinbase"
+            ? "coinbase"
+            : setup === "blofin"
+              ? "blofin"
+              : configs.find((c) => c.id === activeConfigId)?.exchange === "coinbase"
+                ? "coinbase"
+                : "blofin";
+
+    if (wantedExchange === "coinbase" && setup !== "coinbase" && setup !== "both") {
+      setExchangeSetup("coinbase");
+    } else if (wantedExchange === "blofin" && setup === "coinbase") {
+      setExchangeSetup("blofin");
+    }
+
+    const matching = configs.filter((c) => (c.exchange === "coinbase" ? "coinbase" : "blofin") === wantedExchange);
+    const target =
+      matching.find((c) => c.id === activeConfigId) ?? matching[0] ?? configs.find((c) => c.id === activeConfigId) ?? configs[0];
+    if (!target) {
+      clearNovaScalperPrefill();
+      return;
+    }
+    if (target.id !== activeConfigId) setActiveConfigId(target.id);
+
+    const leverage = Math.max(
+      1,
+      Math.min(wantedExchange === "coinbase" ? 50 : 125, Math.round(prefill.leverage) || 1)
+    );
+    const pair = scalperInstrumentPairFor(prefill.symbol, wantedExchange);
     setConfigs((list) =>
       list.map((c) =>
-        c.id === activeConfigId
+        c.id === target.id
           ? {
               ...c,
+              exchange: wantedExchange,
               instrumentPair: pair,
+              marginCurrency: wantedExchange === "coinbase" ? "USDC" : c.marginCurrency,
               instId: "",
               side: prefill.side,
               entryTrigger:
@@ -236,17 +276,18 @@ export default function NovaScalperPanel() {
                 Number.isFinite(prefill.marginUsd) && prefill.marginUsd > 0
                   ? prefill.marginUsd
                   : c.positionSizeUsdt,
+              sizeMode: wantedExchange === "coinbase" ? c.sizeMode ?? "margin" : "margin",
             }
           : c
       )
     );
     setPrefillNotice(
-      `Loaded ${prefill.side.toUpperCase()} ${pair} from ${prefill.source}${
-        prefill.marginMode ? ` · ${prefill.marginMode}` : ""
-      }. Review the levels below, then Save. Nothing is placed until you Save and run a tick.`
+      `Loaded ${prefill.side.toUpperCase()} ${pair} from ${prefill.source} into Config ${target.slot} (${
+        wantedExchange === "coinbase" ? "Coinbase" : "Blofin"
+      })${prefill.marginMode ? ` · ${prefill.marginMode}` : ""}. Review the levels below, then Save. Nothing is placed until you Save and run a tick.`
     );
     clearNovaScalperPrefill();
-  }, [loading, activeConfigId, configs.length]);
+  }, [loading, activeConfigId, configs, setExchangeSetup]);
 
   const fetchPositionPnl = useCallback(async () => {
     const cfg = configs.find((c) => c.id === activeConfigId);

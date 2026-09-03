@@ -33,19 +33,42 @@ export type NovaScalperPrefill = {
   marginMode?: "cross" | "isolated";
   /** When set, Scalper uses this instead of inferring cross up/down from side. */
   entryTrigger?: "cross_down" | "cross_up" | "immediate";
+  /** Optional target exchange. If omitted, NovaScalper uses the user's Blofin/Coinbase picker. */
+  exchange?: "blofin" | "coinbase";
   /** Human-readable origin, e.g. "Nova Scalp Agent" or "Quick Win". */
   source: string;
   createdAt: string;
 };
 
-/** Blofin instrument pair NovaScalper expects (BASE/QUOTE, or metal shortcut). */
-export function scalperInstrumentPairFor(symbol: string): string {
+const SCALPER_EXCHANGE_SETUP_KEY = "novastaris-exchange-nova-scalper";
+
+/** Last Blofin / Coinbase / both choice on the NovaScalper page. */
+export function readNovaScalperExchangeSetup(): "blofin" | "coinbase" | "both" {
+  if (typeof window === "undefined") return "blofin";
+  try {
+    const raw = localStorage.getItem(SCALPER_EXCHANGE_SETUP_KEY);
+    if (raw === "coinbase" || raw === "both" || raw === "blofin") return raw;
+  } catch {
+    /* ignore */
+  }
+  return "blofin";
+}
+
+/** Blofin: BASE/USDT. Coinbase: BASE/USDC (metals stay Blofin-style XAU/XAG). */
+export function scalperInstrumentPairFor(
+  symbol: string,
+  exchange: "blofin" | "coinbase" = "blofin"
+): string {
   const s = String(symbol ?? "").trim().toUpperCase();
   if (s === "XAU" || s === "GOLD") return "XAU";
   if (s === "XAG" || s === "SILVER") return "XAG";
-  if (!s) return "BTC/USDT";
-  if (s.includes("/") || s.includes("-")) return s.replace(/-/g, "/");
-  return `${s}/USDT`;
+  if (!s) return exchange === "coinbase" ? "BTC/USDC" : "BTC/USDT";
+  if (s.includes("/") || s.includes("-")) {
+    const [base, quote] = s.replace(/-/g, "/").split("/");
+    if (exchange === "coinbase" && quote && quote !== "USDC") return `${base}/USDC`;
+    return `${base}${quote ? `/${quote}` : ""}`;
+  }
+  return exchange === "coinbase" ? `${s}/USDC` : `${s}/USDT`;
 }
 
 /** Long dips into entry (cross down); short rallies into entry (cross up). Market / at-entry → immediate. */
