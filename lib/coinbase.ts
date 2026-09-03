@@ -680,13 +680,6 @@ function toEpochMsString(raw?: string | number | null): string | undefined {
   return String(t);
 }
 
-function isCfmOrFuturesProduct(productId: string, productType?: string): boolean {
-  const type = (productType ?? "").toUpperCase();
-  if (type === "FUTURE") return true;
-  const id = productId.toUpperCase();
-  return id.endsWith("-CDE") || id.includes("-PERP") || id.endsWith("-INTX");
-}
-
 export async function placeMarketOrder(
   instId: string,
   side: "buy" | "sell",
@@ -934,9 +927,7 @@ export async function getOpenOrders(options?: {
     }[];
   }>(config, "GET", `/api/v3/brokerage/orders/historical/batch?${params.toString()}`);
 
-  return (result.orders ?? [])
-    .filter((o) => isCfmOrFuturesProduct(String(o.product_id ?? ""), o.product_type))
-    .map((o) => {
+  return (result.orders ?? []).map((o) => {
       const cfg = o.order_configuration ?? {};
       const first = Object.values(cfg)[0] ?? {};
       return {
@@ -945,7 +936,7 @@ export async function getOpenOrders(options?: {
         side: String(o.side ?? "").toLowerCase(),
         orderType: String(o.order_type ?? ""),
         size: String(first.base_size ?? o.filled_size ?? "0"),
-        price: String(first.limit_price ?? o.average_filled_price ?? "0"),
+        price: String(first.limit_price ?? first.stop_trigger_price ?? o.average_filled_price ?? "0"),
         state: String(o.status ?? "open").toLowerCase(),
         createdAt: toEpochMsString(o.created_time),
       };
@@ -1054,9 +1045,7 @@ export async function getOrderHistory(options?: {
     }[];
   }>(config, "GET", `/api/v3/brokerage/orders/historical/batch?${params.toString()}`);
 
-  return (result.orders ?? [])
-    .filter((o) => isCfmOrFuturesProduct(String(o.product_id ?? ""), o.product_type))
-    .map((o) => {
+  return (result.orders ?? []).map((o) => {
     const cfg = o.order_configuration ?? {};
     const first = Object.values(cfg)[0] ?? {};
     return {
@@ -1065,7 +1054,7 @@ export async function getOrderHistory(options?: {
       side: String(o.side ?? "").toLowerCase(),
       orderType: String(o.order_type ?? ""),
       size: String(first.base_size ?? o.filled_size ?? "0"),
-      price: String(first.limit_price ?? o.average_filled_price ?? "0"),
+      price: String(first.limit_price ?? first.stop_trigger_price ?? o.average_filled_price ?? "0"),
       state: String(o.status ?? "").toLowerCase(),
       fillPrice: o.average_filled_price,
       averagePrice: o.average_filled_price,
