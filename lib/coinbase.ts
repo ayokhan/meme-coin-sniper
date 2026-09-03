@@ -121,7 +121,19 @@ export function validateCoinbasePrivateKey(
   secret: string
 ): { ok: true; pem: string } | { ok: false; error: string } {
   try {
-    const pem = normalizeCoinbasePrivateKeyPem(secret);
+    const raw = secret.trim();
+    if (!raw) return { ok: false, error: "Private key is required." };
+
+    // HMAC-style Advanced Trade secrets (random strings) are not valid for CDP JWT auth.
+    if (!/-----BEGIN/.test(raw) && !raw.trim().startsWith("{")) {
+      return {
+        ok: false,
+        error:
+          "That looks like an API secret string, not a CDP private key. In the Coinbase CDP portal, download the API key and paste the private key block that starts with -----BEGIN EC PRIVATE KEY----- (or paste the whole .json key file). A short API secret / HMAC key will not work for Coinbase Futures here.",
+      };
+    }
+
+    const pem = normalizeCoinbasePrivateKeyPem(raw);
     if (!pem) return { ok: false, error: "Private key is required." };
     if (/BEGIN\s+PUBLIC\s+KEY/i.test(pem)) {
       return { ok: false, error: "That is a PUBLIC key. Paste the CDP private key PEM instead." };

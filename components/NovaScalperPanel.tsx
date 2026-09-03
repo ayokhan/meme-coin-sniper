@@ -845,11 +845,11 @@ export default function NovaScalperPanel() {
             <CoinbasePartnerPromoBanner compact />
             <CoinbaseFuturesFormatNote />
             <p className="text-sm text-muted-foreground">
-              Connect your Coinbase CDP API key for Futures. Create keys at{" "}
+              Connect a <strong>Coinbase CDP</strong> API key (not an HMAC API secret). Create keys at{" "}
               <a href="https://portal.cdp.coinbase.com" target="_blank" rel="noopener noreferrer" className="text-cyan-600 dark:text-cyan-400 hover:underline">
                 portal.cdp.coinbase.com
               </a>{" "}
-              with <strong>view</strong> and <strong>trade</strong> permissions.
+              with <strong>view</strong> and <strong>trade</strong> permissions. Paste the private key PEM from the key download.
             </p>
             {userCoinbaseConfigured === true && (
               <p className="text-sm text-emerald-600 dark:text-emerald-400">Coinbase keys are configured.</p>
@@ -866,14 +866,15 @@ export default function NovaScalperPanel() {
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">API Secret (PEM)</label>
+                <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">CDP private key (PEM)</label>
                 <textarea
-                  placeholder="-----BEGIN EC PRIVATE KEY-----…"
+                  placeholder={"-----BEGIN EC PRIVATE KEY-----\n…\n-----END EC PRIVATE KEY-----"}
                   value={coinbaseKeysForm.apiSecret}
                   onChange={(e) => setCoinbaseKeysForm((f) => ({ ...f, apiSecret: e.target.value }))}
-                  rows={3}
+                  rows={4}
                   className="w-full rounded border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2 py-1.5 text-sm font-mono"
                 />
+                <p className="mt-1 text-[11px] text-muted-foreground">Not the short HMAC “API secret”. Use the PEM (or whole JSON key file) from CDP.</p>
               </div>
             </div>
             <div className="flex flex-wrap gap-2">

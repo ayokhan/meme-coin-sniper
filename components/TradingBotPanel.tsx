@@ -2625,11 +2625,12 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
             <CoinbasePartnerPromoBanner />
             <CoinbaseFuturesFormatNote />
             <p className="text-sm text-muted-foreground">
-              Connect your Coinbase CDP API key for Futures trading. Create keys at{" "}
+              Connect a <strong>Coinbase CDP</strong> API key (not the old Advanced Trade API secret). Create keys at{" "}
               <a href="https://portal.cdp.coinbase.com" target="_blank" rel="noopener noreferrer" className="text-cyan-600 dark:text-cyan-400 hover:underline">
                 portal.cdp.coinbase.com
               </a>{" "}
-              with <strong>view</strong> and <strong>trade</strong> permissions. Keys are encrypted at rest.
+              with <strong>view</strong> and <strong>trade</strong> permissions. Download the key file and paste the{" "}
+              <strong>private key PEM</strong> (starts with <code className="text-[11px]">-----BEGIN EC PRIVATE KEY-----</code>) — a short API secret string will not work. Keys are encrypted at rest.
             </p>
             {userCoinbaseConfigured === true && (
               <p className="text-sm text-emerald-600 dark:text-emerald-400">Coinbase keys are configured.</p>
@@ -2640,8 +2641,9 @@ export default function TradingBotPanel({ mode = "all" }: { mode?: TradingBotPan
                 <input type="password" placeholder="organizations/…/apiKeys/…" value={coinbaseKeysForm.apiKeyName} onChange={(e) => setCoinbaseKeysForm((f) => ({ ...f, apiKeyName: e.target.value }))} className="w-full rounded border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2 py-1.5 text-sm" />
               </div>
               <div>
-                <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">API Secret (PEM private key)</label>
-                <textarea placeholder="-----BEGIN EC PRIVATE KEY-----…" value={coinbaseKeysForm.apiSecret} onChange={(e) => setCoinbaseKeysForm((f) => ({ ...f, apiSecret: e.target.value }))} rows={3} className="w-full rounded border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2 py-1.5 text-sm font-mono" />
+                <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">CDP private key (PEM)</label>
+                <textarea placeholder={"-----BEGIN EC PRIVATE KEY-----\n…\n-----END EC PRIVATE KEY-----"} value={coinbaseKeysForm.apiSecret} onChange={(e) => setCoinbaseKeysForm((f) => ({ ...f, apiSecret: e.target.value }))} rows={4} className="w-full rounded border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2 py-1.5 text-sm font-mono" />
+                <p className="mt-1 text-[11px] text-muted-foreground">Not the HMAC “API secret”. Use the PEM from the CDP key download (or paste the whole JSON key file).</p>
               </div>
             </div>
             <div className="flex gap-2">
