@@ -84,7 +84,7 @@ export function CoinbasePartnerPromoBanner({ className = "", compact = false, pr
           </p>
         )}
         {compact && (
-          <p className="text-[11px] text-zinc-500">Create a Coinbase account, then save your CDP API keys below.</p>
+          <p className="text-[11px] text-zinc-500">Register first, then save your Coinbase API keys below.</p>
         )}
       </div>
     </div>

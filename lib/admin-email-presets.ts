@@ -467,7 +467,7 @@ export const ADMIN_EMAIL_PRESETS: AdminEmailPreset[] = [
     includePartnerLogos: true,
     partnerBrand: "coinbase",
     ctaLabel: "Join on Coinbase",
-    ctaUrl: "https://www.coinbase.com/futures",
+    ctaUrl: "https://coinbase.com/join/WGVMDA2?src=referral-link",
     defaultAudience: "newsletter",
   },
 ];

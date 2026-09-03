@@ -25,14 +25,14 @@ export type CoinbasePartnerPromoAdmin = CoinbasePartnerPromoConfig & {
 };
 
 export const DEFAULT_COINBASE_PARTNER_PROMO: CoinbasePartnerPromoConfig = {
-  enabled: false,
-  registerUrl: "https://www.coinbase.com/futures",
-  headline: "Trade Coinbase Futures with NovaStaris",
+  enabled: true,
+  registerUrl: "https://coinbase.com/join/WGVMDA2?src=referral-link",
+  headline: "Trade Futures & Spot on Coinbase with NovaStaris",
   bodyText:
-    "NovaStaris now supports Coinbase Futures. Connect your CDP API keys to run the AI Trading Bot and NovaScalper on your Coinbase account — same PNL, positions, and automation as Blofin.",
-  promoLabel: "Coinbase Futures live",
-  ctaLabel: "Open Coinbase Futures",
-  referralCode: "",
+    "Register with Coinbase through NovaStaris, then connect your CDP API keys to run the AI Trading Bot and NovaScalper on your Coinbase account — same PNL, positions, and automation as Blofin.",
+  promoLabel: "Coinbase referral",
+  ctaLabel: "Register on Coinbase",
+  referralCode: "WGVMDA2",
   showLogosInBanner: true,
   includeLogosInEmail: true,
   includeLogosInBroadcast: true,
@@ -41,7 +41,7 @@ export const DEFAULT_COINBASE_PARTNER_PROMO: CoinbasePartnerPromoConfig = {
 export const COINBASE_PARTNERSHIP_LAUNCH_BANNER: SiteAnnouncementBannerConfig = {
   enabled: true,
   title: "NovaStaris × Coinbase — Futures trading",
-  body: "Trade Coinbase Futures from NovaStaris. Connect your CDP API keys in AI Trading Bot or NovaScalper — full PNL, positions, and bot automation on your account.",
+  body: "Trade Coinbase Futures from NovaStaris. Register with our referral link if you need an account, then connect your CDP API keys in AI Trading Bot or NovaScalper.",
   ctaLabel: "Open Trading Bot",
   ctaHref: "/?tab=trading-bot",
   showPartnerLogos: true,
@@ -54,16 +54,21 @@ export const COINBASE_PARTNERSHIP_EMAIL = {
 
 NovaStaris now supports Coinbase Futures alongside Blofin.
 
+Don't have a Coinbase account yet?
+Register with our referral link (you'll both get the invite offer when eligible):
+https://coinbase.com/join/WGVMDA2?src=referral-link
+
 What you can do
 • Connect your Coinbase CDP API keys in AI Trading Bot or NovaScalper
 • Choose Blofin or Coinbase (or use both with separate keys)
 • Same features: open positions, closed-trade PNL, share cards, and bot automation
 
 How to get started
-1. Sign in to NovaStaris → AI Trading Bot
-2. Save your Coinbase API keys (CDP portal — view + trade permissions)
-3. Set Provider to Coinbase Futures in Config
-4. Run the bot or open NovaScalper with Exchange = Coinbase
+1. Create or sign in to Coinbase (link above if you're new)
+2. Sign in to NovaStaris → AI Trading Bot
+3. Save your Coinbase API keys (CDP portal — view + trade permissions)
+4. Set Provider to Coinbase Futures in Config
+5. Run the bot or open NovaScalper with Exchange = Coinbase
 
 Create API keys: https://portal.cdp.coinbase.com
 
