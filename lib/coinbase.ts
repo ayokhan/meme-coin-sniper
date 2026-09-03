@@ -303,10 +303,11 @@ export function formatCoinbaseApiError(err: unknown): string {
   }
   if (/invalid_credentials|invalid credentials|unauthorized|authentication/i.test(msg)) {
     return (
-      "Coinbase rejected the API key (invalid_credentials). Futures needs a CDP key created with " +
-      "signature algorithm ECDSA (not Ed25519). In the CDP portal: Create API key → Advanced → ECDSA → " +
-      "download the PEM. Then set COINBASE_API_KEY_NAME = key name/id and COINBASE_API_SECRET = the PEM " +
-      "(use \\n for newlines in Vercel), and redeploy."
+      "Coinbase Futures gateway rejected this CDP key (invalid_credentials). " +
+      "A valid ECDSA key can still work for Coinbase App / US CFM while Global Derivatives (INTX / drb.coinbase.com) is not enabled. " +
+      "On Coinbase: open coinbase.com/futures, finish derivatives onboarding, then retry. " +
+      "Cutover to the Deribit gateway is September 9, 2026 — until then INTX access is required. " +
+      "If you just created the key, confirm it is ECDSA and the PEM matches this key name."
     );
   }
   return msg;
