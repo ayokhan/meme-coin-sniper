@@ -30,16 +30,112 @@ function base64urlEncode(input: Buffer | string): string {
   return buf.toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 }
 
-/** Normalize PEM secret — Vercel env vars often store literal \n. */
-function normalizePem(secret: string): string {
-  const trimmed = secret.trim();
-  if (trimmed.includes("\\n")) return trimmed.replace(/\\n/g, "\n");
-  return trimmed;
+/** Normalize CDP private key PEM — env vars and pasted secrets are often mangled. */
+export function normalizeCoinbasePrivateKeyPem(secret: string): string {
+  let s = secret.trim().replace(/^\uFEFF/, "");
+  if (
+    (s.startsWith('"') && s.endsWith('"')) ||
+    (s.startsWith("'") && s.endsWith("'"))
+  ) {
+    s = s.slice(1, -1).trim();
+  }
+  s = s.replace(/\\n/g, "\n").replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+
+  // Full CDP key JSON download: { "name": "...", "privateKey": "-----BEGIN..." }
+  if (s.startsWith("{") && /"privateKey"\s*:/.test(s)) {
+    try {
+      const parsed = JSON.parse(s) as { privateKey?: unknown };
+      if (typeof parsed.privateKey === "string" && parsed.privateKey.trim()) {
+        s = parsed.privateKey.trim().replace(/\\n/g, "\n");
+      }
+    } catch {
+      /* keep original */
+    }
+  }
+
+  if (!s.includes("\n") && /-----BEGIN/.test(s)) {
+    s = s
+      .replace(/-----BEGIN ([^-]+)-----/g, "-----BEGIN $1-----\n")
+      .replace(/-----END ([^-]+)-----/g, "\n-----END $1-----")
+      .replace(/\n+/g, "\n")
+      .trim();
+  }
+
+  const pemMatch = s.match(/^(-----BEGIN [^-]+-----)\n([\s\S]*?)\n(-----END [^-]+-----)\s*$/);
+  if (pemMatch) {
+    const body = pemMatch[2].replace(/\s+/g, "");
+    const wrapped = body.match(/.{1,64}/g)?.join("\n") ?? body;
+    s = `${pemMatch[1]}\n${wrapped}\n${pemMatch[3]}`;
+  }
+
+  return s;
+}
+
+function friendlyCoinbaseKeyError(err: unknown): string {
+  const msg = err instanceof Error ? err.message : String(err);
+  if (msg.includes("DECODER") || msg.includes("unsupported") || /PEM|private key|asn1/i.test(msg)) {
+    return (
+      "Coinbase private key could not be read. Paste the full CDP PEM " +
+      "(-----BEGIN EC PRIVATE KEY----- … -----END EC PRIVATE KEY-----), " +
+      "or the CDP JSON key file. Then re-save keys (or fix COINBASE_API_SECRET on the server)."
+    );
+  }
+  return msg;
+}
+
+/** Load Coinbase CDP EC private key for ES256 JWT signing. */
+export function loadCoinbaseSigningKey(secret: string): crypto.KeyObject {
+  const pem = normalizeCoinbasePrivateKeyPem(secret);
+  if (!pem) throw new Error("Coinbase private key is empty.");
+
+  const attempts: crypto.PrivateKeyInput[] = [{ key: pem, format: "pem" }];
+  if (/BEGIN EC PRIVATE KEY/i.test(pem)) {
+    attempts.push({ key: pem.replace(/EC PRIVATE KEY/gi, "PRIVATE KEY"), format: "pem" });
+  } else if (/BEGIN PRIVATE KEY/i.test(pem)) {
+    attempts.push({ key: pem.replace(/PRIVATE KEY/gi, "EC PRIVATE KEY"), format: "pem" });
+  }
+
+  const body = pem.replace(/-----[^-]+-----/g, "").replace(/\s+/g, "");
+  if (/^[A-Za-z0-9+/=]+$/.test(body) && body.length > 40) {
+    const der = Buffer.from(body, "base64");
+    attempts.push({ key: der, format: "der", type: "pkcs8" });
+    attempts.push({ key: der, format: "der", type: "sec1" });
+  }
+
+  let lastErr: unknown;
+  for (const input of attempts) {
+    try {
+      const key = crypto.createPrivateKey(input);
+      if (key.asymmetricKeyType !== "ec") {
+        throw new Error(`Expected an EC private key for Coinbase CDP (ES256), got ${key.asymmetricKeyType ?? "unknown"}.`);
+      }
+      return key;
+    } catch (e) {
+      lastErr = e;
+    }
+  }
+  throw new Error(friendlyCoinbaseKeyError(lastErr));
+}
+
+export function validateCoinbasePrivateKey(
+  secret: string
+): { ok: true; pem: string } | { ok: false; error: string } {
+  try {
+    const pem = normalizeCoinbasePrivateKeyPem(secret);
+    if (!pem) return { ok: false, error: "Private key is required." };
+    if (/BEGIN\s+PUBLIC\s+KEY/i.test(pem)) {
+      return { ok: false, error: "That is a PUBLIC key. Paste the CDP private key PEM instead." };
+    }
+    loadCoinbaseSigningKey(pem);
+    return { ok: true, pem };
+  } catch (e) {
+    return { ok: false, error: friendlyCoinbaseKeyError(e) };
+  }
 }
 
 /** Create a short-lived CDP JWT (ES256) for public/auth. */
 export function createCdpJwt(apiKeyName: string, privateKeyPem: string): string {
-  const key = normalizePem(privateKeyPem);
+  const key = loadCoinbaseSigningKey(privateKeyPem);
   const header = { alg: "ES256", kid: apiKeyName, typ: "JWT", nonce: crypto.randomUUID() };
   const now = Math.floor(Date.now() / 1000);
   const payload = { sub: apiKeyName, iss: "cdp", nbf: now, exp: now + 120 };
@@ -55,10 +151,15 @@ export function createCdpJwt(apiKeyName: string, privateKeyPem: string): string 
 
 export function getConfig(): CoinbaseConfig | null {
   const apiKeyName = process.env.COINBASE_API_KEY_NAME?.trim();
-  const apiSecret = process.env.COINBASE_API_SECRET?.trim();
-  if (!apiKeyName || !apiSecret) return null;
+  const apiSecretRaw = process.env.COINBASE_API_SECRET?.trim();
+  if (!apiKeyName || !apiSecretRaw) return null;
   const demo = process.env.COINBASE_SANDBOX_MODE === "true";
-  return { apiKeyName, apiSecret, demo };
+  const keyCheck = validateCoinbasePrivateKey(apiSecretRaw);
+  return {
+    apiKeyName,
+    apiSecret: keyCheck.ok ? keyCheck.pem : normalizeCoinbasePrivateKeyPem(apiSecretRaw),
+    demo,
+  };
 }
 
 export function isCoinbaseConfigured(): boolean {
@@ -97,7 +198,12 @@ export async function getAccessToken(config: CoinbaseConfig): Promise<string> {
   const ck = cacheKey(config);
   const cached = tokenCache.get(ck);
   if (cached && cached.expiresAt > Date.now() + 30_000) return cached.token;
-  const jwt = createCdpJwt(config.apiKeyName, config.apiSecret);
+  let jwt: string;
+  try {
+    jwt = createCdpJwt(config.apiKeyName, config.apiSecret);
+  } catch (e) {
+    throw new Error(formatCoinbaseApiError(e));
+  }
   const result = await jsonRpc<{ access_token: string; expires_in?: number }>(
     "public/auth",
     { grant_type: "coinbase_cdp", token: jwt },
@@ -115,8 +221,15 @@ async function privateRpc<T>(method: string, params: Record<string, unknown>, co
 }
 
 export function formatCoinbaseApiError(err: unknown): string {
-  if (err instanceof Error) return err.message;
-  return String(err);
+  const msg = err instanceof Error ? err.message : String(err);
+  if (msg.includes("DECODER") || msg.includes("unsupported")) {
+    return (
+      "Coinbase private key could not be read. Paste the full CDP PEM " +
+      "(-----BEGIN EC PRIVATE KEY----- … -----END EC PRIVATE KEY-----), " +
+      "or the CDP JSON key file. Then re-save keys (or fix COINBASE_API_SECRET on the server)."
+    );
+  }
+  return msg;
 }
 
 /** Map symbol (BTC, BTC/USDT) → Coinbase instrument e.g. BTC_USDC-PERPETUAL. */

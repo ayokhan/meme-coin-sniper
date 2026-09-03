@@ -4,7 +4,7 @@
  */
 import crypto from "crypto";
 import { prisma } from "@/lib/db";
-import type { CoinbaseConfig } from "@/lib/coinbase";
+import { normalizeCoinbasePrivateKeyPem, type CoinbaseConfig } from "@/lib/coinbase";
 
 const ALGO = "aes-256-gcm";
 const IV_LEN = 16;
@@ -46,7 +46,7 @@ export async function getCoinbaseConfigForUser(userId: string): Promise<Coinbase
     const row = await (prisma as any).userCoinbaseConfig.findUnique({ where: { userId } });
     if (!row) return null;
     const apiKeyName = decrypt(row.encryptedApiKeyName);
-    const apiSecret = decrypt(row.encryptedApiSecret);
+    const apiSecret = normalizeCoinbasePrivateKeyPem(decrypt(row.encryptedApiSecret));
     if (!apiKeyName || !apiSecret) return null;
     return { apiKeyName, apiSecret, demo: row.demoMode };
   } catch {

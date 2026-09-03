@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions, isOwnerSession } from "@/lib/auth";
-import { getConfig } from "@/lib/coinbase";
+import { getConfig, validateCoinbasePrivateKey } from "@/lib/coinbase";
 import {
   getCoinbaseConfigForUser,
   saveCoinbaseConfigForUser,
@@ -63,13 +63,17 @@ export async function POST(request: Request) {
     }
     const body = await request.json().catch(() => ({}));
     const apiKeyName = String(body.apiKeyName ?? "").trim();
-    const apiSecret = String(body.apiSecret ?? "").trim();
-    if (!apiKeyName || !apiSecret) {
+    const apiSecretRaw = String(body.apiSecret ?? "").trim();
+    if (!apiKeyName || !apiSecretRaw) {
       return NextResponse.json({ success: false, error: "apiKeyName and apiSecret are required." }, { status: 400 });
+    }
+    const keyCheck = validateCoinbasePrivateKey(apiSecretRaw);
+    if (!keyCheck.ok) {
+      return NextResponse.json({ success: false, error: keyCheck.error }, { status: 400 });
     }
     await saveCoinbaseConfigForUser(session.user.id, {
       apiKeyName,
-      apiSecret,
+      apiSecret: keyCheck.pem,
       demo: body.demoMode === true,
     });
     return NextResponse.json({ success: true, configured: true });
