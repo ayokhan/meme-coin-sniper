@@ -33,7 +33,7 @@ export async function sendEmailDetailed(
       body: JSON.stringify({
         from,
         to: [to],
-        reply_to: process.env.RESEND_REPLY_TO ?? undefined,
+        reply_to: process.env.RESEND_REPLY_TO?.trim() || undefined,
         subject,
         html,
       }),
