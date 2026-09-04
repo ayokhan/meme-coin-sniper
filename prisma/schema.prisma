@@ -249,6 +249,7 @@ model User {
   storeOrders                StoreOrder[]
   discoveryCallCompletions   DiscoveryCallCompletion[]
   paidStrategyCallOrders     PaidStrategyCallOrder[]
+  featureAccessRequests      FeatureAccessRequest[]
 
   @@index([referredByUserId])
 }
@@ -1312,6 +1313,21 @@ model SupportTicket {
   updatedAt     DateTime @default(now()) @updatedAt
   @@index([createdAt])
   @@index([status])
+}
+
+/** VIP on-demand feature access requests (e.g. Coach Calls). Admin grants via Customers or this queue. */
+model FeatureAccessRequest {
+  id         String   @id @default(cuid())
+  userId     String
+  feature    String   // e.g. "coach_calls"
+  status     String   @default("pending") // pending | granted | dismissed
+  createdAt  DateTime @default(now())
+  resolvedAt DateTime?
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([feature, status])
+  @@index([userId, feature])
+  @@index([createdAt])
 }
 
 // Single row (id = "default"): when owner last pinged (agent "online" if within ~2 min)

@@ -547,7 +547,7 @@ export default function CustomerExpandedPanel({
         <DetailRow label="Nova Jobs Agent">
           <OnOffButton readOnly={readOnly} on={c.novaJobAgentOnDemand} busy={busy.jobsAgent} onClick={() => onJobsAgent(!c.novaJobAgentOnDemand)} active="cyan" />
         </DetailRow>
-        <DetailRow label="Coach Calls" hint="Grant view when Owner-only mode">
+        <DetailRow label="Coach Calls" hint="Grant after VIP requests">
           <OnOffButton readOnly={readOnly} on={c.coachCallsOnDemand} busy={busy.coachCalls} onClick={() => onCoachCalls(!c.coachCallsOnDemand)} active="cyan" />
         </DetailRow>
         <DetailRow label="CT Scan" hint="Expiry when enabling">

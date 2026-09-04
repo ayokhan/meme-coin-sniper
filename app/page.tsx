@@ -540,12 +540,14 @@ function Dashboard() {
   // Initial: owner / admin grant. VIP "All VIP" mode is applied via /api/user/on-demand-access.
   const canAccessNovaJobsAgent = isOwner || novaJobAgentOnDemand;
   const coachCallsOnDemand = !!((session?.user as { coachCallsOnDemand?: boolean } | undefined)?.coachCallsOnDemand);
-  // Default audience is All VIP (owner_only off). Owner-only mode is applied via /api/user/on-demand-access.
-  const canAccessCoachCalls = isOwner || isCoachUser || coachCallsOnDemand || isVip;
+  // VIP must be granted on-demand (or be coach publisher). Poll refreshes after admin grant.
+  const canAccessCoachCalls = isOwner || isCoachUser || coachCallsOnDemand;
   const [ctAccessState, setCtAccessState] = useState<boolean | null>(null);
   const [memeCoinsTraderAccessState, setMemeCoinsTraderAccessState] = useState<boolean | null>(null);
   const [novaJobsAgentAccessState, setNovaJobsAgentAccessState] = useState<boolean | null>(null);
   const [coachCallsAccessState, setCoachCallsAccessState] = useState<boolean | null>(null);
+  const [coachCallsRequestPending, setCoachCallsRequestPending] = useState(false);
+  const [coachCallsRequestBusy, setCoachCallsRequestBusy] = useState(false);
   const canAccessCtScanEffective = ctAccessState ?? canAccessCtScan;
   const canAccessMemeCoinsTraderEffective = memeCoinsTraderAccessState ?? canAccessMemeCoinsTrader;
   const canAccessNovaJobsAgentEffective = novaJobsAgentAccessState ?? canAccessNovaJobsAgent;
@@ -662,7 +664,6 @@ function Dashboard() {
     if (tab === "chris-clayton") return isOwner && isTabPageEnabled(tab);
     if (tab === "realtor-os") return isOwner && isTabPageEnabled(tab);
     if (tab === "nova-job-agent") return (isOwner || canAccessNovaJobsAgentEffective) && isTabPageEnabled(tab);
-    if (tab === "coach-calls") return (isOwner || canAccessCoachCallsEffective) && isTabPageEnabled(tab);
     return isTabPageEnabled(tab);
   };
 
@@ -796,6 +797,7 @@ function Dashboard() {
           setMemeCoinsTraderAccessState(!!d.memeCoinsTraderAllowed);
           setNovaJobsAgentAccessState(!!d.novaJobsAgentAllowed);
           setCoachCallsAccessState(!!d.coachCallsAllowed);
+          setCoachCallsRequestPending(!!d.coachCallsRequestPending);
         }
       } catch {
         // Keep session-derived access if the endpoint fails.
@@ -912,7 +914,11 @@ function Dashboard() {
   } | null>(null);
   type WalletTrackerView = "meme" | "leverage" | "nova-perp-wallet-analyst" | "meme-leaderboard" | "deep-meme-agent" | "smart-money";
   const [walletTrackerView, setWalletTrackerView] = useState<WalletTrackerView>("meme");
-  const onDemandLocked = activeTab === "ct" && !canAccessCtScanEffective;
+  const onDemandLocked =
+    (activeTab === "ct" && !canAccessCtScanEffective) ||
+    (activeTab === "coach-calls" && !isOwner && !canAccessCoachCallsEffective && tier === "vip");
+  const coachCallsLocked =
+    activeTab === "coach-calls" && !isOwner && !canAccessCoachCallsEffective;
   const isGuest = status === "unauthenticated";
   const isAiAgentGuestLocked = false;
   const memeQuotaExhausted =
@@ -928,6 +934,7 @@ function Dashboard() {
   const isTabPaywalled =
     isAiAgentGuestLocked ||
     onDemandLocked ||
+    coachCallsLocked ||
     (VIP_ONLY_TABS.includes(activeTab) && !isVip && !isOwner) ||
     (PAID_TABS.includes(activeTab) && (activeTab === "nova-connect" ? !canUseNovaConnectPaidFeatures : !isPaid));
   const [guestNudgeDismissed, setGuestNudgeDismissed] = useState(true);
@@ -4975,7 +4982,7 @@ function Dashboard() {
             </Tabs>
           </CardHeader>
           <CardContent className="p-0">
-            {(onDemandLocked || ((VIP_ONLY_TABS.includes(activeTab) && !isVip && !isOwner) || (PAID_TABS.includes(activeTab) && (activeTab === "nova-connect" ? !canUseNovaConnectPaidFeatures : !isPaid)))) ? (
+            {(onDemandLocked || coachCallsLocked || ((VIP_ONLY_TABS.includes(activeTab) && !isVip && !isOwner) || (PAID_TABS.includes(activeTab) && (activeTab === "nova-connect" ? !canUseNovaConnectPaidFeatures : !isPaid)))) ? (
               <div className="flex flex-col items-center justify-center py-16 px-6 text-center">
                 <p className="text-lg font-semibold text-zinc-800 dark:text-zinc-200">
                   {isAiAgentGuestLocked
@@ -5006,7 +5013,8 @@ function Dashboard() {
                     (walletTrackerView === "meme" && !canAccessMemeCoinsTraderEffective
                       ? t("lockDesc.walletsMemeOnDemand")
                       : t("lockDesc.wallets"))}
-                  {activeTab === "coach-calls" && t("lockDesc.coach-calls")}
+                  {activeTab === "coach-calls" &&
+                    (onDemandLocked ? t("lockDesc.coachCallsOnDemand") : t("lockDesc.coach-calls"))}
                   {activeTab === "nova-forecast" && t("lockDesc.nova-forecast")}
                   {activeTab === "nova-pulse" && t("lockDesc.nova-pulse")}
                   {activeTab === "nova-forex" && t("lockDesc.nova-forex")}
@@ -5049,17 +5057,59 @@ function Dashboard() {
                   </>
                 ) : onDemandLocked ? (
                   <>
-                    <Button asChild className="mt-6 bg-amber-500 hover:bg-amber-600 text-white dark:bg-amber-600 dark:hover:bg-amber-700">
-                      <Link
-                        href={
-                          activeTab === "ct"
-                            ? "/support?subject=CT%20Scan%20access%20request"
-                            : "/support?subject=Mem%20Coins%20Trader%20access%20request"
-                        }
-                      >
-                        Contact for access
-                      </Link>
-                    </Button>
+                    {activeTab === "coach-calls" ? (
+                      <div className="mt-6 flex flex-col items-center gap-3">
+                        <Button
+                          type="button"
+                          disabled={coachCallsRequestBusy || coachCallsRequestPending}
+                          className="bg-amber-500 hover:bg-amber-600 text-white dark:bg-amber-600 dark:hover:bg-amber-700"
+                          onClick={async () => {
+                            setCoachCallsRequestBusy(true);
+                            try {
+                              const res = await fetch("/api/coach-calls/request-access", {
+                                method: "POST",
+                                credentials: "include",
+                              });
+                              const data = await res.json();
+                              if (data?.success) {
+                                setCoachCallsRequestPending(true);
+                                if (data.alreadyGranted) {
+                                  setCoachCallsAccessState(true);
+                                  setCoachCallsRequestPending(false);
+                                }
+                              }
+                            } catch {
+                              /* keep button usable */
+                            } finally {
+                              setCoachCallsRequestBusy(false);
+                            }
+                          }}
+                        >
+                          {coachCallsRequestBusy
+                            ? "Sending…"
+                            : coachCallsRequestPending
+                              ? "Request sent — waiting for admin"
+                              : "Request access"}
+                        </Button>
+                        {coachCallsRequestPending && (
+                          <p className="text-xs text-muted-foreground text-center max-w-sm">
+                            An admin has been notified. You will get access once they approve your request.
+                          </p>
+                        )}
+                      </div>
+                    ) : (
+                      <Button asChild className="mt-6 bg-amber-500 hover:bg-amber-600 text-white dark:bg-amber-600 dark:hover:bg-amber-700">
+                        <Link
+                          href={
+                            activeTab === "ct"
+                              ? "/support?subject=CT%20Scan%20access%20request"
+                              : "/support?subject=Mem%20Coins%20Trader%20access%20request"
+                          }
+                        >
+                          Contact for access
+                        </Link>
+                      </Button>
+                    )}
                     <DashboardPaywallHelp />
                   </>
                 ) : (
@@ -9191,16 +9241,7 @@ function Dashboard() {
             ) : activeTab === "nova-store" ? (
               <NovaStorePanel />
             ) : activeTab === "coach-calls" ? (
-              !canAccessCoachCallsEffective ? (
-                <div className="mx-3 sm:mx-6 py-10 text-center space-y-2">
-                  <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">Coach Calls is not available on your account yet</p>
-                  <p className="text-sm text-muted-foreground">
-                    Contact support if you need access, or upgrade to VIP when Coach Calls is open to all VIP members.
-                  </p>
-                </div>
-              ) : (
-                <CoachCallsPanel isOwner={isOwner} isCoachUser={isCoachUser} isVip={isVip} />
-              )
+              <CoachCallsPanel isOwner={isOwner} isCoachUser={isCoachUser} isVip={isVip} />
             ) : activeTab === "wallets" ? (
               <div className="px-3 sm:px-6 pt-2 space-y-6">
                 <PathFirstActionBanner tab="wallets" />

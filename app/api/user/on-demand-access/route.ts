@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { getSessionAndSubscription } from "@/lib/auth-server";
 import { isOwnerEmail, isOwnerWallet } from "@/lib/auth";
 import { FEATURE_FLAG_KEYS, getFeatureFlag } from "@/lib/feature-flags";
+import { prisma } from "@/lib/db";
+import { COACH_CALLS_FEATURE_KEY } from "@/lib/coach-calls-access";
 
 function parseExpiresAt(raw: unknown): number | null {
   if (!raw) return null;
@@ -22,6 +24,7 @@ export async function GET() {
   }
 
   const user = session.user as {
+    id?: string;
     ctScanOnDemand?: boolean;
     ctScanOnDemandExpiresAt?: Date | string | null;
     memeCoinsTraderOnDemand?: boolean;
@@ -54,16 +57,37 @@ export async function GET() {
   const coachOwnerOnly = await getFeatureFlag(FEATURE_FLAG_KEYS.COACH_CALLS_OWNER_ONLY);
   const coachCallsAllowed =
     coachMasterOn &&
-    (owner ||
-      Boolean(user.coachCallsOnDemand) ||
-      Boolean(user.isCoachUser) ||
-      (isVip && !coachOwnerOnly));
+    !coachOwnerOnly &&
+    (owner || Boolean(user.coachCallsOnDemand) || Boolean(user.isCoachUser));
+  // Owner-only testing: still allow owner + explicit grants / coach publishers.
+  const coachCallsAllowedOwnerMode =
+    coachMasterOn &&
+    coachOwnerOnly &&
+    (owner || Boolean(user.coachCallsOnDemand) || Boolean(user.isCoachUser));
+
+  let coachCallsRequestPending = false;
+  if (session.user.id && !coachCallsAllowed && !coachCallsAllowedOwnerMode) {
+    try {
+      const pending = await (prisma as any).featureAccessRequest.findFirst({
+        where: {
+          userId: session.user.id,
+          feature: COACH_CALLS_FEATURE_KEY,
+          status: "pending",
+        },
+        select: { id: true },
+      });
+      coachCallsRequestPending = !!pending;
+    } catch {
+      coachCallsRequestPending = false;
+    }
+  }
 
   return NextResponse.json({
     success: true,
     ctScanAllowed,
     memeCoinsTraderAllowed,
     novaJobsAgentAllowed,
-    coachCallsAllowed,
+    coachCallsAllowed: coachCallsAllowed || coachCallsAllowedOwnerMode,
+    coachCallsRequestPending,
   });
 }

@@ -360,12 +360,12 @@ const FLAG_LABELS: Record<string, { label: string; description: string }> = {
   page_tab_coach_calls: {
     label: "Tab: Coach Calls + Telegram Signals",
     description:
-      "Master switch for Coach Calls. Use the Coach Calls group (Off / Owner only / All VIP) below. Pair with coach_calls_owner_only. Grant individuals via Admin → Customers.",
+      "Master switch. Tab stays visible to everyone when ON. Guests/free need VIP; VIP users request on-demand access. Pair with coach_calls_owner_only. Prefer Off / Owner only / VIP on-demand in the Coach Calls group.",
   },
   coach_calls_owner_only: {
     label: "Coach Calls — Owner only",
     description:
-      "When page_tab_coach_calls is ON: restrict the tab to owner (+ Customers on-demand grants + coach publishers). Turn OFF for All VIP. Prefer the Off / Owner only / All VIP buttons in the Coach Calls group.",
+      "When page_tab_coach_calls is ON: restrict to owner (+ Customers grants + coach publishers) for testing. Turn OFF for VIP on-demand requests.",
   },
   page_tab_nova_forecast: {
     label: "Tab: NovaForecast Agent",
@@ -1534,11 +1534,11 @@ export default function AdminFeatureFlagsPage() {
                     ) : group.id === "coach-calls" ? (
                       <div className="space-y-4 px-4 pb-4 border-t border-zinc-200 dark:border-zinc-700 pt-3">
                         <p className="text-xs text-muted-foreground">
-                          Coach Calls is <strong className="text-zinc-800 dark:text-zinc-200">VIP only</strong> when rolled
-                          out. Use <strong className="text-zinc-800 dark:text-zinc-200">Owner only</strong> to hide from
-                          all users, then grant selected VIP customers via Admin → Customers. Switch to{" "}
-                          <strong className="text-zinc-800 dark:text-zinc-200">All VIP</strong> when everyone with VIP
-                          should see it. Coach publishers always keep access while the master flag is on.
+                          The Coach Calls tab stays <strong className="text-zinc-800 dark:text-zinc-200">visible to everyone</strong>{" "}
+                          when enabled. Guests and free users see a VIP upgrade lock. VIP members must{" "}
+                          <strong className="text-zinc-800 dark:text-zinc-200">request access</strong>; you get an email
+                          and an in-admin alert, then grant via the banner or Admin → Customers. Use{" "}
+                          <strong className="text-zinc-800 dark:text-zinc-200">Owner only</strong> while testing.
                         </p>
                         {(() => {
                           const audience = forexAudienceFromFlags(
@@ -1552,7 +1552,7 @@ export default function AdminFeatureFlagsPage() {
                                 <div className="min-w-0 flex-1">
                                   <p className="font-medium text-zinc-900 dark:text-zinc-100">Coach Calls + Telegram Signals</p>
                                   <p className="text-xs text-muted-foreground mt-0.5">
-                                    Exclusive CA / call alerts in-app and via Telegram for VIP members.
+                                    Exclusive CA / call alerts in-app and via Telegram. VIP on-demand after request.
                                   </p>
                                 </div>
                                 <span
@@ -1564,7 +1564,7 @@ export default function AdminFeatureFlagsPage() {
                                         : "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300"
                                   }`}
                                 >
-                                  {audience === "off" ? "OFF" : audience === "owner" ? "OWNER ONLY" : "ALL VIP"}
+                                  {audience === "off" ? "OFF" : audience === "owner" ? "OWNER ONLY" : "VIP ON-DEMAND"}
                                 </span>
                               </div>
                               <div className="flex flex-wrap gap-2">
@@ -1572,7 +1572,7 @@ export default function AdminFeatureFlagsPage() {
                                   [
                                     { id: "off" as const, label: "Off" },
                                     { id: "owner" as const, label: "Owner only (test)" },
-                                    { id: "vip" as const, label: "All VIP" },
+                                    { id: "vip" as const, label: "VIP on-demand" },
                                   ] as const
                                 ).map((opt) => (
                                   <Button

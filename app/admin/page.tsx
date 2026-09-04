@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import AdminPageHeader from "@/components/admin/AdminPageHeader";
 import AdminEmptyState from "@/components/admin/AdminEmptyState";
+import CoachCallsPendingRequestsCard from "@/components/admin/CoachCallsPendingRequestsCard";
 import { adminNavByGroup, ADMIN_NAV_GROUPS } from "@/lib/admin-nav-config";
 import { delegatedAdminOnly, getDelegatedAdminNavHrefs } from "@/lib/admin-access";
 import { Headphones, MessageCircle } from "lucide-react";
@@ -125,6 +126,8 @@ export default function AdminHubPage() {
         title="Hub"
         description="Shortcuts to analytics, customers, trackers, feature flags, and support tools. Use the sidebar on desktop or the menu on mobile."
       />
+
+      {isOwner && <CoachCallsPendingRequestsCard />}
 
       {isOwner && (
         <Card className="border-zinc-200 dark:border-zinc-800 mb-8">

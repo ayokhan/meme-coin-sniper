@@ -8,6 +8,7 @@ import { useSession } from "next-auth/react";
 import { ADMIN_NAV_GROUPS, ADMIN_NAV_ITEMS, adminNavByGroup } from "@/lib/admin-nav-config";
 import { canAccessDelegatedAdminPath, getDelegatedAdminNavHrefs } from "@/lib/admin-access";
 import AdminCommandPalette, { useAdminCommandPaletteHotkey } from "@/components/admin/AdminCommandPalette";
+import AdminFeatureAccessRequestNotifier from "@/components/admin/AdminFeatureAccessRequestNotifier";
 
 export default function AdminShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -149,6 +150,7 @@ export default function AdminShell({ children }: { children: React.ReactNode }) 
         <main className="flex-1 min-w-0 px-4 py-6 lg:px-8">{children}</main>
       </div>
 
+      <AdminFeatureAccessRequestNotifier />
       <AdminCommandPalette
         open={paletteOpen}
         onOpenChange={setPaletteOpen}

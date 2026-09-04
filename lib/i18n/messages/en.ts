@@ -266,6 +266,7 @@ export const en = {
     "wallets": "Wallet Tracker: Meme Coins Traders and Top Leverage Traders. Add your own wallets.",
     "walletsMemeOnDemand": "Mem Coins Traders (Wallet Tracker → Meme) is VIP on-demand. Request access and an admin will enable it for your account.",
     "coach-calls": "Coach Calls + Telegram Signals: exclusive CA (call alerts) from the team, in-app and via Telegram. VIP only.",
+    "coachCallsOnDemand": "Coach Calls is VIP on-demand. Request access and an admin will enable it for your account.",
     "nova-forecast": "NovaForecast Agent: multi-timeframe crypto perp structure—high/low zones, NovaQ, NovaRadar, and more. VIP only.",
     "nova-pulse": "Nova Pulse: AI-assisted short-horizon setups for crypto futures (Nova Scalp Agent) and forex (Nova Forex Agent). VIP only.",
     "pnl-calculator": "PnL Calculator: size crypto and forex trades (price / % / pips), lot sizing, and risk/reward before you scalp. Guests: 2 calculations/day. Free registered: 4/day. VIP: unlimited.",

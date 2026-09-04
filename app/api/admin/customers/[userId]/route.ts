@@ -130,6 +130,16 @@ export async function PATCH(
       where: { id: userId },
       data: updates,
     });
+    if (updates.coachCallsOnDemand === true) {
+      try {
+        await (prisma as any).featureAccessRequest.updateMany({
+          where: { userId, feature: "coach_calls", status: "pending" },
+          data: { status: "granted", resolvedAt: new Date() },
+        });
+      } catch {
+        /* table may not exist yet on older deploys */
+      }
+    }
     return NextResponse.json({ success: true });
   } catch (e) {
     console.error('Admin PATCH customer error:', e);

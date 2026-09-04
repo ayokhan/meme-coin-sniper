@@ -41,8 +41,7 @@ export const FEATURE_FLAG_KEYS = {
   /** Coach Calls tab. Master switch. Pair with COACH_CALLS_OWNER_ONLY for Off / Owner / All VIP. Default ON. */
   PAGE_TAB_COACH_CALLS: 'page_tab_coach_calls',
   /**
-   * When master ON: restrict Coach Calls to owner (+ admin on-demand grants + coach publishers).
-   * Default OFF so existing All VIP rollout is preserved until admin switches to Owner only.
+   * When master ON: owner testing only (no VIP request pool). Default OFF → VIP on-demand requests.
    */
   COACH_CALLS_OWNER_ONLY: 'coach_calls_owner_only',
   PAGE_TAB_NOVA_FORECAST: 'page_tab_nova_forecast',

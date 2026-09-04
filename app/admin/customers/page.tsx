@@ -7,6 +7,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import AdminPageHeader from "@/components/admin/AdminPageHeader";
 import CustomerExpandedPanel from "@/components/admin/CustomerExpandedPanel";
+import CoachCallsPendingRequestsCard from "@/components/admin/CoachCallsPendingRequestsCard";
 import { canViewAdminCustomersSession } from "@/lib/admin-access";
 import { ADMIN_VIP_QUICK_GRANTS, grantLabel, type AdminVipGrantId } from "@/lib/admin-vip-grant";
 
@@ -1026,6 +1027,7 @@ export default function AdminCustomersPage() {
             : "Registered users, subscriptions, and on-demand VIP access."
         }
       />
+      {isOwner && !readOnly && <CoachCallsPendingRequestsCard onGranted={() => loadCustomers()} />}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
           <Card className="border-zinc-200 dark:border-zinc-800">
             <CardContent className="py-3">
