@@ -26,6 +26,7 @@ export async function PATCH(
     const propFirmBotOnDemand = body.propFirmBotOnDemand;
     const novaUltimateOnDemand = body.novaUltimateOnDemand;
     const novaJobAgentOnDemand = body.novaJobAgentOnDemand;
+    const coachCallsOnDemand = body.coachCallsOnDemand;
     const ctScanOnDemand = body.ctScanOnDemand;
     const ctScanOnDemandExpiresAt = body.ctScanOnDemandExpiresAt;
     const memeCoinsTraderOnDemand = body.memeCoinsTraderOnDemand;
@@ -52,6 +53,7 @@ export async function PATCH(
       propFirmBotOnDemand?: boolean;
       novaUltimateOnDemand?: boolean;
       novaJobAgentOnDemand?: boolean;
+      coachCallsOnDemand?: boolean;
       ctScanOnDemand?: boolean;
       ctScanOnDemandExpiresAt?: Date | null;
       memeCoinsTraderOnDemand?: boolean;
@@ -78,6 +80,7 @@ export async function PATCH(
     if (typeof propFirmBotOnDemand === 'boolean') updates.propFirmBotOnDemand = propFirmBotOnDemand;
     if (typeof novaUltimateOnDemand === 'boolean') updates.novaUltimateOnDemand = novaUltimateOnDemand;
     if (typeof novaJobAgentOnDemand === 'boolean') updates.novaJobAgentOnDemand = novaJobAgentOnDemand;
+    if (typeof coachCallsOnDemand === 'boolean') updates.coachCallsOnDemand = coachCallsOnDemand;
     if (typeof ctScanOnDemand === 'boolean') updates.ctScanOnDemand = ctScanOnDemand;
     if (ctScanOnDemandExpiresAt !== undefined) {
       updates.ctScanOnDemandExpiresAt = ctScanOnDemandExpiresAt ? new Date(ctScanOnDemandExpiresAt) : null;
@@ -120,7 +123,7 @@ export async function PATCH(
     if (Object.keys(updates).length === 0) {
       return NextResponse.json({
         success: false,
-        error: 'Provide at least one of: tradingBotOnDemand, polymarketBotOnDemand, propFirmBotOnDemand, novaUltimateOnDemand, novaJobAgentOnDemand, ctScanOnDemand, ctScanOnDemandExpiresAt, memeCoinsTraderOnDemand, memeCoinsTraderOnDemandExpiresAt, newsletterOptIn, novaConnectEnabled, novaConnectCommunityRep, novaConnectAllowedByAdmin, coachUser, customersViewerAdmin, supportViewerAdmin, liveChatAgentAdmin, supportStaffName, aiAgentDailyLimitOverride, aiAgentWeeklyLimitOverride, aiAgentMonthlyLimitOverride, aiChartAnalysisDailyLimitOverride, aiChartAnalysisWeeklyLimitOverride, aiChartAnalysisMonthlyLimitOverride, rulesAccepted (boolean).',
+        error: 'Provide at least one of: tradingBotOnDemand, polymarketBotOnDemand, propFirmBotOnDemand, novaUltimateOnDemand, novaJobAgentOnDemand, coachCallsOnDemand, ctScanOnDemand, ctScanOnDemandExpiresAt, memeCoinsTraderOnDemand, memeCoinsTraderOnDemandExpiresAt, newsletterOptIn, novaConnectEnabled, novaConnectCommunityRep, novaConnectAllowedByAdmin, coachUser, customersViewerAdmin, supportViewerAdmin, liveChatAgentAdmin, supportStaffName, aiAgentDailyLimitOverride, aiAgentWeeklyLimitOverride, aiAgentMonthlyLimitOverride, aiChartAnalysisDailyLimitOverride, aiChartAnalysisWeeklyLimitOverride, aiChartAnalysisMonthlyLimitOverride, rulesAccepted (boolean).',
       }, { status: 400 });
     }
     await (prisma as any).user.update({

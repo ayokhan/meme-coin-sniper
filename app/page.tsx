@@ -539,12 +539,17 @@ function Dashboard() {
   const novaJobAgentOnDemand = !!((session?.user as { novaJobAgentOnDemand?: boolean } | undefined)?.novaJobAgentOnDemand);
   // Initial: owner / admin grant. VIP "All VIP" mode is applied via /api/user/on-demand-access.
   const canAccessNovaJobsAgent = isOwner || novaJobAgentOnDemand;
+  const coachCallsOnDemand = !!((session?.user as { coachCallsOnDemand?: boolean } | undefined)?.coachCallsOnDemand);
+  // Default audience is All VIP (owner_only off). Owner-only mode is applied via /api/user/on-demand-access.
+  const canAccessCoachCalls = isOwner || isCoachUser || coachCallsOnDemand || isVip;
   const [ctAccessState, setCtAccessState] = useState<boolean | null>(null);
   const [memeCoinsTraderAccessState, setMemeCoinsTraderAccessState] = useState<boolean | null>(null);
   const [novaJobsAgentAccessState, setNovaJobsAgentAccessState] = useState<boolean | null>(null);
+  const [coachCallsAccessState, setCoachCallsAccessState] = useState<boolean | null>(null);
   const canAccessCtScanEffective = ctAccessState ?? canAccessCtScan;
   const canAccessMemeCoinsTraderEffective = memeCoinsTraderAccessState ?? canAccessMemeCoinsTrader;
   const canAccessNovaJobsAgentEffective = novaJobsAgentAccessState ?? canAccessNovaJobsAgent;
+  const canAccessCoachCallsEffective = coachCallsAccessState ?? canAccessCoachCalls;
   const [mounted, setMounted] = useState(false);
   const [presencePingOk, setPresencePingOk] = useState<boolean | null>(null);
   const [activeTab, setActiveTab] = useState<TabId>("new");
@@ -657,6 +662,7 @@ function Dashboard() {
     if (tab === "chris-clayton") return isOwner && isTabPageEnabled(tab);
     if (tab === "realtor-os") return isOwner && isTabPageEnabled(tab);
     if (tab === "nova-job-agent") return (isOwner || canAccessNovaJobsAgentEffective) && isTabPageEnabled(tab);
+    if (tab === "coach-calls") return (isOwner || canAccessCoachCallsEffective) && isTabPageEnabled(tab);
     return isTabPageEnabled(tab);
   };
 
@@ -789,6 +795,7 @@ function Dashboard() {
           setCtAccessState(!!d.ctScanAllowed);
           setMemeCoinsTraderAccessState(!!d.memeCoinsTraderAllowed);
           setNovaJobsAgentAccessState(!!d.novaJobsAgentAllowed);
+          setCoachCallsAccessState(!!d.coachCallsAllowed);
         }
       } catch {
         // Keep session-derived access if the endpoint fails.
@@ -9184,7 +9191,16 @@ function Dashboard() {
             ) : activeTab === "nova-store" ? (
               <NovaStorePanel />
             ) : activeTab === "coach-calls" ? (
-              <CoachCallsPanel isOwner={isOwner} isCoachUser={isCoachUser} isVip={isVip} />
+              !canAccessCoachCallsEffective ? (
+                <div className="mx-3 sm:mx-6 py-10 text-center space-y-2">
+                  <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">Coach Calls is not available on your account yet</p>
+                  <p className="text-sm text-muted-foreground">
+                    Contact support if you need access, or upgrade to VIP when Coach Calls is open to all VIP members.
+                  </p>
+                </div>
+              ) : (
+                <CoachCallsPanel isOwner={isOwner} isCoachUser={isCoachUser} isVip={isVip} />
+              )
             ) : activeTab === "wallets" ? (
               <div className="px-3 sm:px-6 pt-2 space-y-6">
                 <PathFirstActionBanner tab="wallets" />

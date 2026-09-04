@@ -57,6 +57,8 @@ const DEFAULT_DISABLED_KEYS: Set<string> = new Set([
   FEATURE_FLAG_KEYS.PAGE_TAB_PNL_CALCULATOR,
   FEATURE_FLAG_KEYS.PAGE_TAB_DEMO_SESSIONS,
   FEATURE_FLAG_KEYS.PNL_SHARE_CARD_MESSAGE,
+  /** Keep Coach Calls on All VIP by default (owner_only off until admin enables testing mode). */
+  FEATURE_FLAG_KEYS.COACH_CALLS_OWNER_ONLY,
 ]);
 
 type PrismaWithFeatureFlag = typeof prisma & {

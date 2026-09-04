@@ -153,6 +153,11 @@ const FLAG_GROUPS: { id: string; title: string; match: (key: string) => boolean 
     match: (k) => k === "page_tab_nova_job_agent" || k === "nova_job_agent_owner_only",
   },
   {
+    id: "coach-calls",
+    title: "Coach Calls",
+    match: (k) => k === "page_tab_coach_calls" || k === "coach_calls_owner_only",
+  },
+  {
     id: "crypto-buddie",
     title: "Crypto Buddie",
     match: (k) => k === "nova_crypto_buddie" || k === "nova_crypto_buddie_owner_only",
@@ -354,7 +359,13 @@ const FLAG_LABELS: Record<string, { label: string; description: string }> = {
   },
   page_tab_coach_calls: {
     label: "Tab: Coach Calls + Telegram Signals",
-    description: "Show/hide the Coach Calls + Telegram Signals tab in the main GUI.",
+    description:
+      "Master switch for Coach Calls. Use the Coach Calls group (Off / Owner only / All VIP) below. Pair with coach_calls_owner_only. Grant individuals via Admin → Customers.",
+  },
+  coach_calls_owner_only: {
+    label: "Coach Calls — Owner only",
+    description:
+      "When page_tab_coach_calls is ON: restrict the tab to owner (+ Customers on-demand grants + coach publishers). Turn OFF for All VIP. Prefer the Off / Owner only / All VIP buttons in the Coach Calls group.",
   },
   page_tab_nova_forecast: {
     label: "Tab: NovaForecast Agent",
@@ -810,7 +821,7 @@ export default function AdminFeatureFlagsPage() {
   const [goHuntingRefreshResetEmail, setGoHuntingRefreshResetEmail] = useState("");
 
   useEffect(() => {
-    if (!highlightFlag.startsWith("page_tab_") || highlightFlag === "page_tab_nova_job_agent") return;
+    if (!highlightFlag.startsWith("page_tab_") || highlightFlag === "page_tab_nova_job_agent" || highlightFlag === "page_tab_coach_calls") return;
     const row =
       PRODUCT_VISIBILITY_FLAG_ROWS.find((r) => r.flagKey === highlightFlag) ??
       PRODUCT_VISIBILITY_SUBTAB_FLAGS.find((r) => r.flagKey === highlightFlag);
@@ -1115,7 +1126,8 @@ export default function AdminFeatureFlagsPage() {
     return "other";
   };
   const hideFromFlagsList = (key: string) =>
-    (key.startsWith("page_tab_") && key !== "page_tab_nova_job_agent") ||
+    (key.startsWith("page_tab_") && key !== "page_tab_nova_job_agent" && key !== "page_tab_coach_calls") ||
+    key === "coach_calls_owner_only" ||
     key === "nova_crypto_buddie_owner_only" ||
     key === "nova_smart_money_alerts" ||
     key === "nova_smart_money_alerts_owner_only" ||
@@ -1132,6 +1144,7 @@ export default function AdminFeatureFlagsPage() {
     (g) =>
       g.entries.length > 0 ||
       g.id === "nova-jobs-agent" ||
+      g.id === "coach-calls" ||
       g.id === "crypto-buddie" ||
       g.id === "gmgn-vip-bot" ||
       g.id === "narratives-early" ||
@@ -1506,6 +1519,71 @@ export default function AdminFeatureFlagsPage() {
                                       void setForexAudience(
                                         "page_tab_nova_job_agent",
                                         "nova_job_agent_owner_only",
+                                        opt.id
+                                      )
+                                    }
+                                  >
+                                    {busy && audience !== opt.id ? "…" : opt.label}
+                                  </Button>
+                                ))}
+                              </div>
+                            </div>
+                          );
+                        })()}
+                      </div>
+                    ) : group.id === "coach-calls" ? (
+                      <div className="space-y-4 px-4 pb-4 border-t border-zinc-200 dark:border-zinc-700 pt-3">
+                        <p className="text-xs text-muted-foreground">
+                          Coach Calls is <strong className="text-zinc-800 dark:text-zinc-200">VIP only</strong> when rolled
+                          out. Use <strong className="text-zinc-800 dark:text-zinc-200">Owner only</strong> to hide from
+                          all users, then grant selected VIP customers via Admin → Customers. Switch to{" "}
+                          <strong className="text-zinc-800 dark:text-zinc-200">All VIP</strong> when everyone with VIP
+                          should see it. Coach publishers always keep access while the master flag is on.
+                        </p>
+                        {(() => {
+                          const audience = forexAudienceFromFlags(
+                            "page_tab_coach_calls",
+                            "coach_calls_owner_only"
+                          );
+                          const busy = toggling === "page_tab_coach_calls";
+                          return (
+                            <div className="rounded-lg bg-zinc-50/80 dark:bg-zinc-900/50 p-3 space-y-3">
+                              <div className="flex flex-wrap items-start justify-between gap-2">
+                                <div className="min-w-0 flex-1">
+                                  <p className="font-medium text-zinc-900 dark:text-zinc-100">Coach Calls + Telegram Signals</p>
+                                  <p className="text-xs text-muted-foreground mt-0.5">
+                                    Exclusive CA / call alerts in-app and via Telegram for VIP members.
+                                  </p>
+                                </div>
+                                <span
+                                  className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
+                                    audience === "off"
+                                      ? "bg-zinc-200 text-zinc-600 dark:bg-zinc-700 dark:text-zinc-400"
+                                      : audience === "owner"
+                                        ? "bg-amber-100 text-amber-900 dark:bg-amber-950 dark:text-amber-200"
+                                        : "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300"
+                                  }`}
+                                >
+                                  {audience === "off" ? "OFF" : audience === "owner" ? "OWNER ONLY" : "ALL VIP"}
+                                </span>
+                              </div>
+                              <div className="flex flex-wrap gap-2">
+                                {(
+                                  [
+                                    { id: "off" as const, label: "Off" },
+                                    { id: "owner" as const, label: "Owner only (test)" },
+                                    { id: "vip" as const, label: "All VIP" },
+                                  ] as const
+                                ).map((opt) => (
+                                  <Button
+                                    key={opt.id}
+                                    size="sm"
+                                    variant={audience === opt.id ? "default" : "outline"}
+                                    disabled={busy}
+                                    onClick={() =>
+                                      void setForexAudience(
+                                        "page_tab_coach_calls",
+                                        "coach_calls_owner_only",
                                         opt.id
                                       )
                                     }

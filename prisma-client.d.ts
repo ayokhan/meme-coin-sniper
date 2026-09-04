@@ -39,6 +39,7 @@ declare module '@prisma/client' {
     referralCode?: string | null;
     referredByUserId?: string | null;
     novaJobAgentOnDemand?: boolean;
+    coachCallsOnDemand?: boolean;
     createdAt: Date;
     updatedAt: Date;
   }

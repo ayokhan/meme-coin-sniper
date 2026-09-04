@@ -138,6 +138,8 @@ model User {
   memeCoinsTraderOnDemandExpiresAt DateTime?
   /** Owner-only toggle: allow selected customers to use Nova Jobs Agent. */
   novaJobAgentOnDemand     Boolean  @default(false)
+  /** Owner grant: view Coach Calls when feature is Owner-only (or early access). */
+  coachCallsOnDemand       Boolean  @default(false)
   /** Opt-in at registration: receive NovaStaris newsletter / perp digest when admin enables "Send digest to newsletter subscribers". */
   newsletterOptIn       Boolean  @default(false)
   /** NovaConnect social portal: opt-in and profile fields. */

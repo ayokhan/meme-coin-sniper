@@ -3,15 +3,18 @@ import { getServerSession } from 'next-auth';
 import { authOptions, isOwnerSession } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { sendTelegramMessage, escapeHtml } from '@/lib/telegram';
+import { getCoachCallsAccess } from '@/lib/coach-calls-access';
 
-/** GET - List coach calls (VIP or owner). Newest first. */
+/** GET - List coach calls (VIP / owner / on-demand grant / coach publisher). Newest first. */
 export async function GET() {
   try {
     const session = await getServerSession(authOptions);
-    const tier = (session?.user as { tier?: 'pro' | 'vip' } | undefined)?.tier ?? null;
-    const isVip = tier === 'vip';
-    if (!session?.user || (!isVip && !isOwnerSession(session))) {
-      return NextResponse.json({ success: false, error: 'VIP access required.' }, { status: 403 });
+    const access = await getCoachCallsAccess(session);
+    if (!access.ok) {
+      return NextResponse.json(
+        { success: false, error: access.error, locked: access.locked, disabled: access.disabled },
+        { status: access.status }
+      );
     }
     const calls = await prisma.coachCall.findMany({
       orderBy: { createdAt: 'desc' },

@@ -27,6 +27,8 @@ export async function GET() {
     memeCoinsTraderOnDemand?: boolean;
     memeCoinsTraderOnDemandExpiresAt?: Date | string | null;
     novaJobAgentOnDemand?: boolean;
+    coachCallsOnDemand?: boolean;
+    isCoachUser?: boolean;
   };
 
   const now = Date.now();
@@ -48,10 +50,20 @@ export async function GET() {
       Boolean(user.novaJobAgentOnDemand) ||
       (isVip && !jobsOwnerOnly));
 
+  const coachMasterOn = await getFeatureFlag(FEATURE_FLAG_KEYS.PAGE_TAB_COACH_CALLS);
+  const coachOwnerOnly = await getFeatureFlag(FEATURE_FLAG_KEYS.COACH_CALLS_OWNER_ONLY);
+  const coachCallsAllowed =
+    coachMasterOn &&
+    (owner ||
+      Boolean(user.coachCallsOnDemand) ||
+      Boolean(user.isCoachUser) ||
+      (isVip && !coachOwnerOnly));
+
   return NextResponse.json({
     success: true,
     ctScanAllowed,
     memeCoinsTraderAllowed,
     novaJobsAgentAllowed,
+    coachCallsAllowed,
   });
 }
