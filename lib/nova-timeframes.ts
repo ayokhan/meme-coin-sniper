@@ -95,5 +95,5 @@ export const NOVA_Q_FIB_TIMEFRAMES: readonly NovaTimeframeConfig[] = [
   { id: "4w", label: "4 weeks", interval: "1d", limit: 28 },
 ];
 
-/** Default picks: 15m, 1h, 1w */
-export const NOVA_DEFAULT_TF_IDS = ["15m", "1h", "1w"] as const;
+/** Default NovaQ / Smart picks: intraday (avoid mixing 15m with 1w). */
+export const NOVA_DEFAULT_TF_IDS = ["15m", "1h", "4h"] as const;

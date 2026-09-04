@@ -13,7 +13,7 @@ import {
 } from "@/lib/nova-q-analytics";
 import { buildUnifiedMarketRead, type StructureLevelRow, type UnifiedMarketRead } from "@/lib/nova-market-read";
 
-const DEFAULT_TF_IDS = ["15m", "1h", "1w"];
+const DEFAULT_TF_IDS = ["15m", "1h", "4h"];
 
 /** Normalize futures chart symbols (e.g. BTC/USDC, XAU-USDT) to NovaQ/Radar base. */
 export function normalizeSymbolForMarketRead(raw: string): string {

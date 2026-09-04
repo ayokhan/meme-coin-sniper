@@ -41,7 +41,7 @@ function formatFibBiasLabel(bias: string): string {
 }
 
 export default function NovaQFibPanel({ enabled, isVip, onOpenNovaQ }: Props) {
-  const [timeframes, setTimeframes] = useState<string[]>(["15m", "1h", "1w"]);
+  const [timeframes, setTimeframes] = useState<string[]>(["15m", "1h", "4h"]);
   const [symbol, setSymbol] = useState("BTC");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);

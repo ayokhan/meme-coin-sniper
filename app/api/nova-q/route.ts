@@ -27,9 +27,10 @@ const NOVA_Q_KNOWN_ASSET_NOTES: Record<string, string> = {
 export const dynamic = "force-dynamic";
 export const maxDuration = 45;
 
-import { NOVA_STANDARD_TIMEFRAMES } from "@/lib/nova-timeframes";
+import { NOVA_STANDARD_TIMEFRAMES, NOVA_DEFAULT_TF_IDS } from "@/lib/nova-timeframes";
 import { buildNovaQTradePlan, computeNovaQAlignment } from "@/lib/nova-q-trade-plan";
 import { buildUnifiedMarketRead } from "@/lib/nova-market-read";
+import { computeWeightedMarketDirection } from "@/lib/nova-q-direction";
 
 const NOVA_Q_TIMEFRAMES = NOVA_STANDARD_TIMEFRAMES;
 
@@ -58,18 +59,6 @@ function normalizeSymbol(raw: string): string {
   return normalizeMetalBase(raw) || "BTC";
 }
 
-function getOverallDirection(timeframes: NovaQTfResult[]): "bullish" | "bearish" | "sideways" {
-  if (timeframes.length === 0) return "sideways";
-  let score = 0;
-  for (const tf of timeframes) {
-    if (tf.direction === "bullish") score += 1;
-    if (tf.direction === "bearish") score -= 1;
-  }
-  if (score > 0) return "bullish";
-  if (score < 0) return "bearish";
-  return "sideways";
-}
-
 export async function POST(request: Request) {
   try {
     const { tier } = await getSessionAndSubscription();
@@ -82,7 +71,7 @@ export async function POST(request: Request) {
 
     const body = await request.json().catch(() => ({}));
     const symbol = normalizeSymbol(String(body.symbol ?? "BTC"));
-    const timeframesParam = body.timeframes ?? body.tf ?? ["15m", "1h", "1w"];
+    const timeframesParam = body.timeframes ?? body.tf ?? [...NOVA_DEFAULT_TF_IDS];
     const requestedTf = (typeof timeframesParam === "string"
       ? timeframesParam.split(/[\s,]+/).map((s) => s.trim().toLowerCase())
       : Array.isArray(timeframesParam)
@@ -92,7 +81,9 @@ export async function POST(request: Request) {
 
     const selected = NOVA_Q_TIMEFRAMES.filter((t) => requestedTf.includes(t.id));
     const effectiveTf =
-      selected.length > 0 ? selected : NOVA_Q_TIMEFRAMES.filter((t) => ["15m", "1h", "1w"].includes(t.id));
+      selected.length > 0
+        ? selected
+        : NOVA_Q_TIMEFRAMES.filter((t) => (NOVA_DEFAULT_TF_IDS as readonly string[]).includes(t.id));
 
     const venue = await resolveNovaPerpVenue(symbol);
     let contractDescription = await buildNovaPerpContractDescription(symbol, venue);
@@ -106,6 +97,9 @@ export async function POST(request: Request) {
           symbol,
           currentPrice: null,
           marketDirection: "sideways" as const,
+          directionSummary: "",
+          directionBreakdown: "",
+          hasDirectionConflict: false,
           overallTrendlineSummary: "",
           marketRead: null,
           contractDescription,
@@ -155,7 +149,8 @@ export async function POST(request: Request) {
 
     const ticker = await getNovaPerpTicker(symbol, venue);
     const currentPrice = ticker?.last ? Number(ticker.last) : null;
-    const marketDirection = getOverallDirection(tfResults);
+    const weighted = computeWeightedMarketDirection(tfResults);
+    const marketDirection = weighted.direction;
     const overallTrendlineSummaryText = overallTrendlineSummary(tfResults);
     const alignment = computeNovaQAlignment(tfResults);
     const tradePlan =
@@ -178,6 +173,9 @@ export async function POST(request: Request) {
         symbol,
         currentPrice,
         marketDirection,
+        directionSummary: weighted.summary,
+        directionBreakdown: weighted.breakdown,
+        hasDirectionConflict: weighted.hasConflict,
         overallTrendlineSummary: overallTrendlineSummaryText,
         marketRead,
         contractDescription,

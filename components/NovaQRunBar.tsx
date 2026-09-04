@@ -314,6 +314,12 @@ export default function NovaQRunBar({
 
       <div className="space-y-1.5">
         <div className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Timeframes</div>
+        <p className="text-[11px] text-muted-foreground">
+          Use <strong className="text-foreground">Scalp</strong> for minutes–hours,{" "}
+          <strong className="text-foreground">Intraday</strong> for the day,{" "}
+          <strong className="text-foreground">Swing</strong> for multi-day. Votes are HTF-weighted — short vs long
+          conflict → wait.
+        </p>
         <div className="flex flex-wrap gap-1.5">
           {(Object.keys(NOVA_Q_TF_PRESETS) as Array<keyof typeof NOVA_Q_TF_PRESETS>).map((id) => {
             const p = NOVA_Q_TF_PRESETS[id];

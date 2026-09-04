@@ -20,20 +20,11 @@ import {
 } from "@/lib/nova-q-analytics";
 import { getNovaForexAgentAccess } from "@/lib/vip-futures-addon-access";
 import { buildNovaQTradePlan, computeNovaQAlignment } from "@/lib/nova-q-trade-plan";
+import { computeWeightedMarketDirection } from "@/lib/nova-q-direction";
+import { NOVA_DEFAULT_TF_IDS } from "@/lib/nova-timeframes";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 45;
-
-function getOverallDirection(rows: { direction: string }[]): "bullish" | "bearish" | "sideways" {
-  let score = 0;
-  for (const r of rows) {
-    if (r.direction === "bullish") score += 1;
-    if (r.direction === "bearish") score -= 1;
-  }
-  if (score > 0) return "bullish";
-  if (score < 0) return "bearish";
-  return "sideways";
-}
 
 export async function POST(request: Request) {
   try {
@@ -48,7 +39,7 @@ export async function POST(request: Request) {
 
     const body = await request.json().catch(() => ({}));
     const symbol = normalizeForexSymbol(String(body.symbol ?? "XAUUSD")) || "XAUUSD";
-    const timeframesParam = body.timeframes ?? body.tf ?? ["15m", "1h", "1w"];
+    const timeframesParam = body.timeframes ?? body.tf ?? [...NOVA_DEFAULT_TF_IDS];
     const requestedTf = (typeof timeframesParam === "string"
       ? timeframesParam.split(/[\s,]+/).map((s) => s.trim().toLowerCase())
       : Array.isArray(timeframesParam)
@@ -60,7 +51,7 @@ export async function POST(request: Request) {
     const effectiveTf =
       selected.length > 0
         ? selected
-        : NOVA_FOREX_Q_TIMEFRAMES.filter((t) => ["15m", "1h", "1w"].includes(t.id));
+        : NOVA_FOREX_Q_TIMEFRAMES.filter((t) => (NOVA_DEFAULT_TF_IDS as readonly string[]).includes(t.id));
 
     const tfResults = [];
     for (const tf of effectiveTf) {
@@ -111,7 +102,8 @@ export async function POST(request: Request) {
 
     const ticker = await getForexTicker(symbol);
     const currentPrice = ticker?.last ? Number(ticker.last) : null;
-    const marketDirection = getOverallDirection(tfResults);
+    const weighted = computeWeightedMarketDirection(tfResults);
+    const marketDirection = weighted.direction;
     const alignment = computeNovaQAlignment(tfResults);
     const tradePlan =
       currentPrice != null
@@ -124,6 +116,9 @@ export async function POST(request: Request) {
         symbol,
         currentPrice,
         marketDirection,
+        directionSummary: weighted.summary,
+        directionBreakdown: weighted.breakdown,
+        hasDirectionConflict: weighted.hasConflict,
         overallTrendlineSummary: overallTrendlineSummary(tfResults),
         contractDescription: forexContractDescription(symbol),
         alignment,

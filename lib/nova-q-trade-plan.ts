@@ -1,4 +1,5 @@
 import { NOVA_UI_TIMEFRAME_IDS } from "@/lib/nova-timeframes";
+import { computeWeightedMarketDirection } from "@/lib/nova-q-direction";
 
 export type NovaQTfRow = {
   id: string;
@@ -69,6 +70,7 @@ function positionInRange(price: number, low: number, high: number): number {
 
 export function computeNovaQAlignment(timeframes: NovaQTfRow[]): NovaQAlignment | null {
   if (timeframes.length === 0) return null;
+  const weighted = computeWeightedMarketDirection(timeframes);
   const bull = timeframes.filter((r) => r.direction === "bullish").length;
   const bear = timeframes.filter((r) => r.direction === "bearish").length;
   const side = timeframes.length - bull - bear;
@@ -79,34 +81,37 @@ export function computeNovaQAlignment(timeframes: NovaQTfRow[]): NovaQAlignment 
     tf4h != null &&
     ((tf1h === "bullish" && tf4h === "bearish") || (tf1h === "bearish" && tf4h === "bullish"));
 
-  if (directConflict || (bull > 0 && bear > 0)) {
+  if (weighted.hasConflict || directConflict || (bull > 0 && bear > 0)) {
     return {
-      label: "Conflict (pullback zone)",
+      label: "Conflict — wait",
       tone: "amber",
       note:
-        directConflict
+        weighted.summary ||
+        (directConflict
           ? "1h and 4h disagree—likely chop or pullback. Wait for alignment before sizing a directional trade."
-          : `Mixed blended rows (${bull} bullish / ${bear} bearish / ${side} sideways). Prefer confirmation before committing size.`,
+          : `Mixed frames (${weighted.breakdown || `${bull} bullish / ${bear} bearish / ${side} sideways`}). Prefer confirmation before committing size.`),
     };
   }
-  if (bull > 0 && bear === 0) {
+  if (weighted.direction === "bullish" && bull > 0 && bear === 0) {
     return {
-      label: "Aligned bullish",
+      label: "Aligned bullish (HTF-weighted)",
       tone: "green",
-      note: `Blended rows are aligned bullish (${bull} bullish / ${side} sideways). Long setups are higher quality while this holds.`,
+      note: `${weighted.breakdown}. Long setups are higher quality while this holds.`,
     };
   }
-  if (bear > 0 && bull === 0) {
+  if (weighted.direction === "bearish" && bear > 0 && bull === 0) {
     return {
-      label: "Aligned bearish",
+      label: "Aligned bearish (HTF-weighted)",
       tone: "red",
-      note: `Blended rows are aligned bearish (${bear} bearish / ${side} sideways). Short setups are higher quality while this holds.`,
+      note: `${weighted.breakdown}. Short setups are higher quality while this holds.`,
     };
   }
   return {
     label: "Range / wait",
     tone: "zinc",
-    note: "Most rows are sideways—wait for a cleaner break or timeframe alignment.",
+    note: weighted.breakdown
+      ? `${weighted.breakdown}. Most rows are sideways—wait for a cleaner break or timeframe alignment.`
+      : "Most rows are sideways—wait for a cleaner break or timeframe alignment.",
   };
 }
 

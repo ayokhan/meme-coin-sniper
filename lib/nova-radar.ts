@@ -29,6 +29,7 @@ import {
   type NovaRadarCapitalGuard,
   type NovaRadarCapitalRiskTolerance,
 } from "@/lib/nova-radar-capital-guard";
+import { getWeightedOverallDirection } from "@/lib/nova-q-direction";
 
 /** Structure table timeframes (short → long). */
 export const NOVA_RADAR_STRUCTURE_TFS = [
@@ -329,15 +330,7 @@ export function pickStressPriceForPlan(
 }
 
 export function getOverallDirection(rows: NovaRadarTfRow[]): "bullish" | "bearish" | "sideways" {
-  if (rows.length === 0) return "sideways";
-  let score = 0;
-  for (const r of rows) {
-    if (r.direction === "bullish") score += 1;
-    if (r.direction === "bearish") score -= 1;
-  }
-  if (score > 0) return "bullish";
-  if (score < 0) return "bearish";
-  return "sideways";
+  return getWeightedOverallDirection(rows);
 }
 
 export function pathFromSpot(target: number, current: number): "up" | "down" | "at_target" {

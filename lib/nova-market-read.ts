@@ -1,7 +1,11 @@
+import { computeWeightedMarketDirection } from "@/lib/nova-q-direction";
+
 export type StructureLevelRow = {
   support: number;
   resistance: number;
   direction: "bullish" | "bearish" | "sideways";
+  id?: string;
+  label?: string;
 };
 
 export type UnifiedMarketRead = {
@@ -17,13 +21,14 @@ export function buildUnifiedMarketRead(
   currentPrice: number,
   trendlineSummary: string
 ): UnifiedMarketRead {
-  let score = 0;
-  for (const r of tfRows) {
-    if (r.direction === "bullish") score += 1;
-    if (r.direction === "bearish") score -= 1;
-  }
-  const direction: UnifiedMarketRead["direction"] =
-    score > 0 ? "bullish" : score < 0 ? "bearish" : "sideways";
+  const weighted = computeWeightedMarketDirection(
+    tfRows.map((r, i) => ({
+      id: r.id ?? `tf-${i}`,
+      label: r.label,
+      direction: r.direction,
+    }))
+  );
+  const direction = weighted.direction;
 
   const supports = tfRows.map((r) => r.support).filter((s) => s > 0 && s < currentPrice);
   const resistances = tfRows.map((r) => r.resistance).filter((r) => r > currentPrice);
@@ -31,13 +36,20 @@ export function buildUnifiedMarketRead(
   const nearestResistance = resistances.length > 0 ? Math.min(...resistances) : null;
 
   const bullets: string[] = [];
-  bullets.push(
-    direction === "bearish"
-      ? "Sampled timeframes skew bearish—dips toward lower limits are more intuitive than sustained rallies."
-      : direction === "bullish"
-        ? "Sampled timeframes skew bullish—pullbacks to buy limits may be shallower or shorter-lived."
-        : "Structure is mixed—treat limit timing as uncertain until a clear bias emerges."
-  );
+  if (weighted.breakdown) {
+    bullets.push(`Frames: ${weighted.breakdown}.`);
+  }
+  if (weighted.hasConflict) {
+    bullets.push(weighted.summary);
+  } else {
+    bullets.push(
+      direction === "bearish"
+        ? "HTF-weighted structure skews bearish—dips toward lower limits are more intuitive than chasing shorts into a squeeze."
+        : direction === "bullish"
+          ? "HTF-weighted structure skews bullish—pullbacks to buy limits may be shallower or shorter-lived."
+          : "Structure is mixed/neutral—treat timing as uncertain until frames align."
+    );
+  }
   if (nearestSupport != null) {
     bullets.push(`Nearest structure support (below spot): ~$${nearestSupport.toFixed(2)}.`);
   }
@@ -46,11 +58,12 @@ export function buildUnifiedMarketRead(
   }
   if (trendlineSummary) bullets.push(trendlineSummary);
 
-  const headline =
-    direction === "bearish"
-      ? "Bearish read — favor deeper limits or smaller size on shallow entries."
+  const headline = weighted.hasConflict
+    ? "Wait — timeframe conflict. Do not size a directional trade on the short frame alone."
+    : direction === "bearish"
+      ? "Bearish weighted read — favor deeper limits or smaller size on shallow entries."
       : direction === "bullish"
-        ? "Bullish read — limits below spot are pullback buys; watch resistance overhead."
+        ? "Bullish weighted read — limits below spot are pullback buys; watch resistance overhead."
         : "Neutral read — compare both limits on fill odds and leverage stress.";
 
   return {

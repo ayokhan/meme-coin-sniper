@@ -68,8 +68,8 @@ export default function NovaForexAgentPanel({
   >("forecast");
   const [catalog, setCatalog] = useState<ForexSymbolEntry[]>([]);
   const [symbol, setSymbol] = useState("XAUUSD");
-  const [qTfs, setQTfs] = useState<string[]>(["15m", "1h", "1w"]);
-  const [smartTfs, setSmartTfs] = useState<string[]>(["15m", "1h", "1w"]);
+  const [qTfs, setQTfs] = useState<string[]>(["15m", "1h", "4h"]);
+  const [smartTfs, setSmartTfs] = useState<string[]>(["15m", "1h", "4h"]);
   const [forecastRange, setForecastRange] = useState("2w");
   const [forecastItems, setForecastItems] = useState<Array<{
     symbol: string;
@@ -487,7 +487,7 @@ function TfPicker({
 
 /** Forex-specific Fib panel (calls /api/nova-forex/nova-q-fib). */
 function NovaForexFibPanel({ symbol, isVip, enabled }: { symbol: string; isVip: boolean; enabled: boolean }) {
-  const [timeframes, setTimeframes] = useState(["15m", "1h", "1w"]);
+  const [timeframes, setTimeframes] = useState(["15m", "1h", "4h"]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<Record<string, unknown> | null>(null);

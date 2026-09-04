@@ -1985,7 +1985,7 @@ function Dashboard() {
     recommendedDirection: "long" | "short" | "neutral";
     recommendationNote: string;
   };
-  const [novaSmartTimeframes, setNovaSmartTimeframes] = useState<string[]>(["15m", "1h", "1w"]);
+  const [novaSmartTimeframes, setNovaSmartTimeframes] = useState<string[]>(["15m", "1h", "4h"]);
   const [novaSmartCustomSymbol, setNovaSmartCustomSymbol] = useState("");
   const [novaSmartResults, setNovaSmartResults] = useState<NovaSmartResult[]>([]);
   const [novaSmartLoading, setNovaSmartLoading] = useState(false);
@@ -2009,13 +2009,16 @@ function Dashboard() {
     symbol: string;
     currentPrice: number | null;
     marketDirection: "bullish" | "bearish" | "sideways";
+    directionSummary?: string;
+    directionBreakdown?: string;
+    hasDirectionConflict?: boolean;
     overallTrendlineSummary?: string;
     contractDescription?: string;
     alignment?: NovaQAlignment | null;
     tradePlan?: NovaQTradePlan | null;
     timeframes: NovaQTfResult[];
   };
-  const [novaQTimeframes, setNovaQTimeframes] = useState<string[]>(["15m", "1h", "1w"]);
+  const [novaQTimeframes, setNovaQTimeframes] = useState<string[]>(["15m", "1h", "4h"]);
   const [novaQSymbol, setNovaQSymbol] = useState("BTC");
   const [novaQResult, setNovaQResult] = useState<NovaQResult | null>(null);
   const [novaQLoading, setNovaQLoading] = useState(false);
@@ -8638,8 +8641,16 @@ function Dashboard() {
                                       : "border-zinc-400/60 text-zinc-700 dark:text-zinc-300"
                                 }
                               >
-                                Blended (vote): {novaQResult.marketDirection}
+                                HTF-weighted: {novaQResult.marketDirection}
                               </Badge>
+                              {novaQResult.hasDirectionConflict ? (
+                                <Badge
+                                  variant="outline"
+                                  className="border-amber-500/60 text-amber-800 dark:text-amber-200"
+                                >
+                                  Wait — TF conflict
+                                </Badge>
+                              ) : null}
                               {novaQResult.alignment ? (
                                 <Badge
                                   variant="outline"
@@ -8676,6 +8687,16 @@ function Dashboard() {
                                 }
                               />
                             </div>
+                            {novaQResult.directionBreakdown?.trim() ? (
+                              <p className="mt-2 text-xs font-mono text-zinc-700 dark:text-zinc-300 leading-relaxed">
+                                {novaQResult.directionBreakdown}
+                              </p>
+                            ) : null}
+                            {novaQResult.directionSummary?.trim() ? (
+                              <p className="mt-1 text-xs text-amber-800 dark:text-amber-200/90 leading-relaxed">
+                                {novaQResult.directionSummary}
+                              </p>
+                            ) : null}
                             {novaQResult.overallTrendlineSummary?.trim() ? (
                               <p className="mt-2 text-xs text-zinc-700 dark:text-zinc-300 leading-relaxed">{novaQResult.overallTrendlineSummary}</p>
                             ) : null}

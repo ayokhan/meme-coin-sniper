@@ -35,7 +35,7 @@ export const NOVA_Q_TF_PRESETS: Record<
   Exclude<NovaQTfPresetId, "custom">,
   { id: Exclude<NovaQTfPresetId, "custom">; label: string; timeframes: string[] }
 > = {
-  scalp: { id: "scalp", label: "Scalp", timeframes: ["1m", "5m", "15m"] },
+  scalp: { id: "scalp", label: "Scalp", timeframes: ["5m", "15m", "1h"] },
   intraday: { id: "intraday", label: "Intraday", timeframes: ["15m", "1h", "4h"] },
   swing: { id: "swing", label: "Swing", timeframes: ["4h", "12h", "24h", "1w"] },
 };
