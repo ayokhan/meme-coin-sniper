@@ -2,13 +2,20 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { getFindWalletAccess } from "@/lib/find-wallet-access";
+import {
+  getFindWalletConfig,
+  getFindWalletUsage,
+  recordFindWalletUse,
+  resolveFindWalletDailyLimit,
+  countFindWalletUsesToday,
+} from "@/lib/find-wallet-quota";
 import { findWalletsByTradeAmount, parseUsdAmountInput, type FindWalletSide } from "@/lib/find-wallet-by-trade";
 import { trialDeskLimitResponse } from "@/lib/trial-desk-gate";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
-/** POST — VIP: find wallets matching CA + buy/sell USD amount. */
+/** POST — VIP: find wallets matching CA + buy/sell USD amount (consumes daily quota unless owner). */
 export async function POST(req: Request) {
   try {
     const session = await getServerSession(authOptions);
@@ -25,8 +32,40 @@ export async function POST(req: Request) {
       );
     }
 
+    const config = await getFindWalletConfig();
+    if (!config.enabled && !access.isOwner) {
+      return NextResponse.json(
+        { success: false, error: "Find Wallet is currently disabled by admin.", locked: true, disabled: true },
+        { status: 403 }
+      );
+    }
+
     const limited = await trialDeskLimitResponse(access.userId, "wallets");
     if (limited) return limited;
+
+    if (!access.isOwner) {
+      const dailyLimit = await resolveFindWalletDailyLimit(access.userId);
+      if (dailyLimit === 0) {
+        return NextResponse.json(
+          { success: false, error: "Your Find Wallet access has been disabled.", locked: true },
+          { status: 403 }
+        );
+      }
+      const usedToday = await countFindWalletUsesToday(access.userId);
+      if (usedToday >= dailyLimit) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: `Daily limit reached (${dailyLimit} search${dailyLimit !== 1 ? "es" : ""} per day — resets midnight UTC).`,
+            locked: true,
+            limitReached: true,
+            used: usedToday,
+            limit: dailyLimit,
+          },
+          { status: 429 }
+        );
+      }
+    }
 
     const body = await req.json().catch(() => ({}));
     const ca = typeof body.ca === "string" ? body.ca.trim() : "";
@@ -68,7 +107,12 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: false, error: result.error }, { status: 400 });
     }
 
-    return NextResponse.json({ success: true, ...result });
+    if (!access.isOwner) {
+      await recordFindWalletUse(access.userId);
+    }
+
+    const usage = await getFindWalletUsage(access.userId, access.isOwner);
+    return NextResponse.json({ success: true, ...result, usage });
   } catch (e) {
     console.error("Find wallet error:", e);
     return NextResponse.json({ success: false, error: "Failed to search trades." }, { status: 500 });

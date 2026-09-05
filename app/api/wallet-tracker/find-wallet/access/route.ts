@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { getFindWalletAccess } from "@/lib/find-wallet-access";
+import { getFindWalletUsage } from "@/lib/find-wallet-quota";
 
 export const dynamic = "force-dynamic";
 
@@ -19,5 +20,6 @@ export async function GET() {
       { status: access.status }
     );
   }
-  return NextResponse.json({ success: true, isOwner: access.isOwner });
+  const usage = await getFindWalletUsage(access.userId, access.isOwner);
+  return NextResponse.json({ success: true, isOwner: access.isOwner, usage });
 }

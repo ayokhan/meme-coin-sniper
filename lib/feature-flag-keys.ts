@@ -136,9 +136,11 @@ export const FEATURE_FLAG_KEYS = {
   NOVA_DEEP_MEME_AGENT: 'nova_deep_meme_agent',
   /**
    * VIP: Find Wallet — reverse-lookup trader wallet from CA + buy/sell USD size (GeckoTerminal).
-   * Default ON.
+   * Pair with NOVA_FIND_WALLET_OWNER_ONLY for Off / Owner / All VIP. Default ON.
    */
   NOVA_FIND_WALLET: 'nova_find_wallet',
+  /** When master ON: restrict Find Wallet to owner only. Default ON (owner testing). Turn OFF for All VIP. */
+  NOVA_FIND_WALLET_OWNER_ONLY: 'nova_find_wallet_owner_only',
   /**
    * VIP: Smart Money Alerts (FOMO Tracker) under Wallet Tracker.
    * Big-buy / hold / sold alerts for admin-curated wallets. Default OFF until admin enables.

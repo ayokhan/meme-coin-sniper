@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Search, Copy, Check, ExternalLink } from "lucide-react";
@@ -29,6 +29,14 @@ type SearchResult = {
   poolsSearched: number;
   tradesScanned: number;
   matches: MatchRow[];
+};
+
+type UsageSnap = {
+  used: number;
+  limit: number | null;
+  remaining: number | null;
+  unlimited: boolean;
+  resets: string;
 };
 
 function shortAddr(a: string) {
@@ -71,8 +79,24 @@ export default function FindWalletPanel({
   const [locked, setLocked] = useState(false);
   const [result, setResult] = useState<SearchResult | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
+  const [usage, setUsage] = useState<UsageSnap | null>(null);
 
   const canUse = isOwner || isVip;
+  const atLimit =
+    !!usage && !usage.unlimited && usage.limit != null && usage.used >= usage.limit;
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/wallet-tracker/find-wallet/access", { credentials: "include", cache: "no-store" })
+      .then((r) => r.json())
+      .then((d) => {
+        if (!cancelled && d?.success && d.usage) setUsage(d.usage as UsageSnap);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const copy = async (text: string, key: string) => {
     try {
@@ -97,8 +121,9 @@ export default function FindWalletPanel({
         body: JSON.stringify({ ca, amountUsd: amount, side, tolerancePct }),
       });
       const data = await res.json();
+      if (data.usage) setUsage(data.usage as UsageSnap);
       if (!res.ok || !data.success) {
-        if (data.locked) setLocked(true);
+        if (data.locked || data.limitReached) setLocked(true);
         setError(data.error || "Search failed");
         return;
       }
@@ -142,6 +167,15 @@ export default function FindWalletPanel({
           Paste a contract address and the buy/sell USD size from FOMO / CT. We search recent DEX trades and return
           matching wallet IDs + tx hashes so you can copy the trade.
         </p>
+        {usage && (
+          <p className="text-xs text-muted-foreground mt-1">
+            {usage.unlimited
+              ? "Owner: unlimited searches"
+              : usage.limit != null
+                ? `${usage.remaining ?? 0} of ${usage.limit} search${usage.limit !== 1 ? "es" : ""} left today (resets ${usage.resets})`
+                : null}
+          </p>
+        )}
       </div>
 
       <Card>
@@ -196,12 +230,12 @@ export default function FindWalletPanel({
           </div>
           <Button
             type="button"
-            disabled={loading || !ca.trim() || !amount.trim()}
+            disabled={loading || atLimit || !ca.trim() || !amount.trim()}
             onClick={() => void search()}
             className="gap-1.5"
           >
             <Search className="h-4 w-4" />
-            {loading ? "Searching…" : "Find wallet"}
+            {loading ? "Searching…" : atLimit ? "Daily limit reached" : "Find wallet"}
           </Button>
           <p className="text-[11px] text-muted-foreground">
             Uses recent pool trades (typically last ~24h). Example: CA + <span className="font-mono">49.3K</span> buy.
@@ -218,7 +252,7 @@ export default function FindWalletPanel({
           }`}
         >
           {error}
-          {locked && (
+          {locked && !atLimit && (
             <a href="/subscribe" className="ml-2 underline font-medium">
               Upgrade to VIP
             </a>

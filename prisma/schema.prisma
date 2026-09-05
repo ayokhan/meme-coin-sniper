@@ -2098,6 +2098,24 @@ model SmartMoneyUserLimit {
   updatedAt  DateTime @updatedAt
 }
 
+/** Find Wallet (CA + USD size → trader wallet) — VIP daily search limits. */
+model FindWalletConfig {
+  id             String   @id @default("default")
+  enabled        Boolean  @default(true)
+  /** Global VIP searches per UTC day. Default 2. */
+  vipDailyLimit  Int      @default(2)
+  freeDailyLimit Int      @default(0)
+  updatedAt      DateTime @updatedAt
+}
+
+model FindWalletUserLimit {
+  id         String   @id @default(cuid())
+  userId     String   @unique
+  /** Overrides global VIP/free limit for this user. 0 = disabled. */
+  dailyLimit Int
+  updatedAt  DateTime @updatedAt
+}
+
 /** Early Catch under Narratives — strong narrative + micro mcap. */
 model EarlyCatchConfig {
   id              String   @id @default("default")

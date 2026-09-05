@@ -175,6 +175,7 @@ const FLAG_GROUPS: { id: string; title: string; match: (key: string) => boolean 
       k === "nova_meme_leaderboard" ||
       k === "nova_deep_meme_agent" ||
       k === "nova_find_wallet" ||
+      k === "nova_find_wallet_owner_only" ||
       k === "nova_smart_money_alerts" ||
       k === "nova_smart_money_alerts_owner_only",
   },
@@ -696,7 +697,12 @@ const FLAG_LABELS: Record<string, { label: string; description: string }> = {
   nova_find_wallet: {
     label: "Find Wallet (Wallet Tracker)",
     description:
-      "When ON, VIP users see Find Wallet under Wallet Tracker. Paste a CA + buy/sell USD size (e.g. 49.3K) to match recent DEX trades and return the trader wallet + tx for copy-trading. Uses GeckoTerminal (Solana, BSC, ETH, Robinhood, etc.). Default ON.",
+      "Master switch. Paste CA + buy/sell USD size to match recent DEX trades and return trader wallet + tx. Pair with owner-only. Daily VIP limit default 2 (Product visibility). Default ON.",
+  },
+  nova_find_wallet_owner_only: {
+    label: "Find Wallet — owner only",
+    description:
+      "When master is ON and this is ON, only the owner sees Find Wallet (test mode). Turn OFF for All VIP. Default ON.",
   },
   nova_smart_money_alerts: {
     label: "Smart Money Alerts / FOMO Tracker (Wallet Tracker)",
@@ -1135,6 +1141,8 @@ export default function AdminFeatureFlagsPage() {
     (key.startsWith("page_tab_") && key !== "page_tab_nova_job_agent" && key !== "page_tab_coach_calls") ||
     key === "coach_calls_owner_only" ||
     key === "nova_crypto_buddie_owner_only" ||
+    key === "nova_find_wallet" ||
+    key === "nova_find_wallet_owner_only" ||
     key === "nova_smart_money_alerts" ||
     key === "nova_smart_money_alerts_owner_only" ||
     key === "nova_early_catch" ||
@@ -1946,11 +1954,70 @@ export default function AdminFeatureFlagsPage() {
                           })}
                         </ul>
                         <p className="text-xs text-muted-foreground">
-                          Smart Money Alerts is <strong className="text-zinc-800 dark:text-zinc-200">VIP only</strong>. Manage wallets at{" "}
+                          Find Wallet and Smart Money Alerts are <strong className="text-zinc-800 dark:text-zinc-200">VIP only</strong>.
+                          Use Owner only while testing, then All VIP. Daily search limits: Admin → Product visibility.
+                        </p>
+                        {(() => {
+                          const audience = forexAudienceFromFlags(
+                            "nova_find_wallet",
+                            "nova_find_wallet_owner_only"
+                          );
+                          const busy = toggling === "nova_find_wallet";
+                          return (
+                            <div className="rounded-lg bg-zinc-50/80 dark:bg-zinc-900/50 p-3 space-y-3">
+                              <div className="flex flex-wrap items-start justify-between gap-2">
+                                <div className="min-w-0 flex-1">
+                                  <p className="font-medium text-zinc-900 dark:text-zinc-100">Find Wallet</p>
+                                  <p className="text-xs text-muted-foreground mt-0.5">
+                                    CA + buy/sell USD → trader wallet + tx for copy-trading. VIP default 2 searches/day.
+                                  </p>
+                                </div>
+                                <span
+                                  className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
+                                    audience === "off"
+                                      ? "bg-zinc-200 text-zinc-600 dark:bg-zinc-700 dark:text-zinc-400"
+                                      : audience === "owner"
+                                        ? "bg-amber-100 text-amber-900 dark:bg-amber-950 dark:text-amber-200"
+                                        : "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300"
+                                  }`}
+                                >
+                                  {audience === "off" ? "OFF" : audience === "owner" ? "OWNER ONLY" : "ALL VIP"}
+                                </span>
+                              </div>
+                              <div className="flex flex-wrap gap-2">
+                                {(
+                                  [
+                                    { id: "off" as const, label: "Off" },
+                                    { id: "owner" as const, label: "Owner only (test)" },
+                                    { id: "vip" as const, label: "All VIP" },
+                                  ] as const
+                                ).map((opt) => (
+                                  <Button
+                                    key={opt.id}
+                                    size="sm"
+                                    variant={audience === opt.id ? "default" : "outline"}
+                                    disabled={busy}
+                                    onClick={() =>
+                                      void setForexAudience(
+                                        "nova_find_wallet",
+                                        "nova_find_wallet_owner_only",
+                                        opt.id
+                                      )
+                                    }
+                                  >
+                                    {busy && audience !== opt.id ? "…" : opt.label}
+                                  </Button>
+                                ))}
+                              </div>
+                            </div>
+                          );
+                        })()}
+                        <p className="text-xs text-muted-foreground">
+                          Smart Money Alerts wallets:{" "}
                           <a href="/admin/smart-money" className="text-cyan-600 hover:underline">
                             Admin → Smart Money
                           </a>
-                          . Daily refresh limits: Product visibility.
+                          .
                         </p>
                         {(() => {
                           const audience = forexAudienceFromFlags(
