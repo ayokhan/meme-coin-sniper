@@ -174,6 +174,7 @@ const FLAG_GROUPS: { id: string; title: string; match: (key: string) => boolean 
       k === "nova_perp_wallet_analyst" ||
       k === "nova_meme_leaderboard" ||
       k === "nova_deep_meme_agent" ||
+      k === "nova_find_wallet" ||
       k === "nova_smart_money_alerts" ||
       k === "nova_smart_money_alerts_owner_only",
   },
@@ -691,6 +692,11 @@ const FLAG_LABELS: Record<string, { label: string; description: string }> = {
     label: "Deep Meme Agent (Wallet Tracker)",
     description:
       "When ON, VIP users see the Deep Meme Agent subtab under Wallet Tracker. Paste a Solana, BSC, or Ethereum contract to get a full report: token overview (Dexscreener), security flags + top holders (GoPlus free API), honeypot/rug detection, dev/creator wallet, and per-holder classification (Dev, Whale, LP, Sniper/Bot, Pro, Fresh) with one-click Track or Analyze actions that hand off to the Meme Coin Advantage Bundle.",
+  },
+  nova_find_wallet: {
+    label: "Find Wallet (Wallet Tracker)",
+    description:
+      "When ON, VIP users see Find Wallet under Wallet Tracker. Paste a CA + buy/sell USD size (e.g. 49.3K) to match recent DEX trades and return the trader wallet + tx for copy-trading. Uses GeckoTerminal (Solana, BSC, ETH, Robinhood, etc.). Default ON.",
   },
   nova_smart_money_alerts: {
     label: "Smart Money Alerts / FOMO Tracker (Wallet Tracker)",

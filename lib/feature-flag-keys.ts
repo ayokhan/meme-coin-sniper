@@ -135,6 +135,11 @@ export const FEATURE_FLAG_KEYS = {
   /** VIP: Deep Meme Agent subtab under Wallet Tracker (token security + top-holder analyzer using GoPlus + Dexscreener + Helius). Default ON. */
   NOVA_DEEP_MEME_AGENT: 'nova_deep_meme_agent',
   /**
+   * VIP: Find Wallet — reverse-lookup trader wallet from CA + buy/sell USD size (GeckoTerminal).
+   * Default ON.
+   */
+  NOVA_FIND_WALLET: 'nova_find_wallet',
+  /**
    * VIP: Smart Money Alerts (FOMO Tracker) under Wallet Tracker.
    * Big-buy / hold / sold alerts for admin-curated wallets. Default OFF until admin enables.
    * Pair with NOVA_SMART_MONEY_ALERTS_OWNER_ONLY for Off / Owner / All VIP.

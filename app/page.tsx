@@ -74,6 +74,7 @@ import AiAgentMonitorPanel from "@/components/AiAgentMonitorPanel";
 import AiAgentScorecard from "@/components/AiAgentScorecard";
 import NarrativesPanel from "@/components/NarrativesPanel";
 import SmartMoneyAlertsPanel from "@/components/SmartMoneyAlertsPanel";
+import FindWalletPanel from "@/components/FindWalletPanel";
 import CoachCallsPanel from "@/components/CoachCallsPanel";
 import OnlineBossDemandFibPlaybook from "@/components/OnlineBossDemandFibPlaybook";
 import TradingBotPanel from "@/components/TradingBotPanel";
@@ -913,7 +914,7 @@ function Dashboard() {
     memeAgent: AiAgentUsageSnapshot;
     chartAnalysis: AiAgentUsageSnapshot;
   } | null>(null);
-  type WalletTrackerView = "meme" | "leverage" | "nova-perp-wallet-analyst" | "meme-leaderboard" | "deep-meme-agent" | "smart-money";
+  type WalletTrackerView = "meme" | "leverage" | "nova-perp-wallet-analyst" | "meme-leaderboard" | "deep-meme-agent" | "smart-money" | "find-wallet";
   const [walletTrackerView, setWalletTrackerView] = useState<WalletTrackerView>("meme");
   const onDemandLocked =
     (activeTab === "ct" && !canAccessCtScanEffective) ||
@@ -1289,6 +1290,7 @@ function Dashboard() {
   const [showMemeLeaderboard, setShowMemeLeaderboard] = useState(false);
   const [showDeepMemeAgent, setShowDeepMemeAgent] = useState(false);
   const [showSmartMoneyAlerts, setShowSmartMoneyAlerts] = useState(false);
+  const [showFindWallet, setShowFindWallet] = useState(false);
   const [deepAgentHandoffTrigger, setDeepAgentHandoffTrigger] = useState(0);
   const [deepAgentHandoffAddress, setDeepAgentHandoffAddress] = useState<string | undefined>(undefined);
   const [deepAgentHandoffChain, setDeepAgentHandoffChain] = useState<"solana" | "bsc" | undefined>(undefined);
@@ -1408,7 +1410,10 @@ function Dashboard() {
       setWalletTrackerView(showMemeLeaderboard ? "meme-leaderboard" : showSmartMoneyAlerts ? "smart-money" : "meme");
     }
     if (walletTrackerView === "smart-money" && !showSmartMoneyAlerts) {
-      setWalletTrackerView(showMemeLeaderboard ? "meme-leaderboard" : showDeepMemeAgent ? "deep-meme-agent" : "meme");
+      setWalletTrackerView(showMemeLeaderboard ? "meme-leaderboard" : showDeepMemeAgent ? "deep-meme-agent" : showFindWallet ? "find-wallet" : "meme");
+    }
+    if (walletTrackerView === "find-wallet" && !showFindWallet) {
+      setWalletTrackerView(showDeepMemeAgent ? "deep-meme-agent" : showSmartMoneyAlerts ? "smart-money" : showMemeLeaderboard ? "meme-leaderboard" : "meme");
     }
     if (
       walletTrackerView === "meme" &&
@@ -1445,7 +1450,7 @@ function Dashboard() {
               : "meme";
       setWalletTrackerView(next);
     }
-  }, [walletTrackerView, showMemeLeaderboard, showDeepMemeAgent, showSmartMoneyAlerts, showNovaPerpWalletAnalyst, pageTabFlags, pageTabFlagsLoaded]);
+  }, [walletTrackerView, showMemeLeaderboard, showDeepMemeAgent, showSmartMoneyAlerts, showFindWallet, showNovaPerpWalletAnalyst, pageTabFlags, pageTabFlagsLoaded]);
 
   useEffect(() => {
     if (status !== "authenticated") {
@@ -1464,6 +1469,29 @@ function Dashboard() {
       })
       .catch(() => {
         if (!cancelled) setShowDeepMemeAgent(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [status, isVip, isOwner]);
+
+  useEffect(() => {
+    if (status !== "authenticated") {
+      setShowFindWallet(false);
+      return;
+    }
+    let cancelled = false;
+    fetch("/api/wallet-tracker/find-wallet/access", { credentials: "include", cache: "no-store" })
+      .then((r) => {
+        if (!r.ok) return { success: false };
+        return r.json();
+      })
+      .then((d) => {
+        if (cancelled) return;
+        setShowFindWallet(!!d?.success);
+      })
+      .catch(() => {
+        if (!cancelled) setShowFindWallet(false);
       });
     return () => {
       cancelled = true;
@@ -1787,7 +1815,8 @@ function Dashboard() {
           wallet === "nova-perp-wallet-analyst" ||
           wallet === "meme-leaderboard" ||
           wallet === "deep-meme-agent" ||
-          wallet === "smart-money"
+          wallet === "smart-money" ||
+          wallet === "find-wallet"
         ) {
           setWalletTrackerView(wallet);
         }
@@ -1903,7 +1932,8 @@ function Dashboard() {
       wallet === "nova-perp-wallet-analyst" ||
       wallet === "meme-leaderboard" ||
       wallet === "deep-meme-agent" ||
-      wallet === "smart-money"
+      wallet === "smart-money" ||
+      wallet === "find-wallet"
     ) {
       setWalletTrackerView(wallet);
     }
@@ -9257,7 +9287,7 @@ function Dashboard() {
                     const showMemeCoinsTraders = pageTabFlags?.page_tab_meme_coins_traders ?? true;
                     const showLeverageTraders = pageTabFlags?.page_tab_leverage_traders ?? true;
                     const hasMemeWalletGroup =
-                      showMemeCoinsTraders || showMemeLeaderboard || showDeepMemeAgent || showSmartMoneyAlerts;
+                      showMemeCoinsTraders || showMemeLeaderboard || showDeepMemeAgent || showSmartMoneyAlerts || showFindWallet;
                     const hasFuturesWalletGroup = showLeverageTraders || showNovaPerpWalletAnalyst;
                     const walletSubTabListClass =
                       "bg-zinc-100/95 dark:bg-zinc-800/90 border border-zinc-200/80 dark:border-zinc-700/80 p-1.5 rounded-xl flex-nowrap overflow-x-auto max-w-full gap-1.5 snap-x snap-mandatory [scrollbar-width:thin] [&::-webkit-scrollbar]:h-1.5 [&_[role=tab]]:snap-start";
@@ -9282,6 +9312,11 @@ function Dashboard() {
                           {showDeepMemeAgent && (
                             <TabsTrigger value="deep-meme-agent" className="rounded-lg px-3.5 py-2 sm:py-1.5 min-h-[40px] sm:min-h-0 text-sm font-medium whitespace-nowrap data-[state=inactive]:bg-transparent data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:text-zinc-300 data-[state=active]:bg-violet-500 data-[state=active]:text-white dark:data-[state=active]:bg-violet-600" title="Deep Meme Agent — contract security + top holder report (SOL · BSC · ETH)">
                               Deep Meme Agent
+                            </TabsTrigger>
+                          )}
+                          {showFindWallet && (
+                            <TabsTrigger value="find-wallet" className="rounded-lg px-3.5 py-2 sm:py-1.5 min-h-[40px] sm:min-h-0 text-sm font-medium whitespace-nowrap data-[state=inactive]:bg-transparent data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:text-zinc-300 data-[state=active]:bg-cyan-500 data-[state=active]:text-white dark:data-[state=active]:bg-cyan-600" title="Find Wallet — CA + buy/sell USD → trader wallet for copy-trading">
+                              Find Wallet
                             </TabsTrigger>
                           )}
                           {showSmartMoneyAlerts && (
@@ -9988,6 +10023,9 @@ function Dashboard() {
                         setWalletTrackerView("meme-leaderboard");
                       }}
                     />
+                  </TabsContent>
+                  <TabsContent value="find-wallet" className="mt-0 space-y-4">
+                    <FindWalletPanel isVip={isVip} isOwner={isOwner} />
                   </TabsContent>
                   <TabsContent value="smart-money" className="mt-0 space-y-4">
                     <SmartMoneyAlertsPanel isOwner={isOwner} />
