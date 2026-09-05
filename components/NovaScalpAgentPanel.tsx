@@ -16,10 +16,14 @@ import {
   SCALP_OPEN_WATCHED_EVENT,
 } from "@/lib/nova-scalp-plan-watch";
 import {
+  HIGH_LEVERAGE_SCALP_PRESETS,
+  HIGH_LEVERAGE_SCALP_QUICK_SYMBOLS,
   NOVA_SCALP_DISCLAIMER,
   QUICK_WIN_SCALP_TIMEFRAME_ID,
   SCALP_TIMEFRAMES,
+  getHighLeverageScalpPreset,
   resolveScalpSymbol,
+  type HighLeverageScalpPresetId,
   type NovaScalpAnalysis,
   type NovaScalpNearSetup,
   type NovaScalpQuickWin,
@@ -86,6 +90,7 @@ export default function NovaScalpAgentPanel({ enabled, isVip, canShareCoach = fa
   const [quickWins, setQuickWins] = useState<NovaScalpQuickWin[]>([]);
   const [nearSetups, setNearSetups] = useState<NovaScalpNearSetup[]>([]);
   const [qwScanSummary, setQwScanSummary] = useState<QuickWinScanSummary | null>(null);
+  const [activeLevPreset, setActiveLevPreset] = useState<HighLeverageScalpPresetId | null>(null);
   const { requestHandoff, dialog: handoffDialog } = useScalpHandoffNav();
 
   useEffect(() => {
@@ -138,15 +143,18 @@ export default function NovaScalpAgentPanel({ enabled, isVip, canShareCoach = fa
       symbol?: string;
       leverage?: number;
       timeframeId?: string;
+      maxLossPctOnMargin?: number;
       /** When refreshing a waiting plan, pass prior levels so mid-range rescans don't wipe to NO ENTRY. */
       reconfirmPrior?: boolean;
     }) => {
     const sym = (overrides?.symbol ?? symbol).trim();
     const lev = overrides?.leverage ?? (Number(leverage) || 10);
     const tf = overrides?.timeframeId ?? timeframeId;
+    const lossPct = overrides?.maxLossPctOnMargin ?? (Number(maxLossPct) || 5);
     if (overrides?.symbol) setSymbol(overrides.symbol);
     if (overrides?.leverage != null) setLeverage(String(overrides.leverage));
     if (overrides?.timeframeId) setTimeframeId(overrides.timeframeId);
+    if (overrides?.maxLossPctOnMargin != null) setMaxLossPct(String(overrides.maxLossPctOnMargin));
     setLoading(true);
     setError(null);
     try {
@@ -170,7 +178,7 @@ export default function NovaScalpAgentPanel({ enabled, isVip, canShareCoach = fa
           amountUsd: Number(amount) || 100,
           leverage: lev,
           timeframeId: tf,
-          maxLossPctOnMargin: Number(maxLossPct) || 5,
+          maxLossPctOnMargin: lossPct,
           ...(useReconfirm
             ? {
                 reconfirm: {
@@ -200,6 +208,32 @@ export default function NovaScalpAgentPanel({ enabled, isVip, canShareCoach = fa
     }
   },
     [symbol, amount, leverage, maxLossPct, timeframeId, result]
+  );
+
+  const applyHighLevPreset = useCallback(
+    (id: HighLeverageScalpPresetId, opts?: { run?: boolean; symbol?: string }) => {
+      const p = getHighLeverageScalpPreset(id);
+      if (!p) return;
+      setActiveLevPreset(id);
+      setTimeframeId(p.timeframeId);
+      setLeverage(String(p.leverage));
+      setMaxLossPct(String(p.maxLossPctOnMargin));
+      setQwTimeframeId(p.timeframeId);
+      const tfMeta = SCALP_TIMEFRAMES.find((t) => t.id === p.timeframeId);
+      if (tfMeta) setQwTimeframeLabel(tfMeta.label);
+      const sym = opts?.symbol ? resolveScalpSymbol(opts.symbol) : undefined;
+      if (sym) setSymbol(sym);
+      if (opts?.run) {
+        void runAgent({
+          leverage: p.leverage,
+          timeframeId: p.timeframeId,
+          maxLossPctOnMargin: p.maxLossPctOnMargin,
+          symbol: sym,
+          reconfirmPrior: false,
+        });
+      }
+    },
+    [runAgent]
   );
 
   const findQuickWins = useCallback(async (tfId = qwTimeframeId, lev = Number(leverage) || 10) => {
@@ -281,6 +315,63 @@ export default function NovaScalpAgentPanel({ enabled, isVip, canShareCoach = fa
           </p>
         </div>
 
+        <div className="space-y-2 rounded-md border border-violet-200/70 dark:border-violet-900/50 bg-violet-50/40 dark:bg-violet-950/20 px-3 py-2.5">
+          <div className="flex flex-wrap items-center gap-2">
+            <Zap className="h-3.5 w-3.5 text-violet-600 dark:text-violet-400 shrink-0" aria-hidden />
+            <span className="text-[11px] font-semibold uppercase tracking-wide text-violet-800 dark:text-violet-200">
+              High-leverage presets
+            </span>
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            {HIGH_LEVERAGE_SCALP_PRESETS.map((p) => {
+              const active = activeLevPreset === p.id;
+              return (
+                <button
+                  key={p.id}
+                  type="button"
+                  title={p.blurb}
+                  onClick={() => applyHighLevPreset(p.id)}
+                  className={`rounded-md border px-2.5 py-1 text-xs font-medium transition-colors ${
+                    active
+                      ? "border-violet-500 bg-violet-600 text-white"
+                      : "border-violet-300/80 dark:border-violet-700 text-violet-900 dark:text-violet-100 hover:bg-violet-100/80 dark:hover:bg-violet-900/40"
+                  }`}
+                >
+                  {p.label}
+                  <span className="ml-1 opacity-80 font-normal">
+                    {p.timeframeId} · {p.leverage}x · {p.maxLossPctOnMargin}%
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span className="text-[11px] text-muted-foreground">Quick symbol:</span>
+            {HIGH_LEVERAGE_SCALP_QUICK_SYMBOLS.map((s) => (
+              <button
+                key={s}
+                type="button"
+                disabled={loading}
+                onClick={() =>
+                  applyHighLevPreset(activeLevPreset ?? "high-lev", { run: true, symbol: s })
+                }
+                className="rounded-md border border-zinc-300 dark:border-zinc-600 px-2 py-0.5 text-[11px] font-mono font-medium text-zinc-800 dark:text-zinc-200 hover:bg-white dark:hover:bg-zinc-800"
+              >
+                {s}
+              </button>
+            ))}
+          </div>
+          {activeLevPreset && (
+            <p className="text-[11px] text-muted-foreground leading-relaxed">
+              {HIGH_LEVERAGE_SCALP_PRESETS.find((p) => p.id === activeLevPreset)?.blurb}. Approx price stop ≈{" "}
+              {(
+                (HIGH_LEVERAGE_SCALP_PRESETS.find((p) => p.id === activeLevPreset)?.approxPriceStopPct ?? 0) * 100
+              ).toFixed(2)}
+              % — take TP quickly; prefer High-lev (25x) over Ultra until fills are clean.
+            </p>
+          )}
+        </div>
+
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
           <label className="space-y-1">
             <span className="text-xs text-muted-foreground">Contract</span>
@@ -308,7 +399,10 @@ export default function NovaScalpAgentPanel({ enabled, isVip, canShareCoach = fa
               min={1}
               max={125}
               value={leverage}
-              onChange={(e) => setLeverage(e.target.value)}
+              onChange={(e) => {
+                setLeverage(e.target.value);
+                setActiveLevPreset(null);
+              }}
               className="w-full text-sm border border-zinc-300 dark:border-zinc-600 rounded-md px-2 py-2 bg-white dark:bg-zinc-800"
             />
           </label>
@@ -320,7 +414,10 @@ export default function NovaScalpAgentPanel({ enabled, isVip, canShareCoach = fa
               max={100}
               step={0.5}
               value={maxLossPct}
-              onChange={(e) => setMaxLossPct(e.target.value)}
+              onChange={(e) => {
+                setMaxLossPct(e.target.value);
+                setActiveLevPreset(null);
+              }}
               className="w-full text-sm border border-zinc-300 dark:border-zinc-600 rounded-md px-2 py-2 bg-white dark:bg-zinc-800"
               title="Used for optional risk stop alongside structural invalidation"
             />
@@ -329,7 +426,10 @@ export default function NovaScalpAgentPanel({ enabled, isVip, canShareCoach = fa
             <span className="text-xs text-muted-foreground">Time frame</span>
             <select
               value={timeframeId}
-              onChange={(e) => setTimeframeId(e.target.value)}
+              onChange={(e) => {
+                setTimeframeId(e.target.value);
+                setActiveLevPreset(null);
+              }}
               className="w-full text-sm border border-zinc-300 dark:border-zinc-600 rounded-md px-2 py-2 bg-white dark:bg-zinc-800"
             >
               {SCALP_TIMEFRAMES.map((t) => (

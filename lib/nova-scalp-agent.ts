@@ -109,6 +109,48 @@ export type NovaScalpAnalysis = {
 /** Timeframe used for Quick Wins list + “Analyze” handoff (must match Run Agent logic). */
 export const QUICK_WIN_SCALP_TIMEFRAME_ID: ScalpTimeframeId = "5m";
 
+/** One-click presets for Nova Pulse → Scalp Agent (high-leverage quick scalps). */
+export type HighLeverageScalpPresetId = "high-lev" | "ultra-lev";
+
+export type HighLeverageScalpPreset = {
+  id: HighLeverageScalpPresetId;
+  label: string;
+  blurb: string;
+  timeframeId: ScalpTimeframeId;
+  leverage: number;
+  maxLossPctOnMargin: number;
+  /** Soft price-stop hint ≈ maxLoss% / leverage (for UI copy). */
+  approxPriceStopPct: number;
+};
+
+export const HIGH_LEVERAGE_SCALP_PRESETS: readonly HighLeverageScalpPreset[] = [
+  {
+    id: "high-lev",
+    label: "High-lev scalp",
+    blurb: "2m · 25x · 4% margin risk — best for SOL/ZEC-style quick scalps",
+    timeframeId: "2m",
+    leverage: 25,
+    maxLossPctOnMargin: 4,
+    approxPriceStopPct: 4 / 25,
+  },
+  {
+    id: "ultra-lev",
+    label: "Ultra 50x",
+    blurb: "1m · 50x · 3% margin risk — tiny stop; one wick can stop you out",
+    timeframeId: "1m",
+    leverage: 50,
+    maxLossPctOnMargin: 3,
+    approxPriceStopPct: 3 / 50,
+  },
+] as const;
+
+export function getHighLeverageScalpPreset(id: string): HighLeverageScalpPreset | null {
+  return HIGH_LEVERAGE_SCALP_PRESETS.find((p) => p.id === id) ?? null;
+}
+
+/** Suggested majors for high-lev Pulse scalps (user can still type any contract). */
+export const HIGH_LEVERAGE_SCALP_QUICK_SYMBOLS = ["SOL", "ZEC", "BTC", "ETH"] as const;
+
 export type QuickWinScanSummary = {
   symbolsScanned: number;
   oscillationQualified: number;
