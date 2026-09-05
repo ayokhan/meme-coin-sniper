@@ -154,35 +154,43 @@ export default function SmartMoneyAlertsPanel({ isOwner }: { isOwner?: boolean }
         <CardHeader className="pb-2">
           <CardTitle className="text-sm">FOMO traders watched ({fomoWallets.length})</CardTitle>
           <p className="text-xs text-muted-foreground font-normal">
-            These are wallets you curated from FOMO.family (not Nova&apos;s Helius meme rankings). Find top traders /
-            clans on FOMO, then add their Solana addresses in Admin.
+            {isOwner
+              ? "Wallets curated from FOMO.family (not Nova's Helius meme rankings). Find top traders / clans on FOMO, then add their Solana addresses in Admin."
+              : "Watched FOMO.family traders used for Smart Money alerts. Open FOMO to explore leaders and clans; use Refresh alerts to update the feed."}
           </p>
         </CardHeader>
         <CardContent>
           {loading ? (
             <p className="text-sm text-muted-foreground">Loading…</p>
           ) : fomoWallets.length === 0 ? (
-            <div className="space-y-2 text-sm text-muted-foreground">
-              <p>No FOMO wallets yet.</p>
-              <ol className="list-decimal list-inside text-xs space-y-1">
-                <li>
-                  Open{" "}
-                  <a href="https://fomo.family" target="_blank" rel="noopener noreferrer" className="text-cyan-600 hover:underline">
-                    fomo.family
-                  </a>{" "}
-                  → Leaderboard (traders / clans).
-                </li>
-                <li>Copy each wallet address when you have it.</li>
-                <li>
-                  Paste in{" "}
-                  <a href="/admin/smart-money" className="text-cyan-600 hover:underline">
-                    Admin → Smart Money
-                  </a>{" "}
-                  with source <span className="font-mono">fomo</span> and label <span className="font-mono">FOMO: handle</span>.
-                </li>
-                <li>Return here → Refresh alerts.</li>
-              </ol>
-            </div>
+            isOwner ? (
+              <div className="space-y-2 text-sm text-muted-foreground">
+                <p>No FOMO wallets yet.</p>
+                <ol className="list-decimal list-inside text-xs space-y-1">
+                  <li>
+                    Open{" "}
+                    <a href="https://fomo.family" target="_blank" rel="noopener noreferrer" className="text-cyan-600 hover:underline">
+                      fomo.family
+                    </a>{" "}
+                    → Leaderboard (traders / clans).
+                  </li>
+                  <li>Copy each wallet address when you have it.</li>
+                  <li>
+                    Paste in{" "}
+                    <a href="/admin/smart-money" className="text-cyan-600 hover:underline">
+                      Admin → Smart Money
+                    </a>{" "}
+                    with source <span className="font-mono">fomo</span> and label <span className="font-mono">FOMO: handle</span>.
+                  </li>
+                  <li>Return here → Refresh alerts.</li>
+                </ol>
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                No FOMO traders on the watchlist yet. Check back after a refresh — alerts will show here when wallets are
+                active.
+              </p>
+            )
           ) : (
             <ul className="space-y-1.5">
               {fomoWallets.map((w, i) => (
@@ -209,8 +217,8 @@ export default function SmartMoneyAlertsPanel({ isOwner }: { isOwner?: boolean }
           )}
           {otherWallets.length > 0 && (
             <p className="text-[11px] text-muted-foreground mt-3">
-              Also watching {otherWallets.length} non-FOMO wallet{otherWallets.length === 1 ? "" : "s"} (manual /
-              other). Manage in Admin → Smart Money.
+              Also watching {otherWallets.length} non-FOMO wallet{otherWallets.length === 1 ? "" : "s"}
+              {isOwner ? " (manual / other). Manage in Admin → Smart Money." : "."}
             </p>
           )}
         </CardContent>
@@ -221,7 +229,11 @@ export default function SmartMoneyAlertsPanel({ isOwner }: { isOwner?: boolean }
         {loading ? (
           <p className="text-sm text-muted-foreground">Loading…</p>
         ) : alerts.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No alerts yet. Add FOMO wallets, then Refresh alerts.</p>
+          <p className="text-sm text-muted-foreground">
+            {isOwner
+              ? "No alerts yet. Add FOMO wallets, then Refresh alerts."
+              : "No alerts yet. Use Refresh alerts to check for new activity."}
+          </p>
         ) : (
           alerts.map((a) => {
             const badge = TYPE_LABEL[a.type] ?? { label: a.type, className: "bg-zinc-100 text-zinc-700 border-zinc-200" };
