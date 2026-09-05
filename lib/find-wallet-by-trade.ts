@@ -2,7 +2,7 @@ import { resolveMemeAgentContract } from "@/lib/meme-contract-detect";
 import {
   geckoNetworkForChain,
   getGeckoPoolTrades,
-  searchGeckoPoolsByToken,
+  resolveGeckoPoolsForToken,
   type GtTrade,
 } from "@/lib/api-clients/geckoterminal";
 import { searchDexScreenerTokenPairs, type DexPair } from "@/lib/api-clients/dexscreener";
@@ -139,14 +139,15 @@ export async function findWalletsByTradeAmount(opts: {
   const geckoNet = geckoNetworkForChain(chain);
 
   let symbol: string | null = resolved.pairSymbol ?? null;
+  let dexPairs: DexPair[] = [];
   try {
-    const pairs = await searchDexScreenerTokenPairs(contractAddress);
-    const onChain = pairs.filter(
+    dexPairs = await searchDexScreenerTokenPairs(contractAddress);
+    const onChain = dexPairs.filter(
       (p) =>
         (p.chainId || "").toLowerCase() === chain ||
         (chain === "ethereum" && (p.chainId || "").toLowerCase() === "eth")
     );
-    const best: DexPair | undefined = (onChain.length ? onChain : pairs).sort(
+    const best: DexPair | undefined = (onChain.length ? onChain : dexPairs).sort(
       (a, b) => (b.liquidity?.usd ?? 0) - (a.liquidity?.usd ?? 0)
     )[0];
     if (best?.baseToken?.symbol) symbol = best.baseToken.symbol;
@@ -154,16 +155,17 @@ export async function findWalletsByTradeAmount(opts: {
     /* optional */
   }
 
-  let pools = await searchGeckoPoolsByToken(contractAddress);
-  if (geckoNet) {
-    const filtered = pools.filter((p) => p.networkId.toLowerCase() === geckoNet);
-    if (filtered.length) pools = filtered;
-  }
+  let pools = await resolveGeckoPoolsForToken({
+    tokenAddress: contractAddress,
+    networkId: geckoNet,
+    dexPairs,
+  });
   pools = pools.slice(0, maxPools);
   if (pools.length === 0) {
     return {
       ok: false,
-      error: "No DEX pools found for this CA on GeckoTerminal. Try again later or verify the contract.",
+      error:
+        "No DEX pools found for this CA (GeckoTerminal + DexScreener). Verify the contract or try again in a minute.",
     };
   }
 
