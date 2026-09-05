@@ -26,10 +26,12 @@ type SearchResult = {
   contractAddress: string;
   symbol: string | null;
   queriedAmountUsd: number | null;
+  amountMinUsd: number | null;
+  amountMaxUsd: number | null;
   side: string;
   tolerancePct: number;
   lookbackHours: number;
-  mode: "amount" | "browse";
+  mode: "browse" | "range" | "amount";
   poolsSearched: number;
   tradesScanned: number;
   matches: MatchRow[];
@@ -86,9 +88,9 @@ export default function FindWalletPanel({
   isOwner: boolean;
 }) {
   const [ca, setCa] = useState("");
-  const [amount, setAmount] = useState("");
+  const [amountMin, setAmountMin] = useState("");
+  const [amountMax, setAmountMax] = useState("");
   const [side, setSide] = useState<"buy" | "sell" | "any">("buy");
-  const [tolerancePct, setTolerancePct] = useState(10);
   const [lookbackHours, setLookbackHours] = useState(24);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -100,7 +102,7 @@ export default function FindWalletPanel({
   const canUse = isOwner || isVip;
   const atLimit =
     !!usage && !usage.unlimited && usage.limit != null && usage.used >= usage.limit;
-  const browseMode = !amount.trim();
+  const browseMode = !amountMin.trim() && !amountMax.trim();
 
   useEffect(() => {
     let cancelled = false;
@@ -137,9 +139,9 @@ export default function FindWalletPanel({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ca,
-          amountUsd: amount.trim() || undefined,
+          amountMinUsd: amountMin.trim() || undefined,
+          amountMaxUsd: amountMax.trim() || undefined,
           side,
-          tolerancePct,
           lookbackHours,
         }),
       });
@@ -155,10 +157,12 @@ export default function FindWalletPanel({
         contractAddress: data.contractAddress,
         symbol: data.symbol,
         queriedAmountUsd: data.queriedAmountUsd ?? null,
+        amountMinUsd: data.amountMinUsd ?? null,
+        amountMaxUsd: data.amountMaxUsd ?? null,
         side: data.side,
-        tolerancePct: data.tolerancePct,
+        tolerancePct: data.tolerancePct ?? 10,
         lookbackHours: data.lookbackHours ?? lookbackHours,
-        mode: data.mode === "browse" ? "browse" : "amount",
+        mode: data.mode === "range" ? "range" : data.mode === "amount" ? "amount" : "browse",
         poolsSearched: data.poolsSearched,
         tradesScanned: data.tradesScanned,
         matches: data.matches ?? [],
@@ -191,7 +195,7 @@ export default function FindWalletPanel({
       <div>
         <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">Find Wallet</h3>
         <p className="text-sm text-muted-foreground mt-0.5 max-w-2xl">
-          Paste a CA alone to browse recent DEX trades, or add a USD size to match a specific buy/sell for copy-trading.
+          Paste a CA alone to browse, or set a Min/Max USD range to find buys/sells in that size band for copy-trading.
         </p>
         {usage && (
           <p className="text-xs text-muted-foreground mt-1">
@@ -220,11 +224,20 @@ export default function FindWalletPanel({
               />
             </label>
             <label className="block space-y-1">
-              <span className="text-xs font-medium text-muted-foreground">Amount (USD) — optional</span>
+              <span className="text-xs font-medium text-muted-foreground">Min amount (USD)</span>
               <input
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-                placeholder="Leave blank to browse · or 49.3K"
+                value={amountMin}
+                onChange={(e) => setAmountMin(e.target.value)}
+                placeholder="e.g. 800 or 0.8K"
+                className="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-900 px-3 py-2 text-sm"
+              />
+            </label>
+            <label className="block space-y-1">
+              <span className="text-xs font-medium text-muted-foreground">Max amount (USD)</span>
+              <input
+                value={amountMax}
+                onChange={(e) => setAmountMax(e.target.value)}
+                placeholder="e.g. 1200 or 1.2K"
                 className="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-900 px-3 py-2 text-sm"
               />
             </label>
@@ -254,22 +267,6 @@ export default function FindWalletPanel({
                 <option value="any">Any</option>
               </select>
             </label>
-            <label className="block space-y-1">
-              <span className="text-xs font-medium text-muted-foreground">
-                Tolerance ±%{browseMode ? " (amount mode)" : ""}
-              </span>
-              <select
-                value={tolerancePct}
-                onChange={(e) => setTolerancePct(Number(e.target.value))}
-                disabled={browseMode}
-                className="w-full rounded-md border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-900 px-3 py-2 text-sm disabled:opacity-50"
-              >
-                <option value={5}>5%</option>
-                <option value={10}>10%</option>
-                <option value={15}>15%</option>
-                <option value={25}>25%</option>
-              </select>
-            </label>
           </div>
           <Button
             type="button"
@@ -287,8 +284,7 @@ export default function FindWalletPanel({
                   : "Find wallet"}
           </Button>
           <p className="text-[11px] text-muted-foreground">
-            Timeframe filters what GeckoTerminal returns (usually ~last 24h of pool trades). Longer windows only help if
-            those trades are still in the feed.
+            Leave Min/Max blank to browse all recent trades. Example: Min 800 + Max 1.2K for a ~$900 FOMO sell (±band).
           </p>
         </CardContent>
       </Card>
@@ -318,13 +314,20 @@ export default function FindWalletPanel({
               {result.symbol ? ` · ${result.symbol}` : ""} · {result.chain}
               {result.mode === "browse"
                 ? ` · recent ${result.side}`
-                : ` · queried ${fmtUsd(result.queriedAmountUsd ?? 0)} ${result.side}`}
+                : result.mode === "range"
+                  ? ` · ${
+                      result.amountMinUsd != null && result.amountMaxUsd != null
+                        ? `${fmtUsd(result.amountMinUsd)}–${fmtUsd(result.amountMaxUsd)}`
+                        : result.amountMinUsd != null
+                          ? `≥${fmtUsd(result.amountMinUsd)}`
+                          : `≤${fmtUsd(result.amountMaxUsd ?? 0)}`
+                    } ${result.side}`
+                  : ` · ~${fmtUsd(result.queriedAmountUsd ?? 0)} ${result.side}`}
               {` · ${fmtLookback(result.lookbackHours)}`}
             </CardTitle>
             <p className="text-xs text-muted-foreground font-normal">
               Scanned {result.tradesScanned} trades across {result.poolsSearched} pool
-              {result.poolsSearched === 1 ? "" : "s"}
-              {result.mode === "amount" ? ` (±${result.tolerancePct}%)` : ""}.
+              {result.poolsSearched === 1 ? "" : "s"}.
             </p>
           </CardHeader>
           <CardContent className="space-y-3">
@@ -336,7 +339,7 @@ export default function FindWalletPanel({
             {result.matches.length === 0 && !(result.nearMisses && result.nearMisses.length > 0) && (
               <p className="text-sm text-muted-foreground">
                 No trades in this window. Widen timeframe to 24h, switch side to Any
-                {result.mode === "amount" ? ", raise tolerance," : ""} or try the larger FOMO sizes (e.g. $2.2K / $3.8K sells).
+                {result.mode !== "browse" ? ", widen Min/Max," : ""} or browse CA alone.
               </p>
             )}
             {result.matches.length > 0 && (

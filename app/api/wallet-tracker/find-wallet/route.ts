@@ -20,7 +20,22 @@ import { trialDeskLimitResponse } from "@/lib/trial-desk-gate";
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
-/** POST — VIP: CA + optional USD amount → matching / recent trader wallets (consumes daily quota unless owner). */
+function parseOptionalAmount(body: Record<string, unknown>, ...keys: string[]): {
+  raw: string;
+  value: number | null;
+} {
+  for (const key of keys) {
+    const v = body[key];
+    if (typeof v === "number" && Number.isFinite(v)) return { raw: String(v), value: v > 0 ? v : null };
+    if (typeof v === "string" && v.trim()) {
+      const parsed = parseUsdAmountInput(v);
+      return { raw: v.trim(), value: parsed };
+    }
+  }
+  return { raw: "", value: null };
+}
+
+/** POST — VIP: CA + optional USD min/max range → trader wallets (consumes daily quota unless owner). */
 export async function POST(req: Request) {
   try {
     const session = await getServerSession(authOptions);
@@ -72,29 +87,38 @@ export async function POST(req: Request) {
       }
     }
 
-    const body = await req.json().catch(() => ({}));
+    const body = (await req.json().catch(() => ({}))) as Record<string, unknown>;
     const ca = typeof body.ca === "string" ? body.ca.trim() : "";
-    const amountRaw =
-      typeof body.amountUsd === "number"
-        ? String(body.amountUsd)
-        : typeof body.amountUsd === "string"
-          ? body.amountUsd
-          : typeof body.amount === "string"
-            ? body.amount
-            : "";
-    const amountTrimmed = amountRaw.trim();
-    const amountUsd = amountTrimmed ? parseUsdAmountInput(amountTrimmed) : null;
     if (!ca) {
       return NextResponse.json({ success: false, error: "Contract address (CA) is required." }, { status: 400 });
     }
-    if (amountTrimmed && amountUsd == null) {
+
+    const minParsed = parseOptionalAmount(body, "amountMinUsd", "amountMin", "minUsd", "min");
+    const maxParsed = parseOptionalAmount(body, "amountMaxUsd", "amountMax", "maxUsd", "max");
+    const centerParsed = parseOptionalAmount(body, "amountUsd", "amount");
+
+    if (minParsed.raw && minParsed.value == null) {
       return NextResponse.json(
-        { success: false, error: "Enter a valid USD amount (e.g. 49300 or 49.3K), or leave blank to browse recent trades." },
+        { success: false, error: "Enter a valid Min USD (e.g. 800 or 0.8K)." },
+        { status: 400 }
+      );
+    }
+    if (maxParsed.raw && maxParsed.value == null) {
+      return NextResponse.json(
+        { success: false, error: "Enter a valid Max USD (e.g. 1200 or 1.2K)." },
+        { status: 400 }
+      );
+    }
+    if (centerParsed.raw && centerParsed.value == null) {
+      return NextResponse.json(
+        { success: false, error: "Enter a valid USD amount (e.g. 49300 or 49.3K), or use Min/Max range." },
         { status: 400 }
       );
     }
 
-    const sideRaw = typeof body.side === "string" ? body.side.toLowerCase() : amountUsd == null ? "any" : "buy";
+    const hasFilter = minParsed.value != null || maxParsed.value != null || centerParsed.value != null;
+    const sideRaw =
+      typeof body.side === "string" ? body.side.toLowerCase() : hasFilter ? "buy" : "any";
     const side: FindWalletSide =
       sideRaw === "sell" ? "sell" : sideRaw === "any" ? "any" : "buy";
     const tolerancePct =
@@ -105,7 +129,9 @@ export async function POST(req: Request) {
 
     const result = await findWalletsByTradeAmount({
       ca,
-      amountUsd,
+      amountMinUsd: minParsed.value,
+      amountMaxUsd: maxParsed.value,
+      amountUsd: centerParsed.value,
       side,
       tolerancePct,
       lookbackHours,

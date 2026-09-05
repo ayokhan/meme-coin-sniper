@@ -25,9 +25,7 @@ export type FindWalletMatch = {
   explorerTxUrl: string | null;
   explorerWalletUrl: string | null;
   gmgnTokenUrl: string | null;
-  /** True when outside tolerance and/or outside selected timeframe (suggestion only). */
   nearMiss?: boolean;
-  /** Why this row was excluded from exact matches. */
   nearMissReason?: string;
 };
 
@@ -36,23 +34,24 @@ export type FindWalletResult = {
   chain: string;
   contractAddress: string;
   symbol: string | null;
-  /** null when browsing CA-only (no amount filter). */
+  /** Center amount when using legacy ±tolerance; otherwise null. */
   queriedAmountUsd: number | null;
+  amountMinUsd: number | null;
+  amountMaxUsd: number | null;
   side: FindWalletSide;
   tolerancePct: number;
   lookbackHours: number;
-  mode: "amount" | "browse";
+  mode: "browse" | "range" | "amount";
   poolsSearched: number;
   tradesScanned: number;
   matches: FindWalletMatch[];
-  /** Closest trades when exact match is empty (amount mode). */
   nearMisses?: FindWalletMatch[];
   hint?: string | null;
 };
 
 export type FindWalletError = { ok: false; error: string };
 
-/** Parse amounts like 49300, $49.3K, 49.3k, 1.2M. Empty → null (browse mode). */
+/** Parse amounts like 49300, $49.3K, 49.3k, 1.2M. Empty → null. */
 export function parseUsdAmountInput(raw: string): number | null {
   const s = String(raw ?? "")
     .trim()
@@ -108,34 +107,71 @@ function shortDiffPct(amountUsd: number, target: number): number {
 }
 
 function withinLookback(iso: string | null, lookbackHours: number): boolean {
-  if (!iso) return true; // keep undated trades
+  if (!iso) return true;
   const t = Date.parse(iso);
   if (!Number.isFinite(t)) return true;
   const cutoff = Date.now() - lookbackHours * 3600 * 1000;
   return t >= cutoff;
 }
 
+function inAmountRange(usd: number, min: number | null, max: number | null): boolean {
+  if (min != null && usd < min) return false;
+  if (max != null && usd > max) return false;
+  return true;
+}
+
+/** Distance outside range (0 if inside). Used to rank near-misses. */
+function rangeDistance(usd: number, min: number | null, max: number | null): number {
+  if (min != null && usd < min) return min - usd;
+  if (max != null && usd > max) return usd - max;
+  return 0;
+}
+
+function positiveOrNull(n: number | null | undefined): number | null {
+  return n != null && Number.isFinite(n) && n > 0 ? n : null;
+}
+
 /**
- * Find wallets that bought/sold near `amountUsd`, or browse recent trades for a CA (amount omitted).
+ * Find wallets by CA + optional USD range (or legacy center amount ± tolerance).
  * Uses GeckoTerminal recent trades (typically last ~24h, up to ~300 per pool).
  */
 export async function findWalletsByTradeAmount(opts: {
   ca: string;
-  /** Omit / null = browse recent trades for CA (no size match). */
+  /** Explicit range (preferred). */
+  amountMinUsd?: number | null;
+  amountMaxUsd?: number | null;
+  /** Legacy: center amount; converted to range via tolerancePct when min/max omitted. */
   amountUsd?: number | null;
   side?: FindWalletSide;
   tolerancePct?: number;
   lookbackHours?: number;
   maxPools?: number;
 }): Promise<FindWalletResult | FindWalletError> {
-  const amountUsd =
-    opts.amountUsd != null && Number.isFinite(opts.amountUsd) && opts.amountUsd > 0
-      ? opts.amountUsd
-      : null;
-  const browse = amountUsd == null;
-  const side: FindWalletSide = opts.side ?? (browse ? "any" : "buy");
   const tolerancePct = Math.min(50, Math.max(1, opts.tolerancePct ?? 10));
   const lookbackHours = parseLookbackHours(opts.lookbackHours ?? 24);
+
+  let amountMinUsd = positiveOrNull(opts.amountMinUsd);
+  let amountMaxUsd = positiveOrNull(opts.amountMaxUsd);
+  const amountUsd = positiveOrNull(opts.amountUsd);
+
+  // Legacy single amount → range via tolerance
+  if (amountMinUsd == null && amountMaxUsd == null && amountUsd != null) {
+    amountMinUsd = amountUsd * (1 - tolerancePct / 100);
+    amountMaxUsd = amountUsd * (1 + tolerancePct / 100);
+  }
+
+  if (amountMinUsd != null && amountMaxUsd != null && amountMinUsd > amountMaxUsd) {
+    return { ok: false, error: "Min amount cannot be greater than max amount." };
+  }
+
+  const hasRange = amountMinUsd != null || amountMaxUsd != null;
+  const browse = !hasRange;
+  const mode: FindWalletResult["mode"] =
+    browse ? "browse" : amountUsd != null && opts.amountMinUsd == null && opts.amountMaxUsd == null
+      ? "amount"
+      : "range";
+
+  const side: FindWalletSide = opts.side ?? (browse ? "any" : "buy");
   const maxPools = Math.min(5, Math.max(1, opts.maxPools ?? (browse ? 5 : 3)));
 
   const resolved = await resolveMemeAgentContract(opts.ca, "auto");
@@ -176,10 +212,9 @@ export async function findWalletsByTradeAmount(opts: {
     };
   }
 
-  // Amount mode: floor helps API return large trades. Browse: small floor to surface more rows.
   const minVolumeUsd = browse
     ? 100
-    : Math.max(1, amountUsd! * (1 - tolerancePct / 100) * 0.85);
+    : Math.max(1, (amountMinUsd ?? amountUsd ?? 100) * 0.85);
 
   const allTrades: Array<GtTrade & { poolAddress: string; poolName: string | null; networkId: string }> = [];
   await Promise.all(
@@ -200,7 +235,6 @@ export async function findWalletsByTradeAmount(opts: {
     })
   );
 
-  const matches: FindWalletMatch[] = [];
   const toMatch = (
     t: (typeof allTrades)[0],
     diffPct: number | null,
@@ -225,16 +259,19 @@ export async function findWalletsByTradeAmount(opts: {
     };
   };
 
+  const center =
+    amountUsd ??
+    (amountMinUsd != null && amountMaxUsd != null
+      ? (amountMinUsd + amountMaxUsd) / 2
+      : amountMinUsd ?? amountMaxUsd);
+
+  const matches: FindWalletMatch[] = [];
   for (const t of allTrades) {
     if (side !== "any" && t.kind !== side) continue;
     if (!withinLookback(t.timestamp, lookbackHours)) continue;
+    if (!browse && !inAmountRange(t.volumeUsd, amountMinUsd, amountMaxUsd)) continue;
 
-    let diffPct: number | null = null;
-    if (!browse) {
-      diffPct = shortDiffPct(t.volumeUsd, amountUsd!);
-      if (diffPct > tolerancePct) continue;
-    }
-
+    const diffPct = center != null ? shortDiffPct(t.volumeUsd, center) : null;
     matches.push(toMatch(t, diffPct));
   }
 
@@ -246,7 +283,7 @@ export async function findWalletsByTradeAmount(opts: {
   } else {
     matches.sort(
       (a, b) =>
-        (a.diffPct ?? 0) - (b.diffPct ?? 0) || (b.timestamp || "").localeCompare(a.timestamp || "")
+        b.amountUsd - a.amountUsd || (b.timestamp || "").localeCompare(a.timestamp || "")
     );
   }
 
@@ -261,27 +298,33 @@ export async function findWalletsByTradeAmount(opts: {
   let nearMisses: FindWalletMatch[] | undefined;
   let hint: string | null = null;
 
-  if (!browse && unique.length === 0 && amountUsd != null) {
+  if (!browse && unique.length === 0) {
     const candidates: FindWalletMatch[] = [];
     for (const t of allTrades) {
       if (side !== "any" && t.kind !== side) continue;
-      const diffPct = shortDiffPct(t.volumeUsd, amountUsd);
       const inWindow = withinLookback(t.timestamp, lookbackHours);
+      const inRange = inAmountRange(t.volumeUsd, amountMinUsd, amountMaxUsd);
       const reasons: string[] = [];
       if (!inWindow) reasons.push(`outside ${lookbackHours}h timeframe`);
-      if (diffPct > tolerancePct) reasons.push(`Δ ${diffPct.toFixed(1)}% > ±${tolerancePct}%`);
+      if (!inRange) {
+        if (amountMinUsd != null && t.volumeUsd < amountMinUsd) {
+          reasons.push(`below min $${amountMinUsd.toLocaleString()}`);
+        } else if (amountMaxUsd != null && t.volumeUsd > amountMaxUsd) {
+          reasons.push(`above max $${amountMaxUsd.toLocaleString()}`);
+        }
+      }
       candidates.push(
-        toMatch(t, diffPct, {
+        toMatch(t, center != null ? shortDiffPct(t.volumeUsd, center) : null, {
           nearMiss: true,
-          nearMissReason: reasons.join(" · ") || "close but not exact",
+          nearMissReason: reasons.join(" · ") || "close but not in range",
         })
       );
     }
-    candidates.sort(
-      (a, b) =>
-        (a.diffPct ?? 999) - (b.diffPct ?? 999) ||
-        (b.timestamp || "").localeCompare(a.timestamp || "")
-    );
+    candidates.sort((a, b) => {
+      const da = rangeDistance(a.amountUsd, amountMinUsd, amountMaxUsd);
+      const db = rangeDistance(b.amountUsd, amountMinUsd, amountMaxUsd);
+      return da - db || (b.timestamp || "").localeCompare(a.timestamp || "");
+    });
     const nearSeen = new Set<string>();
     nearMisses = candidates
       .filter((m) => {
@@ -292,11 +335,15 @@ export async function findWalletsByTradeAmount(opts: {
       })
       .slice(0, 10);
 
+    const rangeLabel =
+      amountMinUsd != null && amountMaxUsd != null
+        ? `$${amountMinUsd.toLocaleString()}–$${amountMaxUsd.toLocaleString()}`
+        : amountMinUsd != null
+          ? `≥$${amountMinUsd.toLocaleString()}`
+          : `≤$${amountMaxUsd!.toLocaleString()}`;
+
     if (nearMisses.length > 0) {
-      const best = nearMisses[0];
-      hint = best.nearMissReason?.includes("timeframe")
-        ? `No match in the last ${lookbackHours}h. Closest ${side} trades are below — try a wider timeframe (FOMO sizes often differ slightly from DEX USD).`
-        : `No trade within ±${tolerancePct}% of $${amountUsd.toLocaleString()}. Closest ${side}s below — FOMO display size can differ from on-chain USD.`;
+      hint = `No ${side} in ${rangeLabel} within the last ${lookbackHours}h. Closest trades below — widen range or timeframe (FOMO USD can differ from DEX).`;
     } else {
       hint = `Scanned ${allTrades.length} trades but found no ${side}s to compare. Try Side: Any or browse CA alone.`;
     }
@@ -308,13 +355,15 @@ export async function findWalletsByTradeAmount(opts: {
     contractAddress,
     symbol,
     queriedAmountUsd: amountUsd,
+    amountMinUsd,
+    amountMaxUsd,
     side,
     tolerancePct,
     lookbackHours,
-    mode: browse ? "browse" : "amount",
+    mode,
     poolsSearched: pools.length,
     tradesScanned: allTrades.length,
-    matches: unique.slice(0, browse ? 50 : 25),
+    matches: unique.slice(0, browse ? 50 : 40),
     nearMisses,
     hint,
   };
