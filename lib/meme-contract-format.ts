@@ -27,6 +27,20 @@ export function memeAgentChainLabel(chain: MemeAgentChain | string): string {
   return CHAIN_LABEL[chain.toLowerCase()] ?? chain;
 }
 
+/** Narrow unknown API/UI values to a supported meme agent chain. */
+export function parseMemeAgentChain(raw: unknown): MemeAgentChain | null {
+  if (
+    raw === "solana" ||
+    raw === "bsc" ||
+    raw === "ethereum" ||
+    raw === "robinhood" ||
+    raw === "hyperevm"
+  ) {
+    return raw;
+  }
+  return null;
+}
+
 export function detectMemeContractFormat(input: string): MemeContractFormat {
   const raw = (input || "").trim();
   if (!raw) return "invalid";

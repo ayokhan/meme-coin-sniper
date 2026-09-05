@@ -82,6 +82,7 @@ import { dexscreenerTokenUrl, fomoTokenUrl, memeLinkChainFromStored } from "@/li
 import {
   detectMemeContractFormat,
   memeAgentChainLabel,
+  parseMemeAgentChain,
   type MemeAgentChain,
   type MemeAgentChainMode,
 } from "@/lib/meme-contract-format";
@@ -3668,8 +3669,7 @@ function Dashboard() {
       });
       const data = await res.json();
       if (data.success) {
-        const resolved: MemeAgentChain =
-          data.resolvedChain === "bsc" || data.resolvedChain === "ethereum" ? data.resolvedChain : "solana";
+        const resolved: MemeAgentChain = parseMemeAgentChain(data.resolvedChain) ?? "solana";
         setAiAnalysisResolvedChain(resolved);
         setAiAnalysisResult({
           score: data.score,
@@ -3730,6 +3730,14 @@ function Dashboard() {
     const ca = aiAnalysisResult?.tokenInfo?.contractAddress ?? aiAnalysisCa.trim();
     if (!ca) return;
     setPinSuccess(null);
+    const pinChain: MemeAgentChain | null =
+      aiAnalysisResolvedChain ??
+      (aiAnalysisChain !== "auto" ? aiAnalysisChain : null) ??
+      (detectMemeContractFormat(ca) === "solana" ? "solana" : null);
+    if (!pinChain) {
+      setAiAnalysisError("Analyze the token first so we can detect Robinhood / HyperEVM / BSC / ETH before pinning.");
+      return;
+    }
     if (opts?.fromOnboarding) setPinningOnboarding(true);
     try {
       const res = await fetch("/api/pins", {
@@ -3737,7 +3745,7 @@ function Dashboard() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           contractAddress: ca,
-          chain: aiAnalysisResolvedChain ?? (aiAnalysisChain === "auto" ? "solana" : aiAnalysisChain),
+          chain: pinChain,
           symbol: aiAnalysisResult?.tokenInfo?.symbol,
           name: aiAnalysisResult?.tokenInfo?.name,
         }),
@@ -3923,8 +3931,7 @@ function Dashboard() {
   const viewPinnedResult = (p: PinnedItem) => {
     const r = p.analysisResult as { score?: number; signal?: string; reasons?: string[]; recommendations?: { supportResistance?: string; marketStructure?: string; buyZoneMcap?: string; takeProfitPct?: string; stopLossPct?: string }; tokenInfo?: { symbol?: string; name?: string; [k: string]: unknown } } | null;
     if (!r) return;
-    const pinChain: MemeAgentChain =
-      p.chain === "bsc" || p.chain === "ethereum" ? p.chain : "solana";
+    const pinChain: MemeAgentChain = parseMemeAgentChain(p.chain) ?? "solana";
     setAiAnalysisChain(pinChain);
     setAiAnalysisResolvedChain(pinChain);
     setAiAnalysisResult({
@@ -5712,7 +5719,7 @@ function Dashboard() {
                     enabled={status === "authenticated"}
                     quotaExhausted={memeQuotaExhausted}
                     onUsageRecorded={fetchAiAgentUsage}
-                    syncChain={aiAnalysisChain}
+                    syncChain={aiAnalysisResolvedChain ?? aiAnalysisChain}
                     syncContract={aiAnalysisCa}
                     syncAmountUsd={aiAnalysisAmountUsd}
                   />

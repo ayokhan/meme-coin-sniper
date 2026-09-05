@@ -131,7 +131,16 @@ export async function GET(request: Request) {
           skippedQuota++;
           continue;
         }
-        const chain = pin.chain === 'bsc' ? 'bsc' : pin.chain === 'ethereum' ? 'ethereum' : 'solana';
+        const chain =
+          pin.chain === 'bsc'
+            ? 'bsc'
+            : pin.chain === 'ethereum'
+              ? 'ethereum'
+              : pin.chain === 'robinhood'
+                ? 'robinhood'
+                : pin.chain === 'hyperevm'
+                  ? 'hyperevm'
+                  : 'solana';
         const result =
           chain === 'solana'
             ? await runAiAnalysis(pin.contractAddress)
