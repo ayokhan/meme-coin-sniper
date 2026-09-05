@@ -25,6 +25,10 @@ export type FindWalletMatch = {
   explorerTxUrl: string | null;
   explorerWalletUrl: string | null;
   gmgnTokenUrl: string | null;
+  /** True when outside tolerance and/or outside selected timeframe (suggestion only). */
+  nearMiss?: boolean;
+  /** Why this row was excluded from exact matches. */
+  nearMissReason?: string;
 };
 
 export type FindWalletResult = {
@@ -41,6 +45,9 @@ export type FindWalletResult = {
   poolsSearched: number;
   tradesScanned: number;
   matches: FindWalletMatch[];
+  /** Closest trades when exact match is empty (amount mode). */
+  nearMisses?: FindWalletMatch[];
+  hint?: string | null;
 };
 
 export type FindWalletError = { ok: false; error: string };
@@ -194,19 +201,14 @@ export async function findWalletsByTradeAmount(opts: {
   );
 
   const matches: FindWalletMatch[] = [];
-  for (const t of allTrades) {
-    if (side !== "any" && t.kind !== side) continue;
-    if (!withinLookback(t.timestamp, lookbackHours)) continue;
-
-    let diffPct: number | null = null;
-    if (!browse) {
-      diffPct = shortDiffPct(t.volumeUsd, amountUsd!);
-      if (diffPct > tolerancePct) continue;
-    }
-
+  const toMatch = (
+    t: (typeof allTrades)[0],
+    diffPct: number | null,
+    extra?: Partial<FindWalletMatch>
+  ): FindWalletMatch => {
     const explorers = explorerBase(t.networkId);
     const gmgn = gmgnChainSlug(t.networkId);
-    matches.push({
+    return {
       wallet: t.wallet,
       side: t.kind,
       amountUsd: t.volumeUsd,
@@ -219,7 +221,21 @@ export async function findWalletsByTradeAmount(opts: {
       explorerTxUrl: explorers ? `${explorers.tx}${t.txHash}` : null,
       explorerWalletUrl: explorers ? `${explorers.wallet}${t.wallet}` : null,
       gmgnTokenUrl: gmgn ? `https://gmgn.ai/${gmgn}/token/${contractAddress}` : null,
-    });
+      ...extra,
+    };
+  };
+
+  for (const t of allTrades) {
+    if (side !== "any" && t.kind !== side) continue;
+    if (!withinLookback(t.timestamp, lookbackHours)) continue;
+
+    let diffPct: number | null = null;
+    if (!browse) {
+      diffPct = shortDiffPct(t.volumeUsd, amountUsd!);
+      if (diffPct > tolerancePct) continue;
+    }
+
+    matches.push(toMatch(t, diffPct));
   }
 
   if (browse) {
@@ -242,6 +258,50 @@ export async function findWalletsByTradeAmount(opts: {
     return true;
   });
 
+  let nearMisses: FindWalletMatch[] | undefined;
+  let hint: string | null = null;
+
+  if (!browse && unique.length === 0 && amountUsd != null) {
+    const candidates: FindWalletMatch[] = [];
+    for (const t of allTrades) {
+      if (side !== "any" && t.kind !== side) continue;
+      const diffPct = shortDiffPct(t.volumeUsd, amountUsd);
+      const inWindow = withinLookback(t.timestamp, lookbackHours);
+      const reasons: string[] = [];
+      if (!inWindow) reasons.push(`outside ${lookbackHours}h timeframe`);
+      if (diffPct > tolerancePct) reasons.push(`Δ ${diffPct.toFixed(1)}% > ±${tolerancePct}%`);
+      candidates.push(
+        toMatch(t, diffPct, {
+          nearMiss: true,
+          nearMissReason: reasons.join(" · ") || "close but not exact",
+        })
+      );
+    }
+    candidates.sort(
+      (a, b) =>
+        (a.diffPct ?? 999) - (b.diffPct ?? 999) ||
+        (b.timestamp || "").localeCompare(a.timestamp || "")
+    );
+    const nearSeen = new Set<string>();
+    nearMisses = candidates
+      .filter((m) => {
+        const k = `${m.wallet}:${m.txHash}`.toLowerCase();
+        if (nearSeen.has(k)) return false;
+        nearSeen.add(k);
+        return true;
+      })
+      .slice(0, 10);
+
+    if (nearMisses.length > 0) {
+      const best = nearMisses[0];
+      hint = best.nearMissReason?.includes("timeframe")
+        ? `No match in the last ${lookbackHours}h. Closest ${side} trades are below — try a wider timeframe (FOMO sizes often differ slightly from DEX USD).`
+        : `No trade within ±${tolerancePct}% of $${amountUsd.toLocaleString()}. Closest ${side}s below — FOMO display size can differ from on-chain USD.`;
+    } else {
+      hint = `Scanned ${allTrades.length} trades but found no ${side}s to compare. Try Side: Any or browse CA alone.`;
+    }
+  }
+
   return {
     ok: true,
     chain,
@@ -255,5 +315,7 @@ export async function findWalletsByTradeAmount(opts: {
     poolsSearched: pools.length,
     tradesScanned: allTrades.length,
     matches: unique.slice(0, browse ? 50 : 25),
+    nearMisses,
+    hint,
   };
 }

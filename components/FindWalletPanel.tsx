@@ -17,6 +17,8 @@ type MatchRow = {
   explorerTxUrl: string | null;
   explorerWalletUrl: string | null;
   gmgnTokenUrl: string | null;
+  nearMiss?: boolean;
+  nearMissReason?: string;
 };
 
 type SearchResult = {
@@ -31,6 +33,8 @@ type SearchResult = {
   poolsSearched: number;
   tradesScanned: number;
   matches: MatchRow[];
+  nearMisses?: MatchRow[];
+  hint?: string | null;
 };
 
 type UsageSnap = {
@@ -158,6 +162,8 @@ export default function FindWalletPanel({
         poolsSearched: data.poolsSearched,
         tradesScanned: data.tradesScanned,
         matches: data.matches ?? [],
+        nearMisses: data.nearMisses ?? [],
+        hint: data.hint ?? null,
       });
     } catch {
       setError("Network error");
@@ -321,102 +327,148 @@ export default function FindWalletPanel({
               {result.mode === "amount" ? ` (±${result.tolerancePct}%)` : ""}.
             </p>
           </CardHeader>
-          <CardContent>
-            {result.matches.length === 0 ? (
-              <p className="text-sm text-muted-foreground">
-                No trades in this window. Widen timeframe, switch side to Any
-                {result.mode === "amount" ? ", raise tolerance," : ""} or try again after the trade indexes.
+          <CardContent className="space-y-3">
+            {result.hint && (
+              <p className="text-sm text-amber-800 dark:text-amber-200 bg-amber-50/80 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/50 rounded-lg px-3 py-2">
+                {result.hint}
               </p>
-            ) : (
+            )}
+            {result.matches.length === 0 && !(result.nearMisses && result.nearMisses.length > 0) && (
+              <p className="text-sm text-muted-foreground">
+                No trades in this window. Widen timeframe to 24h, switch side to Any
+                {result.mode === "amount" ? ", raise tolerance," : ""} or try the larger FOMO sizes (e.g. $2.2K / $3.8K sells).
+              </p>
+            )}
+            {result.matches.length > 0 && (
               <ul className="space-y-2">
                 {result.matches.map((m) => (
-                  <li
-                    key={`${m.txHash}-${m.wallet}`}
-                    className="rounded-lg border border-zinc-200 dark:border-zinc-800 bg-zinc-50/80 dark:bg-zinc-900/40 px-3 py-2.5 space-y-1.5"
-                  >
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span
-                        className={`text-[10px] font-semibold px-2 py-0.5 rounded border ${
-                          m.side === "buy"
-                            ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/25"
-                            : m.side === "sell"
-                              ? "bg-rose-500/15 text-rose-700 dark:text-rose-300 border-rose-500/25"
-                              : "bg-zinc-200 text-zinc-700 border-zinc-300"
-                        }`}
-                      >
-                        {m.side.toUpperCase()}
-                      </span>
-                      <span className="text-sm font-semibold">{fmtUsd(m.amountUsd)}</span>
-                      {m.diffPct != null && (
-                        <span className="text-xs text-muted-foreground">Δ {m.diffPct.toFixed(1)}%</span>
-                      )}
-                      <span className="text-xs text-muted-foreground ml-auto">{fmtTime(m.timestamp)}</span>
-                    </div>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <code className="text-xs font-mono break-all">{m.wallet}</code>
-                      <button
-                        type="button"
-                        className="inline-flex items-center gap-1 text-[10px] px-2 py-1 rounded bg-zinc-200/80 dark:bg-zinc-800 hover:bg-cyan-100 dark:hover:bg-cyan-900/40"
-                        onClick={() => void copy(m.wallet, m.wallet)}
-                      >
-                        {copied === m.wallet ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
-                        {copied === m.wallet ? "Copied" : "Copy wallet"}
-                      </button>
-                    </div>
-                    <div className="text-[11px] text-muted-foreground flex flex-wrap gap-x-3 gap-y-1">
-                      <span>
-                        Tx <span className="font-mono">{shortAddr(m.txHash)}</span>
-                      </span>
-                      {m.poolName && <span>{m.poolName}</span>}
-                      <span className="uppercase">{m.networkId}</span>
-                    </div>
-                    <div className="flex flex-wrap gap-2 pt-0.5">
-                      <button
-                        type="button"
-                        className="text-[10px] px-2 py-1 rounded bg-zinc-100 dark:bg-zinc-800 hover:bg-cyan-100 dark:hover:bg-cyan-900/40 inline-flex items-center gap-1"
-                        onClick={() => void copy(m.txHash, m.txHash)}
-                      >
-                        {copied === m.txHash ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
-                        Copy tx
-                      </button>
-                      {m.explorerWalletUrl && (
-                        <a
-                          href={m.explorerWalletUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-[10px] px-2 py-1 rounded bg-zinc-100 dark:bg-zinc-800 hover:bg-cyan-100 dark:hover:bg-cyan-900/40 inline-flex items-center gap-1"
-                        >
-                          Explorer <ExternalLink className="h-3 w-3" />
-                        </a>
-                      )}
-                      {m.explorerTxUrl && (
-                        <a
-                          href={m.explorerTxUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-[10px] px-2 py-1 rounded bg-zinc-100 dark:bg-zinc-800 hover:bg-cyan-100 dark:hover:bg-cyan-900/40 inline-flex items-center gap-1"
-                        >
-                          Tx <ExternalLink className="h-3 w-3" />
-                        </a>
-                      )}
-                      {m.gmgnTokenUrl && (
-                        <a
-                          href={m.gmgnTokenUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-[10px] px-2 py-1 rounded bg-zinc-100 dark:bg-zinc-800 hover:bg-cyan-100 dark:hover:bg-cyan-900/40 inline-flex items-center gap-1"
-                        >
-                          GMGN <ExternalLink className="h-3 w-3" />
-                        </a>
-                      )}
-                    </div>
-                  </li>
+                  <MatchCard key={`${m.txHash}-${m.wallet}`} m={m} copied={copied} onCopy={copy} />
                 ))}
               </ul>
+            )}
+            {result.nearMisses && result.nearMisses.length > 0 && (
+              <div className="space-y-2 pt-1">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                  Closest trades (not exact match)
+                </p>
+                <ul className="space-y-2">
+                  {result.nearMisses.map((m) => (
+                    <MatchCard
+                      key={`near-${m.txHash}-${m.wallet}`}
+                      m={m}
+                      copied={copied}
+                      onCopy={copy}
+                      nearMiss
+                    />
+                  ))}
+                </ul>
+              </div>
             )}
           </CardContent>
         </Card>
       )}
     </div>
+  );
+}
+
+function MatchCard({
+  m,
+  copied,
+  onCopy,
+  nearMiss,
+}: {
+  m: MatchRow;
+  copied: string | null;
+  onCopy: (text: string, key: string) => void;
+  nearMiss?: boolean;
+}) {
+  return (
+    <li
+      className={`rounded-lg border px-3 py-2.5 space-y-1.5 ${
+        nearMiss
+          ? "border-amber-200 dark:border-amber-900/50 bg-amber-50/40 dark:bg-amber-950/20"
+          : "border-zinc-200 dark:border-zinc-800 bg-zinc-50/80 dark:bg-zinc-900/40"
+      }`}
+    >
+      {m.nearMissReason && (
+        <p className="text-[10px] text-amber-700 dark:text-amber-300">{m.nearMissReason}</p>
+      )}
+      <div className="flex flex-wrap items-center gap-2">
+        <span
+          className={`text-[10px] font-semibold px-2 py-0.5 rounded border ${
+            m.side === "buy"
+              ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/25"
+              : m.side === "sell"
+                ? "bg-rose-500/15 text-rose-700 dark:text-rose-300 border-rose-500/25"
+                : "bg-zinc-200 text-zinc-700 border-zinc-300"
+          }`}
+        >
+          {m.side.toUpperCase()}
+        </span>
+        <span className="text-sm font-semibold">{fmtUsd(m.amountUsd)}</span>
+        {m.diffPct != null && (
+          <span className="text-xs text-muted-foreground">Δ {m.diffPct.toFixed(1)}%</span>
+        )}
+        <span className="text-xs text-muted-foreground ml-auto">{fmtTime(m.timestamp)}</span>
+      </div>
+      <div className="flex flex-wrap items-center gap-2">
+        <code className="text-xs font-mono break-all">{m.wallet}</code>
+        <button
+          type="button"
+          className="inline-flex items-center gap-1 text-[10px] px-2 py-1 rounded bg-zinc-200/80 dark:bg-zinc-800 hover:bg-cyan-100 dark:hover:bg-cyan-900/40"
+          onClick={() => void onCopy(m.wallet, m.wallet)}
+        >
+          {copied === m.wallet ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+          {copied === m.wallet ? "Copied" : "Copy wallet"}
+        </button>
+      </div>
+      <div className="text-[11px] text-muted-foreground flex flex-wrap gap-x-3 gap-y-1">
+        <span>
+          Tx <span className="font-mono">{shortAddr(m.txHash)}</span>
+        </span>
+        {m.poolName && <span>{m.poolName}</span>}
+        <span className="uppercase">{m.networkId}</span>
+      </div>
+      <div className="flex flex-wrap gap-2 pt-0.5">
+        <button
+          type="button"
+          className="text-[10px] px-2 py-1 rounded bg-zinc-100 dark:bg-zinc-800 hover:bg-cyan-100 dark:hover:bg-cyan-900/40 inline-flex items-center gap-1"
+          onClick={() => void onCopy(m.txHash, m.txHash)}
+        >
+          {copied === m.txHash ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+          Copy tx
+        </button>
+        {m.explorerWalletUrl && (
+          <a
+            href={m.explorerWalletUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-[10px] px-2 py-1 rounded bg-zinc-100 dark:bg-zinc-800 hover:bg-cyan-100 dark:hover:bg-cyan-900/40 inline-flex items-center gap-1"
+          >
+            Explorer <ExternalLink className="h-3 w-3" />
+          </a>
+        )}
+        {m.explorerTxUrl && (
+          <a
+            href={m.explorerTxUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-[10px] px-2 py-1 rounded bg-zinc-100 dark:bg-zinc-800 hover:bg-cyan-100 dark:hover:bg-cyan-900/40 inline-flex items-center gap-1"
+          >
+            Tx <ExternalLink className="h-3 w-3" />
+          </a>
+        )}
+        {m.gmgnTokenUrl && (
+          <a
+            href={m.gmgnTokenUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-[10px] px-2 py-1 rounded bg-zinc-100 dark:bg-zinc-800 hover:bg-cyan-100 dark:hover:bg-cyan-900/40 inline-flex items-center gap-1"
+          >
+            GMGN <ExternalLink className="h-3 w-3" />
+          </a>
+        )}
+      </div>
+    </li>
   );
 }
