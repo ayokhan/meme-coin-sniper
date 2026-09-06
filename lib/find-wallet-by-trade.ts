@@ -153,11 +153,26 @@ export async function findWalletsByTradeAmount(opts: {
   let amountMinUsd = positiveOrNull(opts.amountMinUsd);
   let amountMaxUsd = positiveOrNull(opts.amountMaxUsd);
   const amountUsd = positiveOrNull(opts.amountUsd);
+  const softBandPct = 12; // when only Min or only Max is set (FOMO paste)
 
   // Legacy single amount → range via tolerance
   if (amountMinUsd == null && amountMaxUsd == null && amountUsd != null) {
     amountMinUsd = amountUsd * (1 - tolerancePct / 100);
     amountMaxUsd = amountUsd * (1 + tolerancePct / 100);
+  }
+
+  // One-sided FOMO paste → soft ± band (exact FOMO USD rarely matches DEX USD 1:1)
+  let usedSoftBand = false;
+  if (amountMinUsd != null && amountMaxUsd == null && opts.amountUsd == null) {
+    const center = amountMinUsd;
+    amountMinUsd = center * (1 - softBandPct / 100);
+    amountMaxUsd = center * (1 + softBandPct / 100);
+    usedSoftBand = true;
+  } else if (amountMaxUsd != null && amountMinUsd == null && opts.amountUsd == null) {
+    const center = amountMaxUsd;
+    amountMinUsd = center * (1 - softBandPct / 100);
+    amountMaxUsd = center * (1 + softBandPct / 100);
+    usedSoftBand = true;
   }
 
   if (amountMinUsd != null && amountMaxUsd != null && amountMinUsd > amountMaxUsd) {
@@ -172,7 +187,8 @@ export async function findWalletsByTradeAmount(opts: {
       : "range";
 
   const side: FindWalletSide = opts.side ?? (browse ? "any" : "buy");
-  const maxPools = Math.min(5, Math.max(1, opts.maxPools ?? (browse ? 5 : 3)));
+  // Fewer pools = less GT rate-limit risk
+  const maxPools = Math.min(3, Math.max(1, opts.maxPools ?? (browse ? 3 : 2)));
 
   const resolved = await resolveMemeAgentContract(opts.ca, "auto");
   if (!resolved.ok) return { ok: false, error: resolved.error };
@@ -212,28 +228,43 @@ export async function findWalletsByTradeAmount(opts: {
     };
   }
 
-  const minVolumeUsd = browse
+  const apiMinVolume = browse
     ? 100
-    : Math.max(1, (amountMinUsd ?? amountUsd ?? 100) * 0.85);
+    : Math.max(1, Math.min(amountMinUsd ?? 100, amountUsd ?? amountMinUsd ?? 100) * 0.75);
 
   const allTrades: Array<GtTrade & { poolAddress: string; poolName: string | null; networkId: string }> = [];
-  await Promise.all(
-    pools.map(async (pool) => {
-      const trades = await getGeckoPoolTrades({
+  let rateLimited = false;
+
+  // Sequential fetches — parallel GT calls often all return 429
+  for (let i = 0; i < pools.length; i++) {
+    const pool = pools[i];
+    if (i > 0) await new Promise((r) => setTimeout(r, 350));
+    let { trades, rateLimited: rl } = await getGeckoPoolTrades({
+      networkId: pool.networkId,
+      poolAddress: pool.poolAddress,
+      minVolumeUsd: apiMinVolume,
+    });
+    if (rl) rateLimited = true;
+    // Fallback: unfiltered recent trades if floor returned nothing
+    if (trades.length === 0 && apiMinVolume > 100) {
+      await new Promise((r) => setTimeout(r, 400));
+      const retry = await getGeckoPoolTrades({
         networkId: pool.networkId,
         poolAddress: pool.poolAddress,
-        minVolumeUsd,
+        minVolumeUsd: 100,
       });
-      for (const t of trades) {
-        allTrades.push({
-          ...t,
-          poolAddress: pool.poolAddress,
-          poolName: pool.name,
-          networkId: pool.networkId,
-        });
-      }
-    })
-  );
+      if (retry.rateLimited) rateLimited = true;
+      trades = retry.trades;
+    }
+    for (const t of trades) {
+      allTrades.push({
+        ...t,
+        poolAddress: pool.poolAddress,
+        poolName: pool.name,
+        networkId: pool.networkId,
+      });
+    }
+  }
 
   const toMatch = (
     t: (typeof allTrades)[0],
@@ -344,9 +375,17 @@ export async function findWalletsByTradeAmount(opts: {
 
     if (nearMisses.length > 0) {
       hint = `No ${side} in ${rangeLabel} within the last ${lookbackHours}h. Closest trades below — widen range or timeframe (FOMO USD can differ from DEX).`;
+    } else if (allTrades.length === 0 && rateLimited) {
+      hint =
+        "GeckoTerminal rate-limited this search (0 trades returned). Wait a few seconds and search again — do not spam Find wallet.";
+    } else if (allTrades.length === 0) {
+      hint =
+        "No recent pool trades loaded. Wait a few seconds and retry, or widen timeframe.";
     } else {
       hint = `Scanned ${allTrades.length} trades but found no ${side}s to compare. Try Side: Any or browse CA alone.`;
     }
+  } else if (usedSoftBand && unique.length > 0) {
+    hint = `Min-only search uses a ±${softBandPct}% band around your amount (FOMO size vs DEX USD). Set both Min and Max for a hard range.`;
   }
 
   return {

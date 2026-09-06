@@ -284,7 +284,7 @@ export default function FindWalletPanel({
                   : "Find wallet"}
           </Button>
           <p className="text-[11px] text-muted-foreground">
-            Leave Min/Max blank to browse all recent trades. Example: Min 800 + Max 1.2K for a ~$900 FOMO sell (±band).
+            Leave both blank to browse. Paste FOMO size in Min only → auto ±12% band. Or set Min + Max for an exact range.
           </p>
         </CardContent>
       </Card>

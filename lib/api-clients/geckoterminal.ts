@@ -30,6 +30,10 @@ function num(v: unknown): number | null {
   return null;
 }
 
+function sleep(ms: number) {
+  return new Promise((r) => setTimeout(r, ms));
+}
+
 /** Map DexScreener / app chain ids → GeckoTerminal network slug. */
 export function geckoNetworkForChain(chain: string): string | null {
   const c = chain.toLowerCase();
@@ -74,17 +78,36 @@ function parsePoolRows(rows: GtPoolRow[] | undefined): GtPoolHit[] {
   return out.sort((a, b) => (b.reserveUsd ?? 0) - (a.reserveUsd ?? 0));
 }
 
-async function gtFetchJson(url: string): Promise<{ ok: boolean; status: number; json: unknown }> {
-  try {
-    const res = await fetch(url, {
-      headers: { Accept: "application/json" },
-      cache: "no-store",
-    });
-    const json = await res.json().catch(() => null);
-    return { ok: res.ok, status: res.status, json };
-  } catch {
-    return { ok: false, status: 0, json: null };
+async function gtFetchJson(
+  url: string,
+  retries = 3
+): Promise<{ ok: boolean; status: number; json: unknown; rateLimited?: boolean }> {
+  let lastStatus = 0;
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      const res = await fetch(url, {
+        headers: { Accept: "application/json" },
+        cache: "no-store",
+      });
+      lastStatus = res.status;
+      if (res.status === 429) {
+        if (attempt < retries) {
+          await sleep(800 * (attempt + 1));
+          continue;
+        }
+        return { ok: false, status: 429, json: null, rateLimited: true };
+      }
+      const json = await res.json().catch(() => null);
+      return { ok: res.ok, status: res.status, json };
+    } catch {
+      if (attempt < retries) {
+        await sleep(400 * (attempt + 1));
+        continue;
+      }
+      return { ok: false, status: 0, json: null };
+    }
   }
+  return { ok: false, status: lastStatus, json: null, rateLimited: lastStatus === 429 };
 }
 
 export async function searchGeckoPoolsByToken(tokenAddress: string): Promise<GtPoolHit[]> {
@@ -136,7 +159,7 @@ export function poolsFromDexPairs(
 }
 
 /**
- * Resolve pools for a token: token-pools (if network known) + search, then DexScreener fallback.
+ * Resolve pools for a token: DexScreener first (stable), then GT token-pools / search.
  */
 export async function resolveGeckoPoolsForToken(opts: {
   tokenAddress: string;
@@ -146,43 +169,25 @@ export async function resolveGeckoPoolsForToken(opts: {
   const token = opts.tokenAddress.trim();
   const net = opts.networkId?.trim() || null;
 
-  const [tokenPools, searched] = await Promise.all([
-    net ? getGeckoTokenPools(net, token) : Promise.resolve([] as GtPoolHit[]),
-    searchGeckoPoolsByToken(token),
-  ]);
+  // DexScreener first — avoids burning GT rate limit on pool discovery
+  let pools: GtPoolHit[] = opts.dexPairs?.length ? poolsFromDexPairs(opts.dexPairs, net) : [];
 
-  const merged: GtPoolHit[] = [];
-  const seen = new Set<string>();
-  for (const p of [...tokenPools, ...searched]) {
-    const key = `${p.networkId}:${p.poolAddress.toLowerCase()}`;
-    if (seen.has(key)) continue;
-    seen.add(key);
-    merged.push(p);
+  if (pools.length === 0 && net) {
+    pools = await getGeckoTokenPools(net, token);
   }
-
-  let pools = merged;
-  if (net) {
-    const filtered = pools.filter((p) => p.networkId.toLowerCase() === net.toLowerCase());
-    if (filtered.length) pools = filtered;
-  }
-
-  if (pools.length === 0 && opts.dexPairs?.length) {
-    pools = poolsFromDexPairs(opts.dexPairs, net);
+  if (pools.length === 0) {
+    const searched = await searchGeckoPoolsByToken(token);
+    pools = searched;
+    if (net) {
+      const filtered = pools.filter((p) => p.networkId.toLowerCase() === net.toLowerCase());
+      if (filtered.length) pools = filtered;
+    }
   }
 
   return pools.sort((a, b) => (b.reserveUsd ?? 0) - (a.reserveUsd ?? 0));
 }
 
-export async function getGeckoPoolTrades(opts: {
-  networkId: string;
-  poolAddress: string;
-  minVolumeUsd?: number;
-}): Promise<GtTrade[]> {
-  const min = opts.minVolumeUsd != null && opts.minVolumeUsd > 0 ? opts.minVolumeUsd : 0;
-  const qs = min > 0 ? `?trade_volume_in_usd_greater_than=${encodeURIComponent(String(min))}` : "";
-  const url = `${GT_BASE}/networks/${encodeURIComponent(opts.networkId)}/pools/${encodeURIComponent(opts.poolAddress)}/trades${qs}`;
-  const { ok, json } = await gtFetchJson(url);
-  if (!ok) return [];
+function parseTradesJson(json: unknown): GtTrade[] {
   const data = (json as {
     data?: Array<{
       attributes?: {
@@ -214,4 +219,17 @@ export async function getGeckoPoolTrades(opts: {
     });
   }
   return out;
+}
+
+export async function getGeckoPoolTrades(opts: {
+  networkId: string;
+  poolAddress: string;
+  minVolumeUsd?: number;
+}): Promise<{ trades: GtTrade[]; rateLimited: boolean }> {
+  const min = opts.minVolumeUsd != null && opts.minVolumeUsd > 0 ? opts.minVolumeUsd : 0;
+  const qs = min > 0 ? `?trade_volume_in_usd_greater_than=${encodeURIComponent(String(min))}` : "";
+  const url = `${GT_BASE}/networks/${encodeURIComponent(opts.networkId)}/pools/${encodeURIComponent(opts.poolAddress)}/trades${qs}`;
+  const { ok, json, rateLimited } = await gtFetchJson(url);
+  if (!ok) return { trades: [], rateLimited: rateLimited === true };
+  return { trades: parseTradesJson(json), rateLimited: false };
 }
