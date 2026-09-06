@@ -1,4 +1,5 @@
 import { INVESTOR_PARTNERSHIP_EMAIL } from "@/lib/investor-partnership-email";
+import { INFLUENCER_COMP_VIP_EMAIL } from "@/lib/influencer-comp-vip-email";
 import {
   FOREX_PARTNERSHIP_EMAIL,
   FOREX_PARTNER_REBATE_EMAIL,
@@ -67,7 +68,8 @@ export type AdminEmailPresetId =
   | "blofin-partnership"
   | "coinbase-partnership"
   | "coinbase-referral"
-  | "investor-partnership";
+  | "investor-partnership"
+  | "influencer-comp-vip";
 
 export type AdminEmailPreset = {
   id: AdminEmailPresetId;
@@ -483,6 +485,18 @@ export const ADMIN_EMAIL_PRESETS: AdminEmailPreset[] = [
     partnerBrand: "blofin",
     ctaLabel: INVESTOR_PARTNERSHIP_EMAIL.ctaLabel,
     ctaUrl: INVESTOR_PARTNERSHIP_EMAIL.ctaUrl,
+  },
+  {
+    id: "influencer-comp-vip",
+    label: "Influencer — complimentary VIP",
+    blurb: "Creator outreach: free VIP + soft partnership ask — add recipients manually",
+    subject: INFLUENCER_COMP_VIP_EMAIL.subject,
+    body: INFLUENCER_COMP_VIP_EMAIL.body,
+    template: "influencer-outreach",
+    includePartnerLogos: false,
+    partnerBrand: "blofin",
+    ctaLabel: INFLUENCER_COMP_VIP_EMAIL.ctaLabel,
+    ctaUrl: INFLUENCER_COMP_VIP_EMAIL.ctaUrl,
   },
 ];
 

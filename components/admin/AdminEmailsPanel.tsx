@@ -613,6 +613,14 @@ export default function AdminEmailsPanel({ onNotice, onError }: Props) {
           "Investor preset loaded. Clear {{FIRST_NAME}}, then add each investor email under Recipients (do not use customer audiences)."
         );
       }
+      if (id === "influencer-comp-vip") {
+        setRecipients([]);
+        setSelectedNewEmails(new Set());
+        setRecipientsLocked(true);
+        onNotice?.(
+          "Influencer preset loaded. Fill {{FIRST_NAME}}, {{HANDLE}}, {{PLATFORM}}, {{VIP_DAYS}}, {{CLAIM_URL}}, then add each creator email under Recipients."
+        );
+      }
       if (p.defaultAudience === "new") {
         setNewWindowDays(id.startsWith("deepdive-") || id === "vip-soft-pitch" ? 7 : 1);
       }
