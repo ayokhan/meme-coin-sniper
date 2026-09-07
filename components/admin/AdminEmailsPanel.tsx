@@ -628,6 +628,15 @@ export default function AdminEmailsPanel({ onNotice, onError }: Props) {
           "Signed letter loaded. Write any subject/body — rich send includes NovaStaris banner + Ayo Khan, MBA, PMP signature with logo. Clear CTA fields to hide the button."
         );
       }
+      if (id === "creator-overview") {
+        setFormat("rich");
+        setRecipients([]);
+        setSelectedNewEmails(new Set());
+        setRecipientsLocked(true);
+        onNotice?.(
+          "Creator overview loaded. Replace {{FIRST_NAME}}, add her email under Recipients. Rich send includes your signature + logo."
+        );
+      }
       if (p.defaultAudience === "new") {
         setNewWindowDays(id.startsWith("deepdive-") || id === "vip-soft-pitch" ? 7 : 1);
       }

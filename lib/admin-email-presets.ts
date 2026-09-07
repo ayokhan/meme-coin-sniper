@@ -1,6 +1,7 @@
 import { INVESTOR_PARTNERSHIP_EMAIL } from "@/lib/investor-partnership-email";
 import { INFLUENCER_COMP_VIP_EMAIL } from "@/lib/influencer-comp-vip-email";
 import { FOUNDER_SIGNED_EMAIL } from "@/lib/founder-signed-email";
+import { CREATOR_OVERVIEW_EMAIL } from "@/lib/creator-overview-email";
 import {
   FOREX_PARTNERSHIP_EMAIL,
   FOREX_PARTNER_REBATE_EMAIL,
@@ -71,7 +72,8 @@ export type AdminEmailPresetId =
   | "coinbase-referral"
   | "investor-partnership"
   | "influencer-comp-vip"
-  | "founder-signed";
+  | "founder-signed"
+  | "creator-overview";
 
 export type AdminEmailPreset = {
   id: AdminEmailPresetId;
@@ -511,6 +513,18 @@ export const ADMIN_EMAIL_PRESETS: AdminEmailPreset[] = [
     partnerBrand: "blofin",
     ctaLabel: FOUNDER_SIGNED_EMAIL.ctaLabel,
     ctaUrl: FOUNDER_SIGNED_EMAIL.ctaUrl,
+  },
+  {
+    id: "creator-overview",
+    label: "Creator overview (after IG interest)",
+    blurb: "What NovaStaris is + soft promote/affiliate ask — signed rich email",
+    subject: CREATOR_OVERVIEW_EMAIL.subject,
+    body: CREATOR_OVERVIEW_EMAIL.body,
+    template: "founder-signed",
+    includePartnerLogos: false,
+    partnerBrand: "blofin",
+    ctaLabel: CREATOR_OVERVIEW_EMAIL.ctaLabel,
+    ctaUrl: CREATOR_OVERVIEW_EMAIL.ctaUrl,
   },
 ];
 
