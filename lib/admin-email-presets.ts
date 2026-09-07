@@ -517,10 +517,10 @@ export const ADMIN_EMAIL_PRESETS: AdminEmailPreset[] = [
   {
     id: "creator-overview",
     label: "Creator overview (after IG interest)",
-    blurb: "What NovaStaris is + soft promote/affiliate ask — signed rich email",
+    blurb: "What NovaStaris is + product postcards + soft promote/affiliate ask — signed",
     subject: CREATOR_OVERVIEW_EMAIL.subject,
     body: CREATOR_OVERVIEW_EMAIL.body,
-    template: "founder-signed",
+    template: "creator-overview",
     includePartnerLogos: false,
     partnerBrand: "blofin",
     ctaLabel: CREATOR_OVERVIEW_EMAIL.ctaLabel,

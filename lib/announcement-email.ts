@@ -36,7 +36,8 @@ export type AnnouncementEmailTemplate =
   | "gmgn-vip-bot"
   | "investor-outreach"
   | "influencer-outreach"
-  | "founder-signed";
+  | "founder-signed"
+  | "creator-overview";
 
 export const ANNOUNCEMENT_EMAIL_TEMPLATES: AnnouncementEmailTemplate[] = [
   "default",
@@ -52,6 +53,7 @@ export const ANNOUNCEMENT_EMAIL_TEMPLATES: AnnouncementEmailTemplate[] = [
   "investor-outreach",
   "influencer-outreach",
   "founder-signed",
+  "creator-overview",
 ];
 
 export function parseAnnouncementEmailTemplate(value: string | null | undefined): AnnouncementEmailTemplate {
@@ -309,6 +311,82 @@ export function buildForexRebateEmailHtml(args: {
         <p style="margin:20px 0 0 0;font-size:12px;line-height:1.5;color:#71717a;text-align:center;">
           Or open <a href="${FOREX_BOTS_URL}" style="color:#5eead4;">novastaris.ai → Nova Forex Bots</a>
         </p>
+      </td>
+    </tr>`;
+
+  return emailShell(inner);
+}
+
+/** Product postcard strip for creator / celebrity overview emails. */
+export function creatorShowcaseEmailHtml(): string {
+  const cards: Array<{ src: string; alt: string; caption: string }> = [
+    {
+      src: `${APP_ORIGIN}/marketing/novastaris-vip-upgrade-postcard-premium.png`,
+      alt: "NovaStaris VIP desk",
+      caption: "VIP trading desk",
+    },
+    {
+      src: `${APP_ORIGIN}/case-studies/meme-ai-agent.jpg`,
+      alt: "Meme AI Agent",
+      caption: "Meme & AI analysis",
+    },
+    {
+      src: `${APP_ORIGIN}/marketing/novastaris-nova-pulse-postcard-premium.png`,
+      alt: "Nova Pulse",
+      caption: "Nova Pulse / futures",
+    },
+    {
+      src: `${APP_ORIGIN}/marketing/novastaris-affiliate-postcard-premium.png`,
+      alt: "Affiliate program",
+      caption: "Creator affiliate (10%)",
+    },
+  ];
+
+  const rows = cards
+    .map(
+      (c) => `
+    <tr>
+      <td style="padding:0 0 18px 0;">
+        <img src="${c.src}" alt="${escapeHtml(c.alt)}" width="504" style="display:block;width:100%;max-width:504px;height:auto;border:0;border-radius:12px;outline:none;" />
+        <p style="margin:8px 0 0 0;font-family:Arial,Helvetica,sans-serif;font-size:12px;color:#a1a1aa;text-align:center;">${escapeHtml(c.caption)}</p>
+      </td>
+    </tr>`
+    )
+    .join("");
+
+  return `
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:24px 0 8px 0;border-collapse:collapse;">
+  <tr>
+    <td style="padding:0 0 12px 0;">
+      <p style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:11px;letter-spacing:0.14em;text-transform:uppercase;color:#5eead4;font-weight:700;">A look inside NovaStaris</p>
+    </td>
+  </tr>
+  ${rows}
+</table>`.trim();
+}
+
+export function buildCreatorOverviewEmailHtml(args: {
+  body: string;
+  ctaLabel?: string | null;
+  ctaUrl?: string | null;
+}): string {
+  const cta =
+    args.ctaLabel && args.ctaUrl
+      ? `<div style="margin:16px 0 8px 0;text-align:center;">${ctaButtonHtml(args.ctaLabel, args.ctaUrl)}</div>`
+      : "";
+
+  const inner = `
+    <tr>
+      <td style="padding:0;">
+        ${novaBrandHeaderEmailHtml("Creator partnership")}
+      </td>
+    </tr>
+    <tr>
+      <td style="padding:28px 28px 8px 28px;">
+        ${announcementBodyToHtml(args.body)}
+        ${creatorShowcaseEmailHtml()}
+        ${founderSignatureEmailHtml()}
+        ${cta}
       </td>
     </tr>`;
 
@@ -884,6 +962,14 @@ export function buildAnnouncementEmailHtml(args: {
     });
   }
 
+  if (args.template === "creator-overview") {
+    return buildCreatorOverviewEmailHtml({
+      body: args.body,
+      ctaLabel: args.ctaLabel,
+      ctaUrl: args.ctaUrl,
+    });
+  }
+
   if (args.template === "pnl-calculator") {
     return buildPnlCalculatorLaunchEmailHtml({
       body: shouldUseCustomPnlCalculatorIntro(args.body) ? args.body : undefined,
@@ -1292,6 +1378,7 @@ export async function sendAnnouncementEmails(args: {
         template === "investor-outreach" ||
         template === "influencer-outreach" ||
         template === "founder-signed" ||
+        template === "creator-overview" ||
         template === "futures-morning-brief" ||
         template === "pnl-calculator" ||
         template === "robinhood-hyperevm")

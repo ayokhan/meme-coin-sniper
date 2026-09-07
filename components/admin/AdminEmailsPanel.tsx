@@ -634,7 +634,7 @@ export default function AdminEmailsPanel({ onNotice, onError }: Props) {
         setSelectedNewEmails(new Set());
         setRecipientsLocked(true);
         onNotice?.(
-          "Creator overview loaded. Replace {{FIRST_NAME}}, add her email under Recipients. Rich send includes your signature + logo."
+          "Creator overview loaded (includes product postcards). Replace {{FIRST_NAME}}, add her email under Recipients."
         );
       }
       if (p.defaultAudience === "new") {
@@ -1336,6 +1336,11 @@ export default function AdminEmailsPanel({ onNotice, onError }: Props) {
               Founder-signed layout is on (NovaStaris banner + your message + Ayo Khan, MBA, PMP signature with logo).
             </p>
           )}
+          {format === "rich" && draft.template === "creator-overview" && (
+            <p className="text-xs text-teal-700 dark:text-teal-300 rounded-md border border-teal-500/30 bg-teal-500/10 px-3 py-2">
+              Creator overview layout is on (banner + message + product postcards + Ayo Khan signature).
+            </p>
+          )}
           {format === "rich" && (
             <label className="text-xs text-muted-foreground flex flex-col gap-1 max-w-md">
               Rich layout
@@ -1343,6 +1348,7 @@ export default function AdminEmailsPanel({ onNotice, onError }: Props) {
                 className="rounded-md border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-900 px-3 py-2 text-sm text-zinc-900 dark:text-zinc-100"
                 value={
                   draft.template === "founder-signed" ||
+                  draft.template === "creator-overview" ||
                   draft.template === "investor-outreach" ||
                   draft.template === "influencer-outreach" ||
                   draft.template === "nova-branded"
@@ -1355,6 +1361,7 @@ export default function AdminEmailsPanel({ onNotice, onError }: Props) {
                 }}
               >
                 <option value="founder-signed">Founder signed (name + logo) — generic</option>
+                <option value="creator-overview">Creator overview (postcards + signed)</option>
                 <option value="nova-branded">NovaStaris banner (no signature)</option>
                 <option value="influencer-outreach">Creator partnership (signed)</option>
                 <option value="investor-outreach">Partnership &amp; investment (signed)</option>
