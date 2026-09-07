@@ -35,7 +35,8 @@ export type AnnouncementEmailTemplate =
   | "robinhood-hyperevm"
   | "gmgn-vip-bot"
   | "investor-outreach"
-  | "influencer-outreach";
+  | "influencer-outreach"
+  | "founder-signed";
 
 export const ANNOUNCEMENT_EMAIL_TEMPLATES: AnnouncementEmailTemplate[] = [
   "default",
@@ -50,6 +51,7 @@ export const ANNOUNCEMENT_EMAIL_TEMPLATES: AnnouncementEmailTemplate[] = [
   "gmgn-vip-bot",
   "investor-outreach",
   "influencer-outreach",
+  "founder-signed",
 ];
 
 export function parseAnnouncementEmailTemplate(value: string | null | undefined): AnnouncementEmailTemplate {
@@ -872,6 +874,16 @@ export function buildAnnouncementEmailHtml(args: {
     });
   }
 
+  if (args.template === "founder-signed") {
+    return buildNovaBrandedEmailHtml({
+      body: args.body,
+      eyebrow: "NovaStaris",
+      ctaLabel: args.ctaLabel,
+      ctaUrl: args.ctaUrl,
+      includeFounderSignature: true,
+    });
+  }
+
   if (args.template === "pnl-calculator") {
     return buildPnlCalculatorLaunchEmailHtml({
       body: shouldUseCustomPnlCalculatorIntro(args.body) ? args.body : undefined,
@@ -1279,6 +1291,7 @@ export async function sendAnnouncementEmails(args: {
         template === "nova-branded" ||
         template === "investor-outreach" ||
         template === "influencer-outreach" ||
+        template === "founder-signed" ||
         template === "futures-morning-brief" ||
         template === "pnl-calculator" ||
         template === "robinhood-hyperevm")

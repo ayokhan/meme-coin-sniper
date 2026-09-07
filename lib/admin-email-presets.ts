@@ -1,5 +1,6 @@
 import { INVESTOR_PARTNERSHIP_EMAIL } from "@/lib/investor-partnership-email";
 import { INFLUENCER_COMP_VIP_EMAIL } from "@/lib/influencer-comp-vip-email";
+import { FOUNDER_SIGNED_EMAIL } from "@/lib/founder-signed-email";
 import {
   FOREX_PARTNERSHIP_EMAIL,
   FOREX_PARTNER_REBATE_EMAIL,
@@ -69,7 +70,8 @@ export type AdminEmailPresetId =
   | "coinbase-partnership"
   | "coinbase-referral"
   | "investor-partnership"
-  | "influencer-comp-vip";
+  | "influencer-comp-vip"
+  | "founder-signed";
 
 export type AdminEmailPreset = {
   id: AdminEmailPresetId;
@@ -497,6 +499,18 @@ export const ADMIN_EMAIL_PRESETS: AdminEmailPreset[] = [
     partnerBrand: "blofin",
     ctaLabel: INFLUENCER_COMP_VIP_EMAIL.ctaLabel,
     ctaUrl: INFLUENCER_COMP_VIP_EMAIL.ctaUrl,
+  },
+  {
+    id: "founder-signed",
+    label: "Signed letter — compose anything",
+    blurb: "Blank canvas + NovaStaris banner + Ayo Khan, MBA, PMP signature & logo",
+    subject: FOUNDER_SIGNED_EMAIL.subject,
+    body: FOUNDER_SIGNED_EMAIL.body,
+    template: "founder-signed",
+    includePartnerLogos: false,
+    partnerBrand: "blofin",
+    ctaLabel: FOUNDER_SIGNED_EMAIL.ctaLabel,
+    ctaUrl: FOUNDER_SIGNED_EMAIL.ctaUrl,
   },
 ];
 

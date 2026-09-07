@@ -621,6 +621,13 @@ export default function AdminEmailsPanel({ onNotice, onError }: Props) {
           "Influencer preset loaded. Fill {{FIRST_NAME}}, {{HANDLE}}, {{PLATFORM}}, {{VIP_DAYS}}. They register first, then reply — you upgrade VIP. Rich email adds Ayo Khan signature + logo."
         );
       }
+      if (id === "founder-signed") {
+        setFormat("rich");
+        setRecipientsLocked(false);
+        onNotice?.(
+          "Signed letter loaded. Write any subject/body — rich send includes NovaStaris banner + Ayo Khan, MBA, PMP signature with logo. Clear CTA fields to hide the button."
+        );
+      }
       if (p.defaultAudience === "new") {
         setNewWindowDays(id.startsWith("deepdive-") || id === "vip-soft-pitch" ? 7 : 1);
       }
@@ -1134,7 +1141,16 @@ export default function AdminEmailsPanel({ onNotice, onError }: Props) {
               type="button"
               onClick={() => {
                 setPresetId("custom");
-                setDraft((d) => ({ ...d, template: "default", ctaLabel: "", ctaUrl: "" }));
+                setFormat("rich");
+                setDraft((d) => ({
+                  ...d,
+                  template: "founder-signed",
+                  ctaLabel: "Visit NovaStaris",
+                  ctaUrl: "https://novastaris.ai",
+                }));
+                onNotice?.(
+                  "Custom compose with founder signature. Write your message — Ayo Khan, MBA, PMP + logo are added on rich send."
+                );
               }}
               className={`text-left rounded-lg border px-3 py-2.5 transition-colors ${
                 presetId === "custom"
@@ -1142,8 +1158,8 @@ export default function AdminEmailsPanel({ onNotice, onError }: Props) {
                   : "border-zinc-200 dark:border-zinc-700 hover:border-zinc-400 dark:hover:border-zinc-500"
               }`}
             >
-              <p className="text-sm font-medium">Custom</p>
-              <p className="text-[11px] text-muted-foreground mt-0.5">Write your own message</p>
+              <p className="text-sm font-medium">Custom (signed)</p>
+              <p className="text-[11px] text-muted-foreground mt-0.5">Your message + name &amp; logo signature</p>
             </button>
           </div>
 
@@ -1302,6 +1318,39 @@ export default function AdminEmailsPanel({ onNotice, onError }: Props) {
             <p className="text-xs text-teal-700 dark:text-teal-300 rounded-md border border-teal-500/30 bg-teal-500/10 px-3 py-2">
               NovaStaris banner layout is on (brand header + your message + CTA).
             </p>
+          )}
+          {format === "rich" &&
+            (draft.template === "founder-signed" ||
+              draft.template === "investor-outreach" ||
+              draft.template === "influencer-outreach") && (
+            <p className="text-xs text-teal-700 dark:text-teal-300 rounded-md border border-teal-500/30 bg-teal-500/10 px-3 py-2">
+              Founder-signed layout is on (NovaStaris banner + your message + Ayo Khan, MBA, PMP signature with logo).
+            </p>
+          )}
+          {format === "rich" && (
+            <label className="text-xs text-muted-foreground flex flex-col gap-1 max-w-md">
+              Rich layout
+              <select
+                className="rounded-md border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-900 px-3 py-2 text-sm text-zinc-900 dark:text-zinc-100"
+                value={
+                  draft.template === "founder-signed" ||
+                  draft.template === "investor-outreach" ||
+                  draft.template === "influencer-outreach" ||
+                  draft.template === "nova-branded"
+                    ? draft.template
+                    : "founder-signed"
+                }
+                onChange={(e) => {
+                  const t = e.target.value as AnnouncementEmailTemplate;
+                  setDraft((d) => ({ ...d, template: t }));
+                }}
+              >
+                <option value="founder-signed">Founder signed (name + logo) — generic</option>
+                <option value="nova-branded">NovaStaris banner (no signature)</option>
+                <option value="influencer-outreach">Creator partnership (signed)</option>
+                <option value="investor-outreach">Partnership &amp; investment (signed)</option>
+              </select>
+            </label>
           )}
           <div className="flex flex-wrap gap-2">
             <Button type="button" size="sm" variant="outline" onClick={() => void copyForWhatsApp()}>
