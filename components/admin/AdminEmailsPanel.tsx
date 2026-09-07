@@ -618,7 +618,7 @@ export default function AdminEmailsPanel({ onNotice, onError }: Props) {
         setSelectedNewEmails(new Set());
         setRecipientsLocked(true);
         onNotice?.(
-          "Influencer preset loaded. Fill {{FIRST_NAME}}, {{HANDLE}}, {{PLATFORM}}, {{VIP_DAYS}}, {{CLAIM_URL}}, then add each creator email under Recipients."
+          "Influencer preset loaded. Fill {{FIRST_NAME}}, {{HANDLE}}, {{PLATFORM}}, {{VIP_DAYS}}. They register first, then reply — you upgrade VIP. Rich email adds Ayo Khan signature + logo."
         );
       }
       if (p.defaultAudience === "new") {
