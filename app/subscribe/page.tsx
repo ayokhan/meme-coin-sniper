@@ -572,7 +572,7 @@ function SubscribeContent() {
               {strategyPromo.title}
             </p>
             <p className="mt-1.5 text-xs text-zinc-700 dark:text-zinc-300 leading-relaxed">
-              Free {strategyPromo.sessionLengthMins}-minute strategy session with an experienced coach. Book within{" "}
+              Free {strategyPromo.sessionLengthMins}-minute strategy session with a NovaStaris coach. Book within{" "}
               {strategyPromo.bookWithinDays} days of subscription. After your session, cancel within{" "}
               {strategyPromo.refundWithinDaysAfterSession} days for a 100% refund of the VIP fee if you&apos;re not
               satisfied. See Payment Terms for details.
