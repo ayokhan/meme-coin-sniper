@@ -31,6 +31,7 @@ type Props = {
 export default function VipSoftPitchPanel({ tabLabel }: Props) {
   const [offer, setOffer] = useState<TrialOffer | null>(null);
   const [strategyPromo, setStrategyPromo] = useState(false);
+  const [strategyEndsShort, setStrategyEndsShort] = useState("Dec 31");
 
   useEffect(() => {
     let cancelled = false;
@@ -43,7 +44,10 @@ export default function VipSoftPitchPanel({ tabLabel }: Props) {
     fetch("/api/vip-strategy-session-promo")
       .then((r) => r.json())
       .then((d) => {
-        if (!cancelled && d?.success && d.active) setStrategyPromo(true);
+        if (!cancelled && d?.success && d.active) {
+          setStrategyPromo(true);
+          if (typeof d.endsShort === "string" && d.endsShort) setStrategyEndsShort(d.endsShort);
+        }
       })
       .catch(() => {});
     return () => {
@@ -72,7 +76,7 @@ export default function VipSoftPitchPanel({ tabLabel }: Props) {
       {strategyPromo && (
         <div className="mt-3 rounded-lg border border-teal-500/40 bg-teal-500/10 px-3 py-2.5">
           <p className="text-xs font-semibold text-teal-800 dark:text-teal-200">
-            Through Dec 31: free 30-min strategy session
+            Through {strategyEndsShort}: free 30-min strategy session
           </p>
           <p className="text-[11px] text-muted-foreground mt-1">
             With a NovaStaris coach. Book within 7 days of subscription. After the session, cancel within 3 days for

@@ -1,13 +1,20 @@
 /**
- * One-shot: enable VIP Strategy Session promo site announcement.
+ * One-shot: enable VIP Strategy Session promo site announcement (uses admin end date).
  * Run: npx tsx scripts/enable-vip-strategy-session-banner.ts
  */
 import { setSiteAnnouncementBanner } from "../lib/site-announcement-banner";
-import { VIP_STRATEGY_SESSION_BANNER } from "../lib/vip-strategy-session-promo";
+import {
+  buildVipStrategySessionBanner,
+  getVipStrategySessionPromoConfig,
+} from "../lib/vip-strategy-session-promo";
 
 async function main() {
-  const banner = await setSiteAnnouncementBanner({ ...VIP_STRATEGY_SESSION_BANNER, enabled: true });
-  console.log("VIP strategy session announcement enabled:", banner.title);
+  const config = await getVipStrategySessionPromoConfig();
+  const banner = await setSiteAnnouncementBanner({
+    ...buildVipStrategySessionBanner(config.endsOnDate),
+    enabled: true,
+  });
+  console.log("VIP strategy session announcement enabled:", banner.title, "ends", config.endsOnDate);
 }
 
 main().catch((e) => {

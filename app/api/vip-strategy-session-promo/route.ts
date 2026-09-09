@@ -10,9 +10,10 @@ export const dynamic = "force-dynamic";
 export async function GET() {
   try {
     const active = await isVipStrategySessionPromoActive();
+    const payload = await vipStrategySessionPromoPublicPayload(active);
     return NextResponse.json({
       success: true,
-      ...vipStrategySessionPromoPublicPayload(active),
+      ...payload,
     });
   } catch (e) {
     console.error("vip-strategy-session-promo GET:", e);

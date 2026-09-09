@@ -9,7 +9,10 @@ import {
 } from "@/lib/site-announcement-banner";
 import { AFFILIATE_LAUNCH_BANNER } from "@/lib/referral-program";
 import { PNL_CALCULATOR_LAUNCH_BANNER } from "@/lib/pnl-calculator-launch-email";
-import { VIP_STRATEGY_SESSION_BANNER } from "@/lib/vip-strategy-session-promo";
+import {
+  buildVipStrategySessionBanner,
+  getVipStrategySessionPromoConfig,
+} from "@/lib/vip-strategy-session-promo";
 import { BLOFIN_PARTNERSHIP_LAUNCH_BANNER, getBlofinPartnerPromoForAdmin } from "@/lib/blofin-partner-promo";
 import { COINBASE_PARTNERSHIP_LAUNCH_BANNER, getCoinbasePartnerPromoForAdmin } from "@/lib/coinbase-partner-promo";
 
@@ -66,7 +69,10 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ success: true, banner });
     }
     if (body.preset === "vip-strategy-session") {
-      const banner = await setSiteAnnouncementBanner({ ...VIP_STRATEGY_SESSION_BANNER });
+      const config = await getVipStrategySessionPromoConfig();
+      const banner = await setSiteAnnouncementBanner({
+        ...buildVipStrategySessionBanner(config.endsOnDate),
+      });
       return NextResponse.json({ success: true, banner });
     }
     const { resetToDefault: _, preset: __, ...patch } = body;

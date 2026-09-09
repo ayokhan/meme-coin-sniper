@@ -74,7 +74,7 @@ const SPECS: Record<MarketingPostcardId, Spec> = {
     filePrefix: "NovaStaris_VIP_Strategy_Session",
     joinUrl: "https://novastaris.ai/subscribe",
     caption: [
-      "VIP through Dec 31 — free 30-min strategy session with a NovaStaris coach.",
+      "VIP promo — free 30-min strategy session with a NovaStaris coach.",
       "Book within 7 days of subscription. After your session, cancel within 3 days for a 100% refund if you’re not satisfied.",
       "See Payment Terms for details: https://novastaris.ai/payment-terms",
       "",

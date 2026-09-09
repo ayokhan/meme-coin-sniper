@@ -944,6 +944,14 @@ model VipTrialConfig {
   updatedAt             DateTime @updatedAt
 }
 
+/** Owner-configurable VIP Strategy Session promo (end date drives banner/email/subscribe copy). */
+model VipStrategySessionPromoConfig {
+  id           String   @id @default("default")
+  /** Inclusive last calendar day in America/New_York (YYYY-MM-DD). */
+  endsOnDate   String   @default("2026-12-31")
+  updatedAt    DateTime @updatedAt
+}
+
 /** Per-desk daily counters for VIP trial users (UTC day). */
 model TrialDeskUsage {
   id        String   @id @default(cuid())

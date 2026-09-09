@@ -124,6 +124,13 @@ export default function BannersAdminPanel({ onNotice, onError }: Props) {
   });
   const [siteAnnouncementPreviewOpen, setSiteAnnouncementPreviewOpen] = useState(false);
 
+  const [strategySessionEndsOn, setStrategySessionEndsOn] = useState("2026-12-31");
+  const [strategySessionEndsLabel, setStrategySessionEndsLabel] = useState("");
+  const [strategySessionActive, setStrategySessionActive] = useState(false);
+  const [strategySessionFlagOn, setStrategySessionFlagOn] = useState(true);
+  const [strategySessionSaving, setStrategySessionSaving] = useState(false);
+  const [strategySessionLoading, setStrategySessionLoading] = useState(true);
+
   const [blofinPartner, setBlofinPartner] = useState<BlofinPartnerPromoAdmin | null>(null);
   const [blofinPartnerClicks, setBlofinPartnerClicks] = useState<BlofinPartnerLinkClickRow[]>([]);
   const [blofinPartnerLoading, setBlofinPartnerLoading] = useState(true);
@@ -510,6 +517,76 @@ export default function BannersAdminPanel({ onNotice, onError }: Props) {
       onError?.("Update failed.");
     } finally {
       setSiteAnnouncementSaving(false);
+    }
+  };
+
+  const loadStrategySessionPromo = useCallback(() => {
+    setStrategySessionLoading(true);
+    fetch("/api/admin/vip-strategy-session-promo", { credentials: "include", cache: "no-store" })
+      .then((r) => r.json())
+      .then((data) => {
+        if (data?.success && data.config) {
+          setStrategySessionEndsOn(data.config.endsOnDate ?? "2026-12-31");
+          setStrategySessionEndsLabel(data.config.endsLabel ?? "");
+          setStrategySessionActive(!!data.active);
+          setStrategySessionFlagOn(data.flagOn !== false);
+        }
+      })
+      .catch(() => {})
+      .finally(() => setStrategySessionLoading(false));
+  }, []);
+
+  useEffect(() => {
+    loadStrategySessionPromo();
+  }, [loadStrategySessionPromo]);
+
+  const saveStrategySessionEndsOn = async (opts?: { publishBanner?: boolean }) => {
+    setStrategySessionSaving(true);
+    try {
+      const res = await fetch("/api/admin/vip-strategy-session-promo", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          endsOnDate: strategySessionEndsOn,
+          publishBanner: !!opts?.publishBanner,
+          refreshLiveBanner: true,
+        }),
+      });
+      const data = await res.json();
+      if (!data.success) {
+        onError?.(data.error ?? "Failed to save promo end date.");
+        return;
+      }
+      setStrategySessionEndsOn(data.config.endsOnDate);
+      setStrategySessionEndsLabel(data.config.endsLabel ?? "");
+      setStrategySessionActive(!!data.active);
+      setStrategySessionFlagOn(data.flagOn !== false);
+      if (data.bannerRefreshed) {
+        const bannerRes = await fetch("/api/admin/site-announcement-banner");
+        const bannerData = await bannerRes.json();
+        if (bannerData.success && bannerData.banner) {
+          const b = bannerData.banner as SiteAnnouncementBannerAdmin;
+          setSiteAnnouncement(b);
+          setSiteAnnouncementDraft({
+            title: b.title,
+            body: b.body,
+            ctaLabel: b.ctaLabel,
+            ctaHref: b.ctaHref,
+          });
+        }
+      }
+      onNotice?.(
+        opts?.publishBanner
+          ? `Promo end date saved (${data.config.endsLabel}) and banner published.`
+          : data.bannerRefreshed
+            ? `Promo end date saved (${data.config.endsLabel}). Live banner text updated.`
+            : `Promo end date saved (${data.config.endsLabel}). Subscribe/email copy use the new date; publish the banner to update the modal.`
+      );
+    } catch {
+      onError?.("Failed to save promo end date.");
+    } finally {
+      setStrategySessionSaving(false);
     }
   };
 
@@ -1463,6 +1540,68 @@ export default function BannersAdminPanel({ onNotice, onError }: Props) {
           if (typeof window !== "undefined") window.location.href = "/admin/emails?preset=assex-partnership";
         }}
       />
+
+      <Card className="border-zinc-200 dark:border-zinc-800">
+        <CardHeader>
+          <CardTitle className="text-base">VIP Strategy Session promo — end date</CardTitle>
+          <p className="text-sm text-muted-foreground">
+            Change the last day of the offer (America/New_York). Banner title, email presets, and Subscribe copy
+            update from this date. Master switch:{" "}
+            <Link href="/admin/feature-flags" className="underline">
+              Feature flags → VIP Strategy Session promo
+            </Link>
+            .
+          </p>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {strategySessionLoading ? (
+            <p className="text-sm text-muted-foreground">Loading…</p>
+          ) : (
+            <>
+              <div className="flex flex-wrap items-center gap-2 text-xs">
+                <span
+                  className={`font-semibold px-2 py-0.5 rounded-full border ${
+                    strategySessionActive
+                      ? "bg-teal-500/15 text-teal-800 dark:text-teal-200 border-teal-500/30"
+                      : "bg-zinc-500/10 text-zinc-600 dark:text-zinc-400 border-zinc-500/20"
+                  }`}
+                >
+                  Offer {strategySessionActive ? "ACTIVE" : "INACTIVE"}
+                </span>
+                <span className="text-muted-foreground">
+                  Flag {strategySessionFlagOn ? "ON" : "OFF"}
+                  {strategySessionEndsLabel ? ` · through ${strategySessionEndsLabel}` : ""}
+                </span>
+              </div>
+              <label className="text-xs text-muted-foreground flex flex-col gap-1 max-w-xs">
+                Inclusive end date
+                <input
+                  type="date"
+                  className="rounded-md border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-900 px-3 py-2 text-sm text-zinc-900 dark:text-zinc-100"
+                  value={strategySessionEndsOn}
+                  onChange={(e) => setStrategySessionEndsOn(e.target.value)}
+                />
+              </label>
+              <div className="flex flex-wrap gap-2">
+                <Button size="sm" disabled={strategySessionSaving} onClick={() => void saveStrategySessionEndsOn()}>
+                  {strategySessionSaving ? "Saving…" : "Save end date"}
+                </Button>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  disabled={strategySessionSaving}
+                  onClick={() => void saveStrategySessionEndsOn({ publishBanner: true })}
+                >
+                  Save + publish banner
+                </Button>
+                <Button size="sm" variant="outline" asChild>
+                  <Link href="/admin/emails?preset=vip-strategy-session-launch">Load launch email</Link>
+                </Button>
+              </div>
+            </>
+          )}
+        </CardContent>
+      </Card>
 
       <Card className="border-zinc-200 dark:border-zinc-800">
         <CardHeader>

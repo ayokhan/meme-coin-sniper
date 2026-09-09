@@ -534,6 +534,35 @@ export default function AdminEmailsPanel({ onNotice, onError }: Props) {
           /* fall through to static preset */
         }
       }
+      if (id === "vip-strategy-session-launch" || id === "vip-strategy-session-booking") {
+        try {
+          const res = await fetch("/api/admin/vip-strategy-session-promo", {
+            credentials: "include",
+            cache: "no-store",
+          });
+          const data = await res.json();
+          const live =
+            id === "vip-strategy-session-launch"
+              ? (data?.launchEmail as { subject?: string; body?: string; ctaLabel?: string; ctaUrl?: string } | undefined)
+              : (data?.bookingEmail as { subject?: string; body?: string; ctaLabel?: string; ctaUrl?: string } | undefined);
+          if (live?.subject && live?.body) {
+            setDraft({
+              subject: live.subject,
+              body: live.body,
+              audience: id === "vip-strategy-session-launch" ? "all" : "vip",
+              includePartnerLogos: false,
+              partnerBrand: "blofin",
+              template: id === "vip-strategy-session-booking" ? "founder-signed" : "nova-branded",
+              ctaLabel: live.ctaLabel ?? "",
+              ctaUrl: live.ctaUrl ?? "https://novastaris.ai",
+            });
+            setFormat("rich");
+            return;
+          }
+        } catch {
+          /* fall through */
+        }
+      }
       const p = getAdminEmailPreset(id);
       if (!p) return;
       if (p.template === "why-traders") setFormat("rich");

@@ -238,9 +238,9 @@ const FLAG_LABELS: Record<string, { label: string; description: string }> = {
       "When ON, /subscribe shows Pay with USDC and tx signature verification works. When OFF, USDC payment UI is hidden and verify is blocked. Default ON.",
   },
   vip_strategy_session_promo: {
-    label: "VIP Strategy Session promo (through Dec 31)",
+    label: "VIP Strategy Session promo",
     description:
-      "When ON (and before Jan 1 2027 ET), new paid VIP includes a free 30-min coach strategy session; owner gets email on subscribe; subscribe/banner copy can promote it. Satisfaction refund: cancel within 3 days after the session. Not a profit guarantee. Turn OFF to end the promo early. Default ON.",
+      "When ON (and before the admin end date — Admin → Banners → VIP Strategy Session end date), new paid VIP includes a free 30-min NovaStaris coach session; owner gets email on subscribe; copy updates from that date. Satisfaction refund: cancel within 3 days after the session. Turn OFF to end early. Default ON.",
   },
   nja_affiliate_knowledge: {
     label: "Nja — Affiliate program answers",
