@@ -573,9 +573,9 @@ function SubscribeContent() {
             </p>
             <p className="mt-1.5 text-xs text-zinc-700 dark:text-zinc-300 leading-relaxed">
               Free {strategyPromo.sessionLengthMins}-minute strategy session with an experienced coach. Book within{" "}
-              {strategyPromo.bookWithinDays} days of subscribe. After your session, cancel within{" "}
+              {strategyPromo.bookWithinDays} days of subscription. After your session, cancel within{" "}
               {strategyPromo.refundWithinDaysAfterSession} days for a 100% refund of the VIP fee if you&apos;re not
-              satisfied — a satisfaction guarantee, not a trading profit guarantee.
+              satisfied. See Payment Terms for details.
             </p>
           </div>
         )}

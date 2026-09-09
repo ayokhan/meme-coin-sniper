@@ -75,8 +75,8 @@ export default function VipSoftPitchPanel({ tabLabel }: Props) {
             Through Dec 31: free 30-min strategy session
           </p>
           <p className="text-[11px] text-muted-foreground mt-1">
-            With an experienced coach. Book within 7 days of VIP. After the session, cancel within 3 days for a
-            100% satisfaction refund — not a profit guarantee.
+            With an experienced coach. Book within 7 days of subscription. After the session, cancel within 3 days for
+            a 100% refund if you&apos;re not satisfied.
           </p>
         </div>
       )}

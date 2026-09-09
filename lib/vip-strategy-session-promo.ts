@@ -15,7 +15,7 @@ export const VIP_STRATEGY_SESSION_SUBSCRIBE_URL = `${APP_ORIGIN}/subscribe`;
 export const VIP_STRATEGY_SESSION_PROMO_COPY = {
   title: "VIP promo through Dec 31: free 30-min strategy session",
   shortBlurb:
-    "Subscribe to VIP and get one free 30-minute strategy session with an experienced coach. Book within 7 days of subscribe. After your session, if you’re not satisfied you can cancel VIP within 3 days for a 100% refund of the subscription fee. Not a trading profit guarantee.",
+    "Subscribe to VIP and get one free 30-minute strategy session with an experienced coach. Book within 7 days of subscription. After your session, if you’re not satisfied you can cancel VIP within 3 days for a 100% refund of the subscription fee.",
   sessionLengthMins: 30,
   bookWithinDays: 7,
   refundWithinDaysAfterSession: 3,
@@ -28,11 +28,10 @@ export const VIP_STRATEGY_SESSION_BANNER: SiteAnnouncementBannerConfig = {
   body: [
     "New VIP includes a free 30-minute strategy session with one of our experienced coaches.",
     "",
-    `Book your session within ${VIP_STRATEGY_SESSION_PROMO_COPY.bookWithinDays} days of subscribe.`,
+    `Book your session within ${VIP_STRATEGY_SESSION_PROMO_COPY.bookWithinDays} days of subscription.`,
     `After the session, cancel within ${VIP_STRATEGY_SESSION_PROMO_COPY.refundWithinDaysAfterSession} days for a 100% refund of your VIP fee if you’re not satisfied.`,
     "",
-    "This is a satisfaction guarantee after your coaching session — not a promise you will profit in the markets.",
-    "Educational only — not financial advice.",
+    "Full details are in our Payment Terms. Educational only — not financial advice.",
   ].join("\n"),
   ctaLabel: "See VIP plans",
   ctaHref: "/subscribe",

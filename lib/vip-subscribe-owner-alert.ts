@@ -53,8 +53,8 @@ ${args.subscriptionId ? `Subscription: ${args.subscriptionId}` : ""}
 
 Next steps
 1. Email the customer available times for their free 30-min strategy session (Admin → Emails → VIP strategy session — book slot).
-2. They should book within 7 days of subscribe.
-3. After the session, they may cancel within 3 days for a 100% satisfaction refund (not a profit guarantee).`;
+2. They should book within 7 days of subscription.
+3. After the session, they may cancel within 3 days for a 100% satisfaction refund (see Payment Terms).`;
 
   const html = buildNovaBrandedEmailHtml({
     body,

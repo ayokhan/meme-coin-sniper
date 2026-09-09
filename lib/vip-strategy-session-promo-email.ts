@@ -10,11 +10,10 @@ Through December 31, every new VIP subscription includes a free 30-minute strate
 
 How it works
 1. Subscribe to VIP at novastaris.ai/subscribe
-2. Book your strategy session within 7 days of subscribe (we'll email you available times)
+2. Book your strategy session within 7 days of subscription (we'll email you available times)
 3. After your session, if you're not satisfied you can cancel VIP within 3 days for a 100% refund of the subscription fee
 
-Important
-This is a satisfaction guarantee after your coaching session — not a trading profit guarantee. Markets involve risk. Educational only — not financial advice.
+See Payment Terms for full details. Educational only — not financial advice.
 
 See VIP plans:
 ${VIP_STRATEGY_SESSION_SUBSCRIBE_URL}
@@ -39,9 +38,9 @@ Thank you for going VIP — your subscription includes one free 30-minute strate
 
 Please reply with 2–3 time windows that work for you (include your timezone). We’ll confirm a slot.
 
-Please book within 7 days of your VIP subscribe date.
+Please book within 7 days of your VIP subscription.
 
-After the session, if you’re not satisfied you may cancel VIP within 3 days for a 100% refund of the subscription fee. This is a satisfaction guarantee after the session — not a trading profit guarantee.
+After the session, if you’re not satisfied you may cancel VIP within 3 days for a 100% refund of the subscription fee. See Payment Terms for full details.
 
 Looking forward to working with you.
 

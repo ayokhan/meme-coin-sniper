@@ -75,8 +75,8 @@ const SPECS: Record<MarketingPostcardId, Spec> = {
     joinUrl: "https://novastaris.ai/subscribe",
     caption: [
       "VIP through Dec 31 — free 30-min strategy session with an experienced coach.",
-      "Book within 7 days of subscribe. After your session, cancel within 3 days for a 100% satisfaction refund.",
-      "Not a trading profit guarantee. Educational only — not financial advice.",
+      "Book within 7 days of subscription. After your session, cancel within 3 days for a 100% refund if you’re not satisfied.",
+      "See Payment Terms for details. Educational only — not financial advice.",
       "",
       "See plans: https://novastaris.ai/subscribe",
     ].join("\n"),
