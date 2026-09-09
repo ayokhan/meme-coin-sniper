@@ -225,7 +225,7 @@ export default function AdminCallsPanel({ onNotice, onError }: Props) {
         <CardHeader className="pb-2">
           <CardTitle className="text-base">Paid Strategy call</CardTitle>
           <p className="text-sm text-muted-foreground">
-            ${cfg?.priceUsd ?? 200}/hour · Stripe pay first · you schedule manually within 24h. Turn off anytime.
+            ${cfg?.priceUsd ?? 150} / 30 min session · Stripe pay first · you schedule manually within 24h. Turn off anytime.
           </p>
         </CardHeader>
         <CardContent className="space-y-3">
@@ -256,7 +256,7 @@ export default function AdminCallsPanel({ onNotice, onError }: Props) {
                   max={10000}
                   className={inputClass}
                   value={cfg.priceUsd}
-                  onChange={(e) => setCfg({ ...cfg, priceUsd: Number(e.target.value) || 200 })}
+                  onChange={(e) => setCfg({ ...cfg, priceUsd: Number(e.target.value) || 150 })}
                 />
               </label>
             </>

@@ -71,7 +71,7 @@ export async function PATCH(request: Request) {
     if (body.preset === "vip-strategy-session") {
       const config = await getVipStrategySessionPromoConfig();
       const banner = await setSiteAnnouncementBanner({
-        ...buildVipStrategySessionBanner(config.endsOnDate),
+        ...buildVipStrategySessionBanner(config.endsOnDate, config.sessionListPriceUsd),
       });
       return NextResponse.json({ success: true, banner });
     }

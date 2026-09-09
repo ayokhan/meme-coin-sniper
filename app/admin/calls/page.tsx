@@ -42,7 +42,7 @@ export default function AdminCallsPage() {
     <div className="space-y-4">
       <AdminPageHeader
         title="Calls"
-        description="Discovery completions log + paid Strategy call ($200/hr) settings and payments."
+        description="Discovery completions log + paid Strategy call ($150 / 30 min) settings and payments."
       />
       {notice && (
         <p className="text-sm text-emerald-700 dark:text-emerald-300 rounded-md border border-emerald-500/30 bg-emerald-500/10 px-3 py-2">

@@ -1,5 +1,5 @@
 /**
- * VIP Strategy Session promo — admin end date drives banner / email / subscribe copy.
+ * VIP Strategy Session promo — admin end date + session list price drive banner / email / subscribe copy.
  * Flag: vip_strategy_session_promo. End date (America/New_York calendar day) still gates when flag is ON.
  */
 import { prisma } from "@/lib/db";
@@ -11,6 +11,7 @@ const APP_ORIGIN = (process.env.NEXT_PUBLIC_APP_URL ?? "https://novastaris.ai").
 export const VIP_STRATEGY_SESSION_SUBSCRIBE_URL = `${APP_ORIGIN}/subscribe`;
 export const VIP_STRATEGY_SESSION_PROMO_CONFIG_ID = "default";
 export const DEFAULT_VIP_STRATEGY_SESSION_ENDS_ON = "2026-12-31";
+export const DEFAULT_VIP_STRATEGY_SESSION_LIST_PRICE_USD = 150;
 
 export const VIP_STRATEGY_SESSION_PROMO_RULES = {
   sessionLengthMins: 30,
@@ -18,15 +19,19 @@ export const VIP_STRATEGY_SESSION_PROMO_RULES = {
   refundWithinDaysAfterSession: 3,
 } as const;
 
-type ConfigRow = { endsOnDate: string; updatedAt: Date };
+type ConfigRow = {
+  endsOnDate: string;
+  sessionListPriceUsd?: number | null;
+  updatedAt: Date;
+};
 
 type PrismaPromo = typeof prisma & {
   vipStrategySessionPromoConfig?: {
     findUnique: (args: { where: { id: string } }) => Promise<ConfigRow | null>;
     upsert: (args: {
       where: { id: string };
-      create: { id: string; endsOnDate: string };
-      update: { endsOnDate: string };
+      create: { id: string; endsOnDate: string; sessionListPriceUsd: number };
+      update: { endsOnDate?: string; sessionListPriceUsd?: number };
     }) => Promise<ConfigRow>;
   };
 };
@@ -43,6 +48,12 @@ export function normalizeEndsOnDate(raw: unknown): string | null {
   const dt = new Date(Date.UTC(y, m - 1, d));
   if (dt.getUTCFullYear() !== y || dt.getUTCMonth() !== m - 1 || dt.getUTCDate() !== d) return null;
   return s;
+}
+
+export function normalizeSessionListPriceUsd(raw: unknown): number | null {
+  const n = typeof raw === "number" ? raw : Number(String(raw ?? "").trim());
+  if (!Number.isFinite(n) || n < 1 || n > 10000) return null;
+  return Math.round(n);
 }
 
 /** Today in America/New_York as YYYY-MM-DD. */
@@ -87,12 +98,16 @@ export type VipStrategySessionPromoConfigAdmin = {
   endsOnDate: string;
   endsLabel: string;
   endsShort: string;
+  sessionListPriceUsd: number;
   updatedAt: string | null;
 };
+
+export type VipStrategySessionPromoCopy = ReturnType<typeof buildVipStrategySessionPromoCopy>;
 
 export async function getVipStrategySessionPromoConfig(): Promise<VipStrategySessionPromoConfigAdmin> {
   const db = configDb();
   let endsOnDate = DEFAULT_VIP_STRATEGY_SESSION_ENDS_ON;
+  let sessionListPriceUsd = DEFAULT_VIP_STRATEGY_SESSION_LIST_PRICE_USD;
   let updatedAt: string | null = null;
   if (db) {
     try {
@@ -101,57 +116,100 @@ export async function getVipStrategySessionPromoConfig(): Promise<VipStrategySes
         endsOnDate = row.endsOnDate;
         updatedAt = row.updatedAt?.toISOString?.() ?? null;
       }
+      const price = normalizeSessionListPriceUsd(row?.sessionListPriceUsd);
+      if (price != null) sessionListPriceUsd = price;
     } catch {
-      /* table may not exist yet */
+      /* table/column may not exist yet */
     }
   }
   return {
     endsOnDate,
     endsLabel: formatPromoEndsLabel(endsOnDate),
     endsShort: formatPromoEndsShort(endsOnDate),
+    sessionListPriceUsd,
     updatedAt,
   };
 }
 
-export async function setVipStrategySessionPromoEndsOnDate(
-  raw: string
-): Promise<VipStrategySessionPromoConfigAdmin> {
-  const endsOnDate = normalizeEndsOnDate(raw);
+export async function setVipStrategySessionPromoConfig(patch: {
+  endsOnDate?: string;
+  sessionListPriceUsd?: number | string;
+}): Promise<VipStrategySessionPromoConfigAdmin> {
+  const current = await getVipStrategySessionPromoConfig();
+  const endsOnDate =
+    patch.endsOnDate != null ? normalizeEndsOnDate(patch.endsOnDate) : current.endsOnDate;
   if (!endsOnDate) throw new Error("Invalid date. Use YYYY-MM-DD.");
+  const sessionListPriceUsd =
+    patch.sessionListPriceUsd != null
+      ? normalizeSessionListPriceUsd(patch.sessionListPriceUsd)
+      : current.sessionListPriceUsd;
+  if (sessionListPriceUsd == null) throw new Error("Invalid session list price.");
+
   const db = configDb();
   if (!db) throw new Error("Promo config storage unavailable. Run migrations.");
   await db.upsert({
     where: { id: VIP_STRATEGY_SESSION_PROMO_CONFIG_ID },
-    create: { id: VIP_STRATEGY_SESSION_PROMO_CONFIG_ID, endsOnDate },
-    update: { endsOnDate },
+    create: {
+      id: VIP_STRATEGY_SESSION_PROMO_CONFIG_ID,
+      endsOnDate,
+      sessionListPriceUsd,
+    },
+    update: { endsOnDate, sessionListPriceUsd },
   });
   return getVipStrategySessionPromoConfig();
 }
 
-export function buildVipStrategySessionPromoCopy(endsOnDate: string) {
+/** @deprecated prefer setVipStrategySessionPromoConfig */
+export async function setVipStrategySessionPromoEndsOnDate(
+  raw: string
+): Promise<VipStrategySessionPromoConfigAdmin> {
+  return setVipStrategySessionPromoConfig({ endsOnDate: raw });
+}
+
+export function buildVipStrategySessionPromoCopy(
+  endsOnDate: string,
+  sessionListPriceUsd = DEFAULT_VIP_STRATEGY_SESSION_LIST_PRICE_USD
+) {
   const endsShort = formatPromoEndsShort(endsOnDate);
+  const endsLabel = formatPromoEndsLabel(endsOnDate);
   const { sessionLengthMins, bookWithinDays, refundWithinDaysAfterSession } = VIP_STRATEGY_SESSION_PROMO_RULES;
+  const price = normalizeSessionListPriceUsd(sessionListPriceUsd) ?? DEFAULT_VIP_STRATEGY_SESSION_LIST_PRICE_USD;
   return {
-    title: `VIP promo through ${endsShort}: free ${sessionLengthMins}-min strategy session`,
-    shortBlurb: `Subscribe to VIP and get one free ${sessionLengthMins}-minute strategy session with a NovaStaris coach. Book within ${bookWithinDays} days of subscription. After your session, if you’re not satisfied you can cancel VIP within ${refundWithinDaysAfterSession} days for a 100% refund of the subscription fee.`,
+    title: `VIP promo through ${endsShort}: $${price} strategy session free`,
+    shortBlurb: `Subscribe to VIP and get a ${sessionLengthMins}-minute strategy session with a NovaStaris coach — $${price} value, included free. Book within ${bookWithinDays} days of subscription. After your session, if you’re not satisfied you can cancel VIP within ${refundWithinDaysAfterSession} days for a 100% refund of the subscription fee.`,
+    valueBreakdownLines: [
+      `${sessionLengthMins}-min strategy session with a NovaStaris coach: $${price} value`,
+      "Included free with new VIP during this promo",
+      `You save $${price}`,
+    ],
+    postcardLine: `Includes $${price} strategy session free with VIP`,
     sessionLengthMins,
     bookWithinDays,
     refundWithinDaysAfterSession,
+    sessionListPriceUsd: price,
     endsOnDate,
-    endsLabel: formatPromoEndsLabel(endsOnDate),
+    endsLabel,
     endsShort,
   };
 }
 
-export function buildVipStrategySessionBanner(endsOnDate: string): SiteAnnouncementBannerConfig {
-  const copy = buildVipStrategySessionPromoCopy(endsOnDate);
+export function buildVipStrategySessionBanner(
+  endsOnDate: string,
+  sessionListPriceUsd = DEFAULT_VIP_STRATEGY_SESSION_LIST_PRICE_USD
+): SiteAnnouncementBannerConfig {
+  const copy = buildVipStrategySessionPromoCopy(endsOnDate, sessionListPriceUsd);
   return {
     enabled: true,
     title: copy.title,
     body: [
-      `New VIP includes a free ${copy.sessionLengthMins}-minute strategy session with a NovaStaris coach.`,
+      `New VIP includes a ${copy.sessionLengthMins}-minute strategy session with a NovaStaris coach — normally $${copy.sessionListPriceUsd}, free with this promo.`,
       "",
-      `Book your session within ${copy.bookWithinDays} days of subscription.`,
+      "Value included",
+      `• Strategy session (${copy.sessionLengthMins} min): $${copy.sessionListPriceUsd}`,
+      "• With VIP this promo: $0",
+      `• You save: $${copy.sessionListPriceUsd}`,
+      "",
+      `Book within ${copy.bookWithinDays} days of subscription.`,
       `After the session, cancel within ${copy.refundWithinDaysAfterSession} days for a 100% refund of your VIP fee if you’re not satisfied.`,
       "",
       "Full details are in our Payment Terms.",
@@ -163,8 +221,11 @@ export function buildVipStrategySessionBanner(endsOnDate: string): SiteAnnouncem
   };
 }
 
-/** @deprecated use buildVipStrategySessionBanner with live config — kept for scripts that need a sync default. */
-export const VIP_STRATEGY_SESSION_BANNER = buildVipStrategySessionBanner(DEFAULT_VIP_STRATEGY_SESSION_ENDS_ON);
+/** Sync default for scripts. */
+export const VIP_STRATEGY_SESSION_BANNER = buildVipStrategySessionBanner(
+  DEFAULT_VIP_STRATEGY_SESSION_ENDS_ON,
+  DEFAULT_VIP_STRATEGY_SESSION_LIST_PRICE_USD
+);
 
 export function isVipStrategySessionPromoInDateWindow(endsOnDate: string, now = new Date()): boolean {
   return formatNyCalendarDate(now) <= endsOnDate;
@@ -178,15 +239,18 @@ export async function isVipStrategySessionPromoActive(now = new Date()): Promise
 
 export async function vipStrategySessionPromoPublicPayload(active: boolean) {
   const cfg = await getVipStrategySessionPromoConfig();
-  const copy = buildVipStrategySessionPromoCopy(cfg.endsOnDate);
+  const copy = buildVipStrategySessionPromoCopy(cfg.endsOnDate, cfg.sessionListPriceUsd);
   return {
     active,
     endsAt: `${cfg.endsOnDate}T23:59:59.999-05:00`,
     endsOnDate: cfg.endsOnDate,
     endsLabel: cfg.endsLabel,
     endsShort: cfg.endsShort,
+    sessionListPriceUsd: copy.sessionListPriceUsd,
     title: copy.title,
     shortBlurb: copy.shortBlurb,
+    valueBreakdownLines: copy.valueBreakdownLines,
+    postcardLine: copy.postcardLine,
     sessionLengthMins: copy.sessionLengthMins,
     bookWithinDays: copy.bookWithinDays,
     refundWithinDaysAfterSession: copy.refundWithinDaysAfterSession,
@@ -200,18 +264,24 @@ function looksLikeStrategySessionBanner(title: string, body: string, ctaHref: st
   return (
     ctaHref.trim() === "/subscribe" &&
     (t.includes("strategy session") || b.includes("strategy session")) &&
-    (t.includes("vip promo") || b.includes("30-minute strategy") || b.includes("30-min"))
+    (t.includes("vip promo") || b.includes("strategy session") || b.includes("you save"))
   );
 }
 
-/** If the live site announcement is this promo, rewrite title/body for the new end date. */
-export async function refreshLiveStrategySessionBannerIfPublished(endsOnDate: string): Promise<boolean> {
+/** If the live site announcement is this promo, rewrite title/body for the new config. */
+export async function refreshLiveStrategySessionBannerIfPublished(
+  endsOnDate: string,
+  sessionListPriceUsd?: number
+): Promise<boolean> {
   try {
     const current = await getSiteAnnouncementBannerForPublic();
     if (!looksLikeStrategySessionBanner(current.title, current.body, current.ctaHref)) {
       return false;
     }
-    const next = buildVipStrategySessionBanner(endsOnDate);
+    const price =
+      sessionListPriceUsd ??
+      (await getVipStrategySessionPromoConfig()).sessionListPriceUsd;
+    const next = buildVipStrategySessionBanner(endsOnDate, price);
     await setSiteAnnouncementBanner({
       ...next,
       enabled: current.enabled,

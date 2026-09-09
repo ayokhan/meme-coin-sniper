@@ -126,6 +126,7 @@ export default function BannersAdminPanel({ onNotice, onError }: Props) {
 
   const [strategySessionEndsOn, setStrategySessionEndsOn] = useState("2026-12-31");
   const [strategySessionEndsLabel, setStrategySessionEndsLabel] = useState("");
+  const [strategySessionListPrice, setStrategySessionListPrice] = useState(150);
   const [strategySessionActive, setStrategySessionActive] = useState(false);
   const [strategySessionFlagOn, setStrategySessionFlagOn] = useState(true);
   const [strategySessionSaving, setStrategySessionSaving] = useState(false);
@@ -528,6 +529,9 @@ export default function BannersAdminPanel({ onNotice, onError }: Props) {
         if (data?.success && data.config) {
           setStrategySessionEndsOn(data.config.endsOnDate ?? "2026-12-31");
           setStrategySessionEndsLabel(data.config.endsLabel ?? "");
+          setStrategySessionListPrice(
+            typeof data.config.sessionListPriceUsd === "number" ? data.config.sessionListPriceUsd : 150
+          );
           setStrategySessionActive(!!data.active);
           setStrategySessionFlagOn(data.flagOn !== false);
         }
@@ -549,17 +553,21 @@ export default function BannersAdminPanel({ onNotice, onError }: Props) {
         credentials: "include",
         body: JSON.stringify({
           endsOnDate: strategySessionEndsOn,
+          sessionListPriceUsd: strategySessionListPrice,
           publishBanner: !!opts?.publishBanner,
           refreshLiveBanner: true,
         }),
       });
       const data = await res.json();
       if (!data.success) {
-        onError?.(data.error ?? "Failed to save promo end date.");
+        onError?.(data.error ?? "Failed to save promo settings.");
         return;
       }
       setStrategySessionEndsOn(data.config.endsOnDate);
       setStrategySessionEndsLabel(data.config.endsLabel ?? "");
+      setStrategySessionListPrice(
+        typeof data.config.sessionListPriceUsd === "number" ? data.config.sessionListPriceUsd : 150
+      );
       setStrategySessionActive(!!data.active);
       setStrategySessionFlagOn(data.flagOn !== false);
       if (data.bannerRefreshed) {
@@ -1582,9 +1590,24 @@ export default function BannersAdminPanel({ onNotice, onError }: Props) {
                   onChange={(e) => setStrategySessionEndsOn(e.target.value)}
                 />
               </label>
+              <label className="text-xs text-muted-foreground flex flex-col gap-1 max-w-xs">
+                Strategy session list price (USD)
+                <input
+                  type="number"
+                  min={1}
+                  max={10000}
+                  className="rounded-md border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-900 px-3 py-2 text-sm text-zinc-900 dark:text-zinc-100"
+                  value={strategySessionListPrice}
+                  onChange={(e) => setStrategySessionListPrice(Number(e.target.value) || 150)}
+                />
+                <span className="text-[11px] text-muted-foreground">
+                  Shown as “${strategySessionListPrice} value included free” on banner, Subscribe, and emails.
+                  Keep aligned with paid Strategy call (/strategy-call).
+                </span>
+              </label>
               <div className="flex flex-wrap gap-2">
                 <Button size="sm" disabled={strategySessionSaving} onClick={() => void saveStrategySessionEndsOn()}>
-                  {strategySessionSaving ? "Saving…" : "Save end date"}
+                  {strategySessionSaving ? "Saving…" : "Save promo settings"}
                 </Button>
                 <Button
                   size="sm"

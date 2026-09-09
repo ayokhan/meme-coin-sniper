@@ -1,19 +1,28 @@
 import {
   buildVipStrategySessionPromoCopy,
   DEFAULT_VIP_STRATEGY_SESSION_ENDS_ON,
+  DEFAULT_VIP_STRATEGY_SESSION_LIST_PRICE_USD,
   VIP_STRATEGY_SESSION_SUBSCRIBE_URL,
 } from "@/lib/vip-strategy-session-promo";
 
 const APP_ORIGIN = (process.env.NEXT_PUBLIC_APP_URL ?? "https://novastaris.ai").replace(/\/$/, "");
 const PAYMENT_TERMS_URL = `${APP_ORIGIN}/payment-terms`;
 
-export function buildVipStrategySessionLaunchEmail(endsOnDate = DEFAULT_VIP_STRATEGY_SESSION_ENDS_ON) {
-  const copy = buildVipStrategySessionPromoCopy(endsOnDate);
+export function buildVipStrategySessionLaunchEmail(
+  endsOnDate = DEFAULT_VIP_STRATEGY_SESSION_ENDS_ON,
+  sessionListPriceUsd = DEFAULT_VIP_STRATEGY_SESSION_LIST_PRICE_USD
+) {
+  const copy = buildVipStrategySessionPromoCopy(endsOnDate, sessionListPriceUsd);
   return {
-    subject: `VIP through ${copy.endsShort}: free ${copy.sessionLengthMins}-min strategy session + satisfaction refund`,
+    subject: `VIP through ${copy.endsShort}: $${copy.sessionListPriceUsd} strategy session free + satisfaction refund`,
     body: `Hi there,
 
-Through ${copy.endsLabel}, every new VIP subscription includes a free ${copy.sessionLengthMins}-minute strategy session with a NovaStaris coach.
+Through ${copy.endsLabel}, every new VIP subscription includes a ${copy.sessionLengthMins}-minute strategy session with a NovaStaris coach — $${copy.sessionListPriceUsd} value, included free.
+
+Value breakdown
+• Strategy session (${copy.sessionLengthMins} min): $${copy.sessionListPriceUsd}
+• With VIP this promo: $0
+• You save: $${copy.sessionListPriceUsd}
 
 How it works
 1. Subscribe to VIP at novastaris.ai/subscribe
@@ -35,13 +44,16 @@ https://novastaris.ai`,
   };
 }
 
-export function buildVipStrategySessionBookingEmail(endsOnDate = DEFAULT_VIP_STRATEGY_SESSION_ENDS_ON) {
-  const copy = buildVipStrategySessionPromoCopy(endsOnDate);
+export function buildVipStrategySessionBookingEmail(
+  endsOnDate = DEFAULT_VIP_STRATEGY_SESSION_ENDS_ON,
+  sessionListPriceUsd = DEFAULT_VIP_STRATEGY_SESSION_LIST_PRICE_USD
+) {
+  const copy = buildVipStrategySessionPromoCopy(endsOnDate, sessionListPriceUsd);
   return {
-    subject: `Book your free ${copy.sessionLengthMins}-min VIP strategy session`,
+    subject: `Book your free ${copy.sessionLengthMins}-min VIP strategy session ($${copy.sessionListPriceUsd} value)`,
     body: `Hi {{FIRST_NAME}},
 
-Thank you for going VIP — your subscription includes one free ${copy.sessionLengthMins}-minute strategy session with a NovaStaris coach.
+Thank you for going VIP — your subscription includes one ${copy.sessionLengthMins}-minute strategy session with a NovaStaris coach ($${copy.sessionListPriceUsd} value, included free with this promo).
 
 Please reply with 2–3 time windows that work for you (include your timezone). We’ll confirm a slot.
 

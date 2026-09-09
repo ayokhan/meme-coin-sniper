@@ -30,7 +30,8 @@ export default function PaymentTermsPage() {
             <p>
               <strong>VIP Strategy Session promo.</strong> While this promotional offer is active (end date
               shown on Subscribe and in the in-app announcement), a new paid VIP subscription may include one
-              complimentary 30-minute strategy session with a NovaStaris coach. You should book and complete the
+              complimentary 30-minute strategy session with a NovaStaris coach (list value shown in the offer —
+              currently aligned with the paid Strategy call price). You should book and complete the
               session within 7 days of your VIP activation. After you complete that session, if you are not
               satisfied you may cancel VIP within 3 days of the session and request a 100% refund of the
               subscription fee paid for that qualifying purchase. This is a satisfaction guarantee tied to the

@@ -5,7 +5,7 @@ import StrategyCallClient, { StrategyCallPageShell } from "@/components/Strategy
 export const metadata: Metadata = {
   title: "Strategy call | NovaStaris",
   description:
-    "Book a 1-hour paid Strategy call with NovaStaris experts — $200 USD. Pay securely, then we contact you within 24 hours to schedule.",
+    "Book a 30-minute paid Strategy call with a NovaStaris coach — $150 USD. Pay securely, then we contact you within 24 hours to schedule.",
 };
 
 export default function StrategyCallPage() {

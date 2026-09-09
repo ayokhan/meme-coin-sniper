@@ -3,7 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions, isOwnerSession } from "@/lib/auth";
 import {
   getVipStrategySessionPromoConfig,
-  setVipStrategySessionPromoEndsOnDate,
+  setVipStrategySessionPromoConfig,
   buildVipStrategySessionBanner,
   refreshLiveStrategySessionBannerIfPublished,
   isVipStrategySessionPromoActive,
@@ -17,7 +17,7 @@ import { getFeatureFlag, FEATURE_FLAG_KEYS } from "@/lib/feature-flags";
 
 export const dynamic = "force-dynamic";
 
-/** Owner: read / update promo end date (drives banner, email presets, subscribe copy). */
+/** Owner: read / update promo end date + session list price (drives banner, email presets, subscribe copy). */
 export async function GET() {
   const session = await getServerSession(authOptions);
   if (!isOwnerSession(session)) {
@@ -32,9 +32,9 @@ export async function GET() {
       config,
       flagOn,
       active,
-      launchEmail: buildVipStrategySessionLaunchEmail(config.endsOnDate),
-      bookingEmail: buildVipStrategySessionBookingEmail(config.endsOnDate),
-      banner: buildVipStrategySessionBanner(config.endsOnDate),
+      launchEmail: buildVipStrategySessionLaunchEmail(config.endsOnDate, config.sessionListPriceUsd),
+      bookingEmail: buildVipStrategySessionBookingEmail(config.endsOnDate, config.sessionListPriceUsd),
+      banner: buildVipStrategySessionBanner(config.endsOnDate, config.sessionListPriceUsd),
     });
   } catch (e) {
     console.error("admin vip-strategy-session-promo GET:", e);
@@ -50,25 +50,28 @@ export async function PATCH(request: Request) {
   try {
     const body = (await request.json()) as {
       endsOnDate?: string;
+      sessionListPriceUsd?: number | string;
       publishBanner?: boolean;
       refreshLiveBanner?: boolean;
     };
 
-    let config = await getVipStrategySessionPromoConfig();
-    if (body.endsOnDate != null) {
-      config = await setVipStrategySessionPromoEndsOnDate(body.endsOnDate);
-    }
+    const config = await setVipStrategySessionPromoConfig({
+      endsOnDate: body.endsOnDate,
+      sessionListPriceUsd: body.sessionListPriceUsd,
+    });
 
     let bannerRefreshed = false;
     if (body.publishBanner) {
       await setSiteAnnouncementBanner({
-        ...buildVipStrategySessionBanner(config.endsOnDate),
+        ...buildVipStrategySessionBanner(config.endsOnDate, config.sessionListPriceUsd),
         enabled: true,
       });
       bannerRefreshed = true;
     } else if (body.refreshLiveBanner !== false) {
-      // Default: if this promo is already the live announcement, rewrite dates in place.
-      bannerRefreshed = await refreshLiveStrategySessionBannerIfPublished(config.endsOnDate);
+      bannerRefreshed = await refreshLiveStrategySessionBannerIfPublished(
+        config.endsOnDate,
+        config.sessionListPriceUsd
+      );
     }
 
     const flagOn = await getFeatureFlag(FEATURE_FLAG_KEYS.VIP_STRATEGY_SESSION_PROMO);
@@ -80,9 +83,9 @@ export async function PATCH(request: Request) {
       flagOn,
       active,
       bannerRefreshed,
-      launchEmail: buildVipStrategySessionLaunchEmail(config.endsOnDate),
-      bookingEmail: buildVipStrategySessionBookingEmail(config.endsOnDate),
-      banner: buildVipStrategySessionBanner(config.endsOnDate),
+      launchEmail: buildVipStrategySessionLaunchEmail(config.endsOnDate, config.sessionListPriceUsd),
+      bookingEmail: buildVipStrategySessionBookingEmail(config.endsOnDate, config.sessionListPriceUsd),
+      banner: buildVipStrategySessionBanner(config.endsOnDate, config.sessionListPriceUsd),
     });
   } catch (e) {
     console.error("admin vip-strategy-session-promo PATCH:", e);

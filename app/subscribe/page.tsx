@@ -68,6 +68,8 @@ function SubscribeContent() {
     sessionLengthMins: number;
     bookWithinDays: number;
     refundWithinDaysAfterSession: number;
+    sessionListPriceUsd: number;
+    valueBreakdownLines: string[];
   } | null>(null);
   const [trialOffer, setTrialOffer] = useState<{
     enabled: boolean;
@@ -99,6 +101,10 @@ function SubscribeContent() {
             sessionLengthMins: data.sessionLengthMins,
             bookWithinDays: data.bookWithinDays,
             refundWithinDaysAfterSession: data.refundWithinDaysAfterSession,
+            sessionListPriceUsd: Number(data.sessionListPriceUsd) || 150,
+            valueBreakdownLines: Array.isArray(data.valueBreakdownLines)
+              ? data.valueBreakdownLines.map(String)
+              : [],
           });
         }
       })
@@ -571,9 +577,23 @@ function SubscribeContent() {
             <p className="text-sm font-semibold text-teal-800 dark:text-teal-200">
               {strategyPromo.title}
             </p>
-            <p className="mt-1.5 text-xs text-zinc-700 dark:text-zinc-300 leading-relaxed">
-              Free {strategyPromo.sessionLengthMins}-minute strategy session with a NovaStaris coach. Book within{" "}
-              {strategyPromo.bookWithinDays} days of subscription. After your session, cancel within{" "}
+            <ul className="mt-2 text-xs text-zinc-700 dark:text-zinc-300 space-y-1">
+              {(strategyPromo.valueBreakdownLines.length > 0
+                ? strategyPromo.valueBreakdownLines
+                : [
+                    `${strategyPromo.sessionLengthMins}-min strategy session: $${strategyPromo.sessionListPriceUsd} value`,
+                    "Included free with new VIP during this promo",
+                    `You save $${strategyPromo.sessionListPriceUsd}`,
+                  ]
+              ).map((line) => (
+                <li key={line} className="flex gap-2">
+                  <span className="text-teal-600 dark:text-teal-400 shrink-0">•</span>
+                  <span>{line}</span>
+                </li>
+              ))}
+            </ul>
+            <p className="mt-2 text-xs text-zinc-600 dark:text-zinc-400 leading-relaxed">
+              Book within {strategyPromo.bookWithinDays} days of subscription. After your session, cancel within{" "}
               {strategyPromo.refundWithinDaysAfterSession} days for a 100% refund of the VIP fee if you&apos;re not
               satisfied. See Payment Terms for details.
             </p>

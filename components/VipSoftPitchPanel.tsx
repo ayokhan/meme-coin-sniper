@@ -32,6 +32,7 @@ export default function VipSoftPitchPanel({ tabLabel }: Props) {
   const [offer, setOffer] = useState<TrialOffer | null>(null);
   const [strategyPromo, setStrategyPromo] = useState(false);
   const [strategyEndsShort, setStrategyEndsShort] = useState("Dec 31");
+  const [strategyListPrice, setStrategyListPrice] = useState(150);
 
   useEffect(() => {
     let cancelled = false;
@@ -47,6 +48,9 @@ export default function VipSoftPitchPanel({ tabLabel }: Props) {
         if (!cancelled && d?.success && d.active) {
           setStrategyPromo(true);
           if (typeof d.endsShort === "string" && d.endsShort) setStrategyEndsShort(d.endsShort);
+          if (typeof d.sessionListPriceUsd === "number" && d.sessionListPriceUsd > 0) {
+            setStrategyListPrice(d.sessionListPriceUsd);
+          }
         }
       })
       .catch(() => {});
@@ -76,11 +80,11 @@ export default function VipSoftPitchPanel({ tabLabel }: Props) {
       {strategyPromo && (
         <div className="mt-3 rounded-lg border border-teal-500/40 bg-teal-500/10 px-3 py-2.5">
           <p className="text-xs font-semibold text-teal-800 dark:text-teal-200">
-            Through {strategyEndsShort}: free 30-min strategy session
+            Through {strategyEndsShort}: ${strategyListPrice} strategy session free
           </p>
           <p className="text-[11px] text-muted-foreground mt-1">
-            With a NovaStaris coach. Book within 7 days of subscription. After the session, cancel within 3 days for
-            a 100% refund if you&apos;re not satisfied.
+            30-min NovaStaris coach session (${strategyListPrice} value) included with VIP. Book within 7 days.
+            Cancel within 3 days after the session for a 100% refund if you&apos;re not satisfied.
           </p>
         </div>
       )}

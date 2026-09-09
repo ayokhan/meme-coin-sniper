@@ -61,7 +61,8 @@ export default function StrategyCallClient() {
     };
   }, [paidParam, sessionId, status]);
 
-  const price = cfg?.priceUsd ?? 200;
+  const price = cfg?.priceUsd ?? 150;
+  const durationMins = cfg?.durationMins ?? 30;
   const enabled = cfg?.enabled === true;
 
   const startCheckout = useCallback(async () => {
@@ -99,8 +100,8 @@ export default function StrategyCallClient() {
           <div>
             <h2 className="text-xl font-semibold text-zinc-900 dark:text-zinc-50">Payment received</h2>
             <p className="mt-2 text-sm text-zinc-700 dark:text-zinc-300 leading-relaxed">
-              Thank you. One of our experts will contact you within <strong>24 hours</strong> by email and phone
-              to schedule your 1-hour Strategy call.
+              Thank you. One of our coaches will contact you within <strong>24 hours</strong> by email and phone
+              to schedule your {durationMins}-minute Strategy call.
             </p>
             <ul className="mt-3 space-y-1.5 text-sm text-zinc-600 dark:text-zinc-400 list-disc list-inside">
               <li>Watch your inbox (and spam folder) for our message</li>
@@ -136,8 +137,8 @@ export default function StrategyCallClient() {
         {[
           {
             icon: Shield,
-            title: "Expert session",
-            body: "A private hour with NovaStaris experts focused on your markets and workflow.",
+            title: "Coach session",
+            body: `A private ${durationMins}-minute session with a NovaStaris coach focused on your markets and workflow.`,
           },
           {
             icon: CalendarClock,
@@ -171,12 +172,12 @@ export default function StrategyCallClient() {
               What the session covers
             </h2>
             <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-              60 minutes · ${price} USD · private working session
+              {durationMins} minutes · ${price} USD · private working session
             </p>
           </div>
           <p className="text-2xl font-black tracking-tight text-zinc-900 dark:text-zinc-50">
             ${price}
-            <span className="text-sm font-medium text-zinc-500 dark:text-zinc-400"> / hour</span>
+            <span className="text-sm font-medium text-zinc-500 dark:text-zinc-400"> / session</span>
           </p>
         </div>
         <ul className="space-y-2 text-sm text-zinc-700 dark:text-zinc-300 list-disc list-inside">
@@ -205,7 +206,7 @@ export default function StrategyCallClient() {
           </li>
           <li>
             <span className="font-semibold text-zinc-900 dark:text-zinc-100">3. We schedule within 24 hours</span> —
-            an expert emails and calls you to set the 1-hour session.
+            a coach emails and calls you to set the {durationMins}-minute session.
           </li>
         </ol>
       </section>
@@ -327,11 +328,11 @@ export function StrategyCallPageShell({ children }: { children: ReactNode }) {
             Strategy call
           </p>
           <h1 className="mt-2 text-3xl sm:text-4xl font-black tracking-tight text-zinc-900 dark:text-zinc-50">
-            Work 1:1 with NovaStaris experts
+            Work 1:1 with a NovaStaris coach
           </h1>
           <p className="mt-3 text-base text-zinc-600 dark:text-zinc-400 max-w-2xl leading-relaxed">
-            A focused one-hour Strategy call for traders who want more than a product walkthrough — desk setup,
-            workflow, and expert guidance tailored to how you trade.
+            A focused 30-minute Strategy call for traders who want more than a product walkthrough — desk setup,
+            workflow, and guidance tailored to how you trade.
           </p>
         </div>
         {children}

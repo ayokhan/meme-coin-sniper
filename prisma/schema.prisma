@@ -590,12 +590,12 @@ model DiscoveryCallCompletion {
   @@index([email])
 }
 
-/** Paid Strategy call ($200/hr) — owner toggles + Stripe orders (manual scheduling after pay). */
+/** Paid Strategy call ($150 / 30 min) — owner toggles + Stripe orders (manual scheduling after pay). */
 model PaidStrategyCallConfig {
   id            String   @id @default("default")
   enabled       Boolean  @default(false)
   showNavButton Boolean  @default(true)
-  priceUsd      Int      @default(200)
+  priceUsd      Int      @default(150)
   /** Auto email after Stripe payment. Empty = built-in default. Placeholders: {{name}} {{firstName}} {{phone}} {{email}} {{amountUsd}} */
   confirmationSubject String @default("")
   confirmationBody    String @default("") @db.Text
@@ -946,10 +946,12 @@ model VipTrialConfig {
 
 /** Owner-configurable VIP Strategy Session promo (end date drives banner/email/subscribe copy). */
 model VipStrategySessionPromoConfig {
-  id           String   @id @default("default")
+  id                    String   @id @default("default")
   /** Inclusive last calendar day in America/New_York (YYYY-MM-DD). */
-  endsOnDate   String   @default("2026-12-31")
-  updatedAt    DateTime @updatedAt
+  endsOnDate            String   @default("2026-12-31")
+  /** List price shown as “included free” savings for the complimentary strategy session. */
+  sessionListPriceUsd   Int      @default(150)
+  updatedAt             DateTime @updatedAt
 }
 
 /** Per-desk daily counters for VIP trial users (UTC day). */

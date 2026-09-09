@@ -1,5 +1,5 @@
 /**
- * Paid Strategy call ($200 / 1 hour) — config, orders, confirmation emails.
+ * Paid Strategy call ($150 / 30 minutes) — config, orders, confirmation emails.
  * Scheduling is manual after Stripe payment (Calendly Free — one Discovery event only).
  */
 
@@ -8,7 +8,8 @@ import { buildNovaBrandedEmailHtml } from "@/lib/announcement-email";
 import { sendEmailDetailed } from "@/lib/send-email";
 
 export const PAID_STRATEGY_CALL_CONFIG_ID = "default";
-export const PAID_STRATEGY_CALL_PRICE_USD_DEFAULT = 200;
+export const PAID_STRATEGY_CALL_PRICE_USD_DEFAULT = 150;
+export const PAID_STRATEGY_CALL_DURATION_MINS = 30;
 export const PAID_STRATEGY_CALL_PURPOSE = "paid_strategy_call";
 export const PAID_STRATEGY_CALL_PAGE_PATH = "/strategy-call";
 export const PAID_STRATEGY_CALL_PAGE_URL = "https://novastaris.ai/strategy-call";
@@ -17,6 +18,7 @@ export type PaidStrategyCallConfigAdmin = {
   enabled: boolean;
   showNavButton: boolean;
   priceUsd: number;
+  durationMins: number;
   confirmationSubject: string;
   confirmationBody: string;
   scheduleSubject: string;
@@ -28,6 +30,7 @@ export type PaidStrategyCallPublicConfig = {
   enabled: boolean;
   showNavButton: boolean;
   priceUsd: number;
+  durationMins: number;
 };
 
 export type PaidStrategyCallOrderRow = {
@@ -61,14 +64,14 @@ export const DEFAULT_CONFIRMATION_BODY = `Hi {{firstName}},
 
 Thank you for purchasing a NovaStaris Strategy call.
 
-Payment received: {{amountUsd}} USD for a 1-hour session with our experts.
+Payment received: {{amountUsd}} USD for a 30-minute session with our coaches.
 
 What happens next:
-• One of our experts will contact you within 24 hours by email and phone to schedule your call.
+• One of our coaches will contact you within 24 hours by email and phone to schedule your call.
 • We will use the phone number you provided: {{phone}}
 • Please watch your inbox (and spam folder) for our message.
 
-This is not a Calendly self-serve booking — we schedule personally to avoid conflicts and match you with the right expert.
+This is not a Calendly self-serve booking — we schedule personally to avoid conflicts and match you with the right coach.
 
 Need help in the meantime? Use Chat or Support in the app at novastaris.ai — or reply to this email.
 
@@ -81,7 +84,7 @@ export const DEFAULT_SCHEDULE_BODY = `Hi {{firstName}},
 
 Thank you again for your Strategy call purchase ({{amountUsd}} USD).
 
-I'd like to book your 1-hour session. Please reply with 2–3 time windows that work for you over the next few days (include your timezone), or confirm a time if I propose one below.
+I'd like to book your 30-minute session. Please reply with 2–3 time windows that work for you over the next few days (include your timezone), or confirm a time if I propose one below.
 
 We'll also reach you at {{phone}} if needed.
 
@@ -94,6 +97,7 @@ const DEFAULT_CONFIG: PaidStrategyCallConfigAdmin = {
   enabled: false,
   showNavButton: true,
   priceUsd: PAID_STRATEGY_CALL_PRICE_USD_DEFAULT,
+  durationMins: PAID_STRATEGY_CALL_DURATION_MINS,
   confirmationSubject: "",
   confirmationBody: "",
   scheduleSubject: "",
@@ -257,6 +261,7 @@ export async function getPaidStrategyCallConfig(): Promise<PaidStrategyCallConfi
       enabled: row.enabled === true,
       showNavButton: row.showNavButton !== false,
       priceUsd: price,
+      durationMins: PAID_STRATEGY_CALL_DURATION_MINS,
       confirmationSubject: (row.confirmationSubject ?? "").trim(),
       confirmationBody: (row.confirmationBody ?? "").trim(),
       scheduleSubject: (row.scheduleSubject ?? "").trim(),
@@ -309,6 +314,7 @@ export function toPaidStrategyCallPublic(cfg: PaidStrategyCallConfigAdmin): Paid
     enabled: cfg.enabled,
     showNavButton: cfg.enabled && cfg.showNavButton,
     priceUsd: cfg.priceUsd,
+    durationMins: cfg.durationMins || PAID_STRATEGY_CALL_DURATION_MINS,
   };
 }
 
@@ -452,7 +458,7 @@ Phone: ${order.phone}
 Amount: $${order.amountUsd.toFixed(0)} USD
 Order: ${order.id}
 
-Contact them within 24 hours to schedule the 1-hour session.`;
+Contact them within 24 hours to schedule the 30-minute session.`;
   const html = buildNovaBrandedEmailHtml({
     body,
     eyebrow: "Admin alert",
@@ -547,15 +553,15 @@ export function buildPaidStrategyCallMarketingEmail(priceUsd = PAID_STRATEGY_CAL
   ctaUrl: string;
 } {
   return {
-    subject: `NovaStaris Strategy call — $${priceUsd}/hour with our experts`,
+    subject: `NovaStaris Strategy call — $${priceUsd} for 30 minutes`,
     body: `Hi there,
 
-Looking for a deeper working session with NovaStaris experts?
+Looking for a deeper working session with NovaStaris coaches?
 
-Our paid Strategy call is a focused 1-hour session to go beyond product orientation — trade workflow, desk setup, and how to use NovaStaris tools for your markets.
+Our paid Strategy call is a focused 30-minute session to go beyond product orientation — trade workflow, desk setup, and how to use NovaStaris tools for your markets.
 
-Investment: $${priceUsd} USD per hour
-Format: 1-hour private session (scheduled after payment)
+Investment: $${priceUsd} USD per session
+Format: 30-minute private session (scheduled after payment)
 
 How it works:
 1. Open the Strategy call page and share your name + phone number.
