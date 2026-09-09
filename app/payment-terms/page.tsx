@@ -28,6 +28,18 @@ export default function PaymentTermsPage() {
               <strong>No refund after 24 hours of use.</strong> Once you have used the service for more than 24 hours after your subscription is activated, you are not entitled to a refund. Refund requests made within the first 24 hours of use may be considered at our discretion and are not guaranteed.
             </p>
             <p>
+              <strong>VIP Strategy Session promo (through December 31, 2026).</strong> While this promotional
+              offer is active, a new paid VIP subscription may include one complimentary 30-minute strategy
+              session with an experienced coach. You should book and complete the session within 7 days of
+              your VIP activation. After you complete that session, if you are not satisfied you may cancel
+              VIP within 3 days of the session and request a 100% refund of the subscription fee paid for that
+              qualifying purchase. This is a satisfaction guarantee tied to the coaching session —{" "}
+              <strong>not</strong> a guarantee of trading profits or that you will &quot;make your fee back&quot;
+              in the markets. Complimentary admin grants, unpaid trials that never convert to a paid charge, and
+              renewals outside the promo window are not eligible unless we expressly say otherwise in writing.
+              Refunds are processed by support after verification. Educational only — not financial advice.
+            </p>
+            <p>
               <strong>Subscription period.</strong> Your access is valid for the period corresponding to the plan you purchased (e.g. 1 month, 6 months, 12 months). Access continues until the end of that period; we do not prorate refunds for early cancellation.
             </p>
             <p>

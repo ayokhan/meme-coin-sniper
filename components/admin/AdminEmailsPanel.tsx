@@ -1060,6 +1060,15 @@ export default function AdminEmailsPanel({ onNotice, onError }: Props) {
             previewAlt: "VIP upgrade postcard preview",
           },
           {
+            id: "vip-strategy-session" as MarketingPostcardId,
+            cardId: "vip-strategy-session-postcard",
+            title: "VIP strategy session promo — social postcard",
+            description: "Through Dec 31: free 30-min coach session + satisfaction refund.",
+            accent: "cyan" as const,
+            emailPresetHref: "/admin/emails?preset=vip-strategy-session-launch",
+            previewAlt: "VIP strategy session postcard preview",
+          },
+          {
             id: "affiliate" as MarketingPostcardId,
             cardId: "affiliate-postcard",
             title: "Affiliate / invite — social postcard",

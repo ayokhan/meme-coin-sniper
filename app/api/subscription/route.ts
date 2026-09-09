@@ -137,6 +137,22 @@ export async function POST(request: Request) {
     paymentMethod: "usdc",
   }).catch((e) => console.error("billing invoice after USDC subscribe:", e));
 
+  try {
+    const { sendVipSubscribeOwnerAlert } = await import("@/lib/vip-subscribe-owner-alert");
+    const alert = await sendVipSubscribeOwnerAlert({
+      userId: session.user.id,
+      planId: plan.id,
+      amountUsd: plan.priceUsd,
+      paymentMethod: "usdc",
+      subscriptionId: sub.id,
+    });
+    if (!alert.ok) {
+      console.warn("USDC subscribe: VIP owner alert failed", alert.error);
+    }
+  } catch (e) {
+    console.warn("USDC subscribe: VIP owner alert error", e);
+  }
+
   return NextResponse.json({
     success: true,
     subscribed: true,

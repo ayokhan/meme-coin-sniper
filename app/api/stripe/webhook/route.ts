@@ -362,6 +362,9 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
     return NextResponse.json({ received: true, message: "Already processed." });
   }
 
+  let grantedAsTrial = false;
+  let createdSubscriptionId: string | null = null;
+
   if (session.mode === "subscription" && session.subscription && stripe) {
     const stripeSub = await stripe.subscriptions.retrieve(session.subscription as string);
     const customerId = typeof stripeSub.customer === "string" ? stripeSub.customer : stripeSub.customer?.id;
@@ -371,6 +374,7 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
       stripeSub.status === "trialing" ||
       session.metadata?.vipTrial === "true" ||
       stripeSub.metadata?.vipTrial === "true";
+    grantedAsTrial = isTrial;
     const trialEndsAt = trialEndFromStripeSubscription(stripeSub);
     const periodEnd = vipAccessEndFromStripeSubscription(stripeSub);
 
@@ -427,6 +431,7 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
         autoRenew: false,
       } as Record<string, unknown>,
     });
+    createdSubscriptionId = created.id;
     await recordReferralCommissionForSubscription(created.id);
     await recordBillingInvoiceFromSubscriptionRow({
       userId,
@@ -438,6 +443,25 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
       stripeSessionId: session.id,
       paymentMethod: "card",
     });
+  }
+
+  if (!grantedAsTrial) {
+    try {
+      const { sendVipSubscribeOwnerAlert } = await import("@/lib/vip-subscribe-owner-alert");
+      const alert = await sendVipSubscribeOwnerAlert({
+        userId,
+        planId: plan.id,
+        amountUsd: amountUsd || plan.priceUsd,
+        paymentMethod: "card",
+        stripeSessionId: session.id,
+        subscriptionId: createdSubscriptionId,
+      });
+      if (!alert.ok) {
+        console.warn("Stripe webhook: VIP owner alert failed", alert.error);
+      }
+    } catch (e) {
+      console.warn("Stripe webhook: VIP owner alert error", e);
+    }
   }
 
   const invoiceId =
@@ -500,7 +524,7 @@ async function syncStripeSubscription(stripeSub: Stripe.Subscription) {
 
   let subRow = await db.subscription.findFirst({
     where: { stripeSubscriptionId: stripeSub.id },
-  });
+  }) as { id: string; userId: string; isTrial?: boolean } | null;
 
   const userId = stripeSub.metadata?.userId;
   const planId = stripeSub.metadata?.planId ?? "";
@@ -529,11 +553,14 @@ async function syncStripeSubscription(stripeSub: Stripe.Subscription) {
       isTrial,
       trialEndsAt: trialEndFromStripeSubscription(stripeSub),
     });
-    subRow = await db.subscription.findFirst({ where: { stripeSubscriptionId: stripeSub.id } });
+    subRow = (await db.subscription.findFirst({
+      where: { stripeSubscriptionId: stripeSub.id },
+    })) as { id: string; userId: string; isTrial?: boolean } | null;
   }
 
   if (!subRow) return;
 
+  const wasTrial = !!subRow.isTrial;
   const stillTrial = stripeSub.status === "trialing";
   await db.subscription.update({
     where: { id: subRow.id },
@@ -552,6 +579,26 @@ async function syncStripeSubscription(stripeSub: Stripe.Subscription) {
       await recordReferralCommissionForSubscription(subRow.id);
     } catch {
       /* already exists or not eligible */
+    }
+  }
+
+  // Trial → paid: notify owner once for strategy-session promo.
+  if (wasTrial && !stillTrial && stripeSub.status === "active") {
+    try {
+      const { sendVipSubscribeOwnerAlert } = await import("@/lib/vip-subscribe-owner-alert");
+      const alert = await sendVipSubscribeOwnerAlert({
+        userId: subRow.userId,
+        planId: plan?.id ?? (planId || "vip"),
+        amountUsd: plan?.priceUsd ?? 0,
+        paymentMethod: "card",
+        stripeSessionId: null,
+        subscriptionId: subRow.id,
+      });
+      if (!alert.ok) {
+        console.warn("Stripe webhook: VIP trial→paid owner alert failed", alert.error);
+      }
+    } catch (e) {
+      console.warn("Stripe webhook: VIP trial→paid owner alert error", e);
     }
   }
 }

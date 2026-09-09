@@ -1530,6 +1530,14 @@ export default function BannersAdminPanel({ onNotice, onError }: Props) {
                   </Button>
                   <Button
                     size="sm"
+                    variant="secondary"
+                    disabled={siteAnnouncementSaving}
+                    onClick={() => void patchSiteAnnouncement({ preset: "vip-strategy-session" })}
+                  >
+                    Publish VIP strategy session promo
+                  </Button>
+                  <Button
+                    size="sm"
                     variant="outline"
                     disabled={siteAnnouncementSaving}
                     onClick={() => setSiteAnnouncementPreviewOpen(true)}

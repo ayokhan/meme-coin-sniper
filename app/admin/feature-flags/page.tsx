@@ -190,6 +190,7 @@ const FLAG_GROUPS: { id: string; title: string; match: (key: string) => boolean 
     match: (k) =>
       k.startsWith("account_") ||
       k.startsWith("subscription_pay_") ||
+      k === "vip_strategy_session_promo" ||
       k === "two_factor_auth",
   },
   {
@@ -235,6 +236,11 @@ const FLAG_LABELS: Record<string, { label: string; description: string }> = {
     label: "VIP payment — USDC (Solana)",
     description:
       "When ON, /subscribe shows Pay with USDC and tx signature verification works. When OFF, USDC payment UI is hidden and verify is blocked. Default ON.",
+  },
+  vip_strategy_session_promo: {
+    label: "VIP Strategy Session promo (through Dec 31)",
+    description:
+      "When ON (and before Jan 1 2027 ET), new paid VIP includes a free 30-min coach strategy session; owner gets email on subscribe; subscribe/banner copy can promote it. Satisfaction refund: cancel within 3 days after the session. Not a profit guarantee. Turn OFF to end the promo early. Default ON.",
   },
   nja_affiliate_knowledge: {
     label: "Nja — Affiliate program answers",

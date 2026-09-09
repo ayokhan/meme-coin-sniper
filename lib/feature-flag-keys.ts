@@ -202,6 +202,11 @@ export const FEATURE_FLAG_KEYS = {
   SUBSCRIPTION_PAY_CARD: 'subscription_pay_card',
   /** VIP subscribe: Solana USDC send + verify. Default ON. */
   SUBSCRIPTION_PAY_USDC: 'subscription_pay_usdc',
+  /**
+   * VIP Strategy Session promo (through Dec 31): free 30-min coach session + satisfaction refund window.
+   * Hard end date still applies when ON. Default ON for the campaign; turn OFF to end early.
+   */
+  VIP_STRATEGY_SESSION_PROMO: 'vip_strategy_session_promo',
   /** Nja (Need Help) can answer NovaStaris Affiliate Program questions. Default ON. */
   NJA_AFFILIATE_KNOWLEDGE: 'nja_affiliate_knowledge',
   /** Nja can answer active partner promos (e.g. Blofin when enabled). Default ON. */

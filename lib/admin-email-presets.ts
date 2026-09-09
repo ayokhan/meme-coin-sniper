@@ -10,6 +10,10 @@ import {
 import { BLOFIN_PARTNERSHIP_EMAIL } from "@/lib/blofin-partner-promo";
 import { COINBASE_PARTNERSHIP_EMAIL, COINBASE_REFERRAL_EMAIL } from "@/lib/coinbase-partner-promo";
 import { PNL_CALCULATOR_LAUNCH_EMAIL } from "@/lib/pnl-calculator-launch-email";
+import {
+  VIP_STRATEGY_SESSION_BOOKING_EMAIL,
+  VIP_STRATEGY_SESSION_LAUNCH_EMAIL,
+} from "@/lib/vip-strategy-session-promo-email";
 import { ROBINHOOD_HYPEREVM_LAUNCH_EMAIL } from "@/lib/robinhood-hyperevm-launch-email";
 import { GMGN_VIP_BOT_LAUNCH_EMAIL } from "@/lib/gmgn-vip-bot-launch-email";
 import { AFFILIATE_PROGRAM_EMAIL } from "@/lib/referral-program";
@@ -62,6 +66,8 @@ export type AdminEmailPresetId =
   | "forex-rebate"
   | "forex-bots-launch"
   | "pnl-calculator-launch"
+  | "vip-strategy-session-launch"
+  | "vip-strategy-session-booking"
   | "robinhood-hyperevm-launch"
   | "gmgn-vip-bot-launch"
   | "tio-partnership"
@@ -377,6 +383,31 @@ export const ADMIN_EMAIL_PRESETS: AdminEmailPreset[] = [
     ctaLabel: PNL_CALCULATOR_LAUNCH_EMAIL.ctaLabel,
     ctaUrl: PNL_CALCULATOR_LAUNCH_EMAIL.ctaUrl,
     defaultAudience: "all",
+  },
+  {
+    id: "vip-strategy-session-launch",
+    label: "VIP Strategy Session promo (through Dec 31)",
+    blurb: "Free 30-min coach session + satisfaction refund — announce",
+    subject: VIP_STRATEGY_SESSION_LAUNCH_EMAIL.subject,
+    body: VIP_STRATEGY_SESSION_LAUNCH_EMAIL.body,
+    template: "nova-branded",
+    includePartnerLogos: false,
+    partnerBrand: "blofin",
+    ctaLabel: VIP_STRATEGY_SESSION_LAUNCH_EMAIL.ctaLabel,
+    ctaUrl: VIP_STRATEGY_SESSION_LAUNCH_EMAIL.ctaUrl,
+    defaultAudience: "all",
+  },
+  {
+    id: "vip-strategy-session-booking",
+    label: "VIP strategy session — book slot",
+    blurb: "After paid VIP — send to customer with available times",
+    subject: VIP_STRATEGY_SESSION_BOOKING_EMAIL.subject,
+    body: VIP_STRATEGY_SESSION_BOOKING_EMAIL.body,
+    template: "founder-signed",
+    includePartnerLogos: false,
+    partnerBrand: "blofin",
+    ctaLabel: VIP_STRATEGY_SESSION_BOOKING_EMAIL.ctaLabel,
+    ctaUrl: VIP_STRATEGY_SESSION_BOOKING_EMAIL.ctaUrl,
   },
   {
     id: "robinhood-hyperevm-launch",

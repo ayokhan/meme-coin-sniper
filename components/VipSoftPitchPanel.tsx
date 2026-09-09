@@ -30,6 +30,7 @@ type Props = {
 /** Soft VIP pitch shown on lock screens for signed-in free users (not guests). */
 export default function VipSoftPitchPanel({ tabLabel }: Props) {
   const [offer, setOffer] = useState<TrialOffer | null>(null);
+  const [strategyPromo, setStrategyPromo] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -37,6 +38,12 @@ export default function VipSoftPitchPanel({ tabLabel }: Props) {
       .then((r) => r.json())
       .then((d) => {
         if (!cancelled && d?.success && d.offer) setOffer(d.offer as TrialOffer);
+      })
+      .catch(() => {});
+    fetch("/api/vip-strategy-session-promo")
+      .then((r) => r.json())
+      .then((d) => {
+        if (!cancelled && d?.success && d.active) setStrategyPromo(true);
       })
       .catch(() => {});
     return () => {
@@ -61,6 +68,18 @@ export default function VipSoftPitchPanel({ tabLabel }: Props) {
           <li key={line}>{line}</li>
         ))}
       </ul>
+
+      {strategyPromo && (
+        <div className="mt-3 rounded-lg border border-teal-500/40 bg-teal-500/10 px-3 py-2.5">
+          <p className="text-xs font-semibold text-teal-800 dark:text-teal-200">
+            Through Dec 31: free 30-min strategy session
+          </p>
+          <p className="text-[11px] text-muted-foreground mt-1">
+            With an experienced coach. Book within 7 days of VIP. After the session, cancel within 3 days for a
+            100% satisfaction refund — not a profit guarantee.
+          </p>
+        </div>
+      )}
 
       {showTrial ? (
         <div className="mt-3 rounded-lg border border-amber-500/40 bg-white/50 dark:bg-zinc-950/30 px-3 py-2.5">

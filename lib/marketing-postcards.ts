@@ -4,7 +4,12 @@
  */
 import { downloadBlob } from "@/lib/pnl-share";
 
-export type MarketingPostcardId = "vip-upgrade" | "affiliate" | "nova-pulse" | "investor-onepager";
+export type MarketingPostcardId =
+  | "vip-upgrade"
+  | "affiliate"
+  | "nova-pulse"
+  | "investor-onepager"
+  | "vip-strategy-session";
 
 type Spec = {
   assetPath: string;
@@ -62,6 +67,18 @@ const SPECS: Record<MarketingPostcardId, Spec> = {
       "",
       "Partnership & investment: novastaris.ai@gmail.com",
       "https://novastaris.ai",
+    ].join("\n"),
+  },
+  "vip-strategy-session": {
+    assetPath: "/marketing/novastaris-vip-strategy-session-postcard-premium.png",
+    filePrefix: "NovaStaris_VIP_Strategy_Session",
+    joinUrl: "https://novastaris.ai/subscribe",
+    caption: [
+      "VIP through Dec 31 — free 30-min strategy session with an experienced coach.",
+      "Book within 7 days of subscribe. After your session, cancel within 3 days for a 100% satisfaction refund.",
+      "Not a trading profit guarantee. Educational only — not financial advice.",
+      "",
+      "See plans: https://novastaris.ai/subscribe",
     ].join("\n"),
   },
 };

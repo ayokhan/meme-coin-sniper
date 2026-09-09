@@ -61,6 +61,14 @@ function SubscribeContent() {
   const [vipExpiryBannerDismissed, setVipExpiryBannerDismissed] = useState(true);
   const [payByCardEnabled, setPayByCardEnabled] = useState(true);
   const [payByUsdcEnabled, setPayByUsdcEnabled] = useState(true);
+  const [strategyPromo, setStrategyPromo] = useState<{
+    active: boolean;
+    title: string;
+    shortBlurb: string;
+    sessionLengthMins: number;
+    bookWithinDays: number;
+    refundWithinDaysAfterSession: number;
+  } | null>(null);
   const [trialOffer, setTrialOffer] = useState<{
     enabled: boolean;
     trialDays: number;
@@ -78,6 +86,21 @@ function SubscribeContent() {
       .then((r) => r.json())
       .then((data) => {
         if (!cancelled) setCaseStudiesEnabled(data?.flags?.page_tab_case_studies !== false);
+      })
+      .catch(() => {});
+    fetch("/api/vip-strategy-session-promo")
+      .then((r) => r.json())
+      .then((data) => {
+        if (!cancelled && data?.success && data.active) {
+          setStrategyPromo({
+            active: true,
+            title: data.title,
+            shortBlurb: data.shortBlurb,
+            sessionLengthMins: data.sessionLengthMins,
+            bookWithinDays: data.bookWithinDays,
+            refundWithinDaysAfterSession: data.refundWithinDaysAfterSession,
+          });
+        }
       })
       .catch(() => {});
     return () => {
@@ -542,6 +565,20 @@ function SubscribeContent() {
             <li>On-demand: AI Trading Bot, Nova Polymarket, Nova Prop Firm Challenge, Nova Ultimate</li>
           </ul>
         </div>
+
+        {strategyPromo?.active && (
+          <div className="rounded-lg border border-teal-500/40 bg-teal-500/10 p-4 mb-4">
+            <p className="text-sm font-semibold text-teal-800 dark:text-teal-200">
+              {strategyPromo.title}
+            </p>
+            <p className="mt-1.5 text-xs text-zinc-700 dark:text-zinc-300 leading-relaxed">
+              Free {strategyPromo.sessionLengthMins}-minute strategy session with an experienced coach. Book within{" "}
+              {strategyPromo.bookWithinDays} days of subscribe. After your session, cancel within{" "}
+              {strategyPromo.refundWithinDaysAfterSession} days for a 100% refund of the VIP fee if you&apos;re not
+              satisfied — a satisfaction guarantee, not a trading profit guarantee.
+            </p>
+          </div>
+        )}
 
         <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50/50 dark:bg-zinc-900/40 p-3.5 mb-6">
           <p className="text-xs font-medium text-zinc-800 dark:text-zinc-200">{VIP_GIVING_HEADLINE}</p>
