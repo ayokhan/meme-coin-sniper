@@ -12,6 +12,8 @@ import {
   type EnterLandingGate,
 } from "@/lib/enter-landing";
 import { saveDashboardPath } from "@/lib/dashboard-onboarding";
+import { NOVASTARIS_SOCIAL } from "@/lib/app-distribution";
+import GooglePlayDownloadLink from "@/components/GooglePlayDownloadLink";
 
 type ForexRow = {
   symbol: string;
@@ -272,6 +274,7 @@ export default function EnterDesksClient() {
           NovaStaris
         </Link>
         <div className="flex items-center gap-3 text-sm">
+          <GooglePlayDownloadLink variant="compact" className="hidden sm:inline-flex" />
           <Link href="/signin" className="text-zinc-400 transition-colors hover:text-white">
             Sign in
           </Link>
@@ -308,7 +311,7 @@ export default function EnterDesksClient() {
             {config.heroBlurb}
           </p>
           <div
-            className={`mt-8 flex flex-wrap gap-3 transition-all duration-700 delay-200 ${
+            className={`mt-8 flex flex-wrap items-center gap-3 transition-all duration-700 delay-200 ${
               heroReady ? "translate-y-0 opacity-100" : "translate-y-4 opacity-0"
             }`}
           >
@@ -326,6 +329,7 @@ export default function EnterDesksClient() {
                 {config.heroSecondaryCta}
               </a>
             )}
+            <GooglePlayDownloadLink variant="badge" className="-ml-1 sm:ml-0" />
           </div>
         </section>
 
@@ -720,6 +724,23 @@ export default function EnterDesksClient() {
             @{ig.handle}
           </a>
         )}
+        <a
+          href={NOVASTARIS_SOCIAL.tiktok.url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="hover:text-zinc-300"
+        >
+          TikTok @{NOVASTARIS_SOCIAL.tiktok.handle}
+        </a>
+        <a
+          href={NOVASTARIS_SOCIAL.x.url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="hover:text-zinc-300"
+        >
+          X @{NOVASTARIS_SOCIAL.x.handle}
+        </a>
+        <GooglePlayDownloadLink variant="compact" />
         {ft.showUniversity && (
           <Link href={ft.universityHref} className="hover:text-zinc-300">
             {ft.universityLabel}

@@ -1080,6 +1080,15 @@ export default function AdminEmailsPanel({ onNotice, onError }: Props) {
       {(
         [
           {
+            id: "play-store-usdc" as MarketingPostcardId,
+            cardId: "play-store-usdc-postcard",
+            title: "Google Play + $250 USDC — social postcard",
+            description: "App is live on Play Store. Download / register for a chance to win $250 USDC by Oct 31.",
+            accent: "cyan" as const,
+            emailPresetHref: "/admin/emails?preset=play-store-launch",
+            previewAlt: "Google Play USDC giveaway postcard preview",
+          },
+          {
             id: "vip-upgrade" as MarketingPostcardId,
             cardId: "vip-upgrade-postcard",
             title: "VIP upgrade — social postcard",

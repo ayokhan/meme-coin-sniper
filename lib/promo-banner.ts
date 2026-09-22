@@ -26,12 +26,12 @@ export type PromoBannerAdmin = PromoBannerConfig & {
 
 export const DEFAULT_PROMO_BANNER: PromoBannerConfig = {
   enabled: true,
-  headline: "Sign up for free for a chance to win",
+  headline: "Download the app or register free for a chance to win",
   prizeLabel: "250 USDC",
   drawAt: "2026-10-31T23:59:59.000Z",
   bodyText:
-    "Create your free NovaStaris account — no credit card. One random eligible member wins after the draw.",
-  ctaLabel: "Sign up free",
+    "NovaStaris is on Google Play. Get the Android app, or create a free account (no card) — eligible members enter the October 31 draw. play.google.com/store/apps/details?id=ai.novastaris.app",
+  ctaLabel: "Register free to enter",
   ctaHref: "/register",
   showOnDashboard: true,
   showOnRegister: true,

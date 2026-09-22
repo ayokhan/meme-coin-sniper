@@ -20,6 +20,11 @@ import {
 } from "@/lib/gmgn-vip-bot-launch-email";
 import { filterSuppressedEmails, getSuppressedEmailSet } from "@/lib/email-suppression";
 import type { FuturesWrapItem } from "@/lib/futures-daily-wrap";
+import {
+  NOVASTARIS_SOCIAL,
+  PLAY_STORE_BADGE_IMG,
+  PLAY_STORE_URL,
+} from "@/lib/app-distribution";
 
 export type AnnouncementAudience = "newsletter" | "all";
 
@@ -99,6 +104,33 @@ const FOREX_BOTS_URL = `${APP_ORIGIN}/?tab=nova-forex-bot#forex-partner-rebate`;
 const AFFILIATE_URL = `${APP_ORIGIN}/affiliate`;
 const START_HERE_URL = `${APP_ORIGIN}/start-here`;
 const ENTER_URL = `${APP_ORIGIN}/enter`;
+
+/** Shared footer: Play Store badge + social icons for all rich emails. */
+function emailDistributionFooterHtml(): string {
+  const ig = NOVASTARIS_SOCIAL.instagram;
+  const tt = NOVASTARIS_SOCIAL.tiktok;
+  const x = NOVASTARIS_SOCIAL.x;
+  return `
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 16px 0;">
+                <tr>
+                  <td align="center" style="padding:0 0 12px 0;">
+                    <a href="${PLAY_STORE_URL}" style="display:inline-block;text-decoration:none;" target="_blank">
+                      <img src="${PLAY_STORE_BADGE_IMG}" alt="Get it on Google Play" width="155" style="display:block;width:155px;height:auto;border:0;" />
+                    </a>
+                  </td>
+                </tr>
+                <tr>
+                  <td align="center" style="padding:0;">
+                    <p style="margin:0 0 8px 0;font-size:11px;letter-spacing:0.12em;text-transform:uppercase;color:#71717a;">Follow NovaStaris</p>
+                    <a href="${ig.url}" style="display:inline-block;margin:0 8px;font-size:13px;color:#a1a1aa;text-decoration:none;">Instagram</a>
+                    <span style="color:#3f3f46;">·</span>
+                    <a href="${tt.url}" style="display:inline-block;margin:0 8px;font-size:13px;color:#a1a1aa;text-decoration:none;">TikTok</a>
+                    <span style="color:#3f3f46;">·</span>
+                    <a href="${x.url}" style="display:inline-block;margin:0 8px;font-size:13px;color:#a1a1aa;text-decoration:none;">X</a>
+                  </td>
+                </tr>
+              </table>`;
+}
 
 /** NovaStaris-only email header with logo banner (no partner logo). Premium dark standard. */
 function novaBrandHeaderEmailHtml(eyebrow: string): string {
@@ -245,6 +277,7 @@ function emailShell(inner: string): string {
           ${inner}
           <tr>
             <td style="padding:20px 28px 28px 28px;border-top:1px solid #27272a;">
+              ${emailDistributionFooterHtml()}
               <p style="margin:0 0 6px 0;font-size:12px;line-height:1.5;color:#71717a;">
                 You received this from NovaStaris. Manage preferences in your
                 <a href="${APP_ORIGIN}/account" style="color:#5eead4;text-decoration:underline;">account settings</a>.

@@ -18,6 +18,9 @@ Pick your path
 Choose your desk
 https://novastaris.ai/enter
 
+Get the Android app (Google Play)
+https://play.google.com/store/apps/details?id=ai.novastaris.app
+
 Need the full map?
 Open Start here for a guide of every major tab:
 https://novastaris.ai/start-here

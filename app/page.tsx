@@ -173,6 +173,7 @@ import {
   registerGuestTabView,
 } from "@/components/GuestRegistrationNudge";
 import { PromoBannerDisplay, PROMO_BANNER_DISMISS_KEY } from "@/components/PromoBannerDisplay";
+import GooglePlayInAppPromo from "@/components/GooglePlayInAppPromo";
 import type { PromoBannerAdmin } from "@/lib/promo-banner";
 
 type Token = {
@@ -4683,6 +4684,7 @@ function Dashboard() {
             }}
           />
         )}
+        <GooglePlayInAppPromo className="mx-3 mb-2 sm:mx-4" />
         {showGuestRegistrationBanner && (
           <GuestRegistrationBanner
             engaged={guestTabEngagement >= 2}

@@ -9,7 +9,8 @@ export type MarketingPostcardId =
   | "affiliate"
   | "nova-pulse"
   | "investor-onepager"
-  | "vip-strategy-session";
+  | "vip-strategy-session"
+  | "play-store-usdc";
 
 type Spec = {
   assetPath: string;
@@ -79,6 +80,22 @@ const SPECS: Record<MarketingPostcardId, Spec> = {
       "See Payment Terms for details: https://novastaris.ai/payment-terms",
       "",
       "See plans: https://novastaris.ai/subscribe",
+    ].join("\n"),
+  },
+  "play-store-usdc": {
+    assetPath: "/marketing/novastaris-play-store-usdc-postcard-premium.png",
+    filePrefix: "NovaStaris_Play_Store_USDC",
+    joinUrl: "https://play.google.com/store/apps/details?id=ai.novastaris.app",
+    caption: [
+      "NovaStaris is live on Google Play.",
+      "Download the Android app — or register free for a chance to win $250 USDC (draw by October 31).",
+      "",
+      "Google Play: https://play.google.com/store/apps/details?id=ai.novastaris.app",
+      "Register: https://novastaris.ai/register",
+      "Terms: https://novastaris.ai/promo-terms",
+      "",
+      "Follow: Instagram @novastaris · TikTok @novastari.ai · X @novasstaris",
+      "Educational only — not financial advice.",
     ].join("\n"),
   },
 };

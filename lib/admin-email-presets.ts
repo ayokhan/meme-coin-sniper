@@ -1,3 +1,4 @@
+import { PLAY_STORE_LAUNCH_EMAIL } from "@/lib/play-store-launch-email";
 import { INVESTOR_PARTNERSHIP_EMAIL } from "@/lib/investor-partnership-email";
 import { INFLUENCER_COMP_VIP_EMAIL } from "@/lib/influencer-comp-vip-email";
 import { FOUNDER_SIGNED_EMAIL } from "@/lib/founder-signed-email";
@@ -70,6 +71,7 @@ export type AdminEmailPresetId =
   | "vip-strategy-session-booking"
   | "robinhood-hyperevm-launch"
   | "gmgn-vip-bot-launch"
+  | "play-store-launch"
   | "tio-partnership"
   | "vantage-partnership"
   | "assex-partnership"
@@ -112,6 +114,19 @@ const VIP_TRIAL_INVITE = buildVipTrialInviteEmail({
 });
 
 export const ADMIN_EMAIL_PRESETS: AdminEmailPreset[] = [
+  {
+    id: "play-store-launch",
+    label: "Google Play launch + $250 USDC",
+    blurb: "App live on Play Store — download CTA + giveaway (Oct 31)",
+    subject: PLAY_STORE_LAUNCH_EMAIL.subject,
+    body: PLAY_STORE_LAUNCH_EMAIL.body,
+    template: "nova-branded",
+    includePartnerLogos: false,
+    partnerBrand: "blofin",
+    ctaLabel: PLAY_STORE_LAUNCH_EMAIL.ctaLabel,
+    ctaUrl: PLAY_STORE_LAUNCH_EMAIL.ctaUrl,
+    defaultAudience: "newsletter",
+  },
   {
     id: "welcome",
     label: "Welcome / Start here",
