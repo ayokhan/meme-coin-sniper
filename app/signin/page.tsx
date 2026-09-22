@@ -1,7 +1,7 @@
 "use client";
 
 import { Suspense, useEffect, useState } from "react";
-import { getProviders, signIn } from "next-auth/react";
+import { getProviders, signIn, useSession } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -24,6 +24,7 @@ function GoogleLogo() {
 
 function SignInForm() {
   const router = useRouter();
+  const { status } = useSession();
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get("callbackUrl") ?? "/";
   const [email, setEmail] = useState("");
@@ -35,6 +36,13 @@ function SignInForm() {
   const [googleLoading, setGoogleLoading] = useState(false);
   const [googleEnabled, setGoogleEnabled] = useState(false);
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (status === "authenticated") {
+      const dest = callbackUrl.startsWith("/") ? callbackUrl : "/";
+      router.replace(dest);
+    }
+  }, [status, callbackUrl, router]);
 
   useEffect(() => {
     let mounted = true;

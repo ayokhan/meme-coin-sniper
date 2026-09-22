@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
+import { getSession } from "next-auth/react";
 import { CAPACITOR_APP_SCHEME, isCapacitorNative } from "@/lib/capacitor-native";
 
 function parseAuthCallbackUrl(url: string): { token?: string; next?: string } {
@@ -49,9 +50,15 @@ export default function CapacitorAuthBridge() {
           });
           const data = (await res.json()) as { success?: boolean };
           if (data.success) {
+            // Force SessionProvider to pick up the new cookie (router.refresh alone is not enough).
+            await getSession();
             const dest = next && next.startsWith("/") ? next : "/";
-            router.push(dest);
+            router.replace(dest);
             router.refresh();
+            // Second pass in case HomeGate rendered before session broadcast settled.
+            window.setTimeout(() => {
+              void getSession();
+            }, 150);
           }
         } finally {
           handling.current = false;

@@ -2,7 +2,7 @@
 
 import { Suspense, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { getProviders, signIn } from "next-auth/react";
+import { getProviders, signIn, useSession } from "next-auth/react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -28,6 +28,7 @@ function GoogleLogo() {
 
 function RegisterForm() {
   const router = useRouter();
+  const { status } = useSession();
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get("callbackUrl") ?? "/";
   const refFromUrl = searchParams.get("ref");
@@ -54,6 +55,13 @@ function RegisterForm() {
   const [registerSuccessMessage, setRegisterSuccessMessage] = useState(
     "Account created. Sign in to continue — then enable two-factor authentication in Account settings."
   );
+
+  useEffect(() => {
+    if (status === "authenticated") {
+      const dest = callbackUrl.startsWith("/") ? callbackUrl : "/";
+      router.replace(dest);
+    }
+  }, [status, callbackUrl, router]);
 
   useEffect(() => {
     fetch("/api/promo-banner")
