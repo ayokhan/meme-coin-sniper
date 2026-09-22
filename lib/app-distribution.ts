@@ -14,8 +14,8 @@ export const NOVASTARIS_SOCIAL = {
     url: "https://www.instagram.com/novastaris/",
   },
   tiktok: {
-    handle: "Novastari.ai",
-    url: "https://www.tiktok.com/@Novastari.ai",
+    handle: "novastaris.ai",
+    url: "https://www.tiktok.com/@novastaris.ai",
   },
   x: {
     handle: "Novastaris",
