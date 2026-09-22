@@ -14,12 +14,12 @@ export const NOVASTARIS_SOCIAL = {
     url: "https://www.instagram.com/novastaris/",
   },
   tiktok: {
-    handle: "novastari.ai",
-    url: "https://www.tiktok.com/@novastari.ai",
+    handle: "Novastari.ai",
+    url: "https://www.tiktok.com/@Novastari.ai",
   },
   x: {
-    handle: "novasstaris",
-    url: "https://x.com/novasstaris",
+    handle: "Novastaris",
+    url: "https://x.com/Novastaris",
   },
 } as const;
 
@@ -29,3 +29,7 @@ export const PLAY_STORE_GIVEAWAY = {
   registerUrl: "https://novastaris.ai/register",
   promoTermsUrl: "https://novastaris.ai/promo-terms",
 } as const;
+
+/** Short store listing blurb (Play Console — no AAB needed to update). */
+export const PLAY_STORE_SHORT_DESCRIPTION =
+  "Your AI trading intelligence for crypto memes, forex, futures & prediction markets";

@@ -110,23 +110,28 @@ function emailDistributionFooterHtml(): string {
   const ig = NOVASTARIS_SOCIAL.instagram;
   const tt = NOVASTARIS_SOCIAL.tiktok;
   const x = NOVASTARIS_SOCIAL.x;
+  // Full https URLs + underlined text improve clickability in Gmail/Outlook/etc.
   return `
               <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 16px 0;">
                 <tr>
-                  <td align="center" style="padding:0 0 12px 0;">
-                    <a href="${PLAY_STORE_URL}" style="display:inline-block;text-decoration:none;" target="_blank">
-                      <img src="${PLAY_STORE_BADGE_IMG}" alt="Get it on Google Play" width="155" style="display:block;width:155px;height:auto;border:0;" />
+                  <td align="center" style="padding:0 0 14px 0;">
+                    <a href="${PLAY_STORE_URL}" style="display:inline-block;text-decoration:none;" target="_blank" rel="noopener noreferrer">
+                      <img src="${PLAY_STORE_BADGE_IMG}" alt="Get it on Google Play" width="155" height="60" style="display:block;width:155px;max-width:155px;height:auto;border:0;" />
                     </a>
                   </td>
                 </tr>
                 <tr>
                   <td align="center" style="padding:0;">
-                    <p style="margin:0 0 8px 0;font-size:11px;letter-spacing:0.12em;text-transform:uppercase;color:#71717a;">Follow NovaStaris</p>
-                    <a href="${ig.url}" style="display:inline-block;margin:0 8px;font-size:13px;color:#a1a1aa;text-decoration:none;">Instagram</a>
-                    <span style="color:#3f3f46;">·</span>
-                    <a href="${tt.url}" style="display:inline-block;margin:0 8px;font-size:13px;color:#a1a1aa;text-decoration:none;">TikTok</a>
-                    <span style="color:#3f3f46;">·</span>
-                    <a href="${x.url}" style="display:inline-block;margin:0 8px;font-size:13px;color:#a1a1aa;text-decoration:none;">X</a>
+                    <p style="margin:0 0 10px 0;font-size:11px;letter-spacing:0.12em;text-transform:uppercase;color:#71717a;">Follow NovaStaris</p>
+                    <p style="margin:0 0 6px 0;font-size:13px;line-height:1.7;color:#a1a1aa;">
+                      <a href="${ig.url}" target="_blank" rel="noopener noreferrer" style="color:#5eead4;text-decoration:underline;">Instagram @${ig.handle}</a>
+                    </p>
+                    <p style="margin:0 0 6px 0;font-size:13px;line-height:1.7;color:#a1a1aa;">
+                      <a href="${tt.url}" target="_blank" rel="noopener noreferrer" style="color:#5eead4;text-decoration:underline;">TikTok @${tt.handle}</a>
+                    </p>
+                    <p style="margin:0;font-size:13px;line-height:1.7;color:#a1a1aa;">
+                      <a href="${x.url}" target="_blank" rel="noopener noreferrer" style="color:#5eead4;text-decoration:underline;">X @${x.handle}</a>
+                    </p>
                   </td>
                 </tr>
               </table>`;

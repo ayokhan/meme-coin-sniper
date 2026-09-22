@@ -94,8 +94,9 @@ const SPECS: Record<MarketingPostcardId, Spec> = {
       "Register: https://novastaris.ai/register",
       "Terms: https://novastaris.ai/promo-terms",
       "",
-      "Follow: Instagram @novastaris · TikTok @novastari.ai · X @novasstaris",
-      "Educational only — not financial advice.",
+      "Follow: Instagram @novastaris · TikTok @Novastari.ai · X @Novastaris",
+      "https://www.tiktok.com/@Novastari.ai",
+      "https://x.com/Novastaris",
     ].join("\n"),
   },
 };
