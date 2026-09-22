@@ -28,9 +28,9 @@ export default function CapacitorAuthBridge() {
       const { App } = await import("@capacitor/app");
       const { Browser } = await import("@capacitor/browser");
 
-      const listener = await App.addListener("appUrlOpen", async (event) => {
+      const completeAuth = async (url: string) => {
         if (handling.current) return;
-        const { token, next } = parseAuthCallbackUrl(event.url);
+        const { token, next } = parseAuthCallbackUrl(url);
         if (!token) return;
 
         handling.current = true;
@@ -56,6 +56,20 @@ export default function CapacitorAuthBridge() {
         } finally {
           handling.current = false;
         }
+      };
+
+      // Cold start: app was killed while Custom Tabs was open; deep link arrives as launch URL.
+      try {
+        const launch = await App.getLaunchUrl();
+        if (launch?.url) {
+          await completeAuth(launch.url);
+        }
+      } catch {
+        /* getLaunchUrl unavailable or no launch URL */
+      }
+
+      const listener = await App.addListener("appUrlOpen", async (event) => {
+        await completeAuth(event.url);
       });
 
       removeListener = () => {

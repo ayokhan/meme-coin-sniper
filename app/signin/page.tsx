@@ -138,7 +138,8 @@ function SignInForm() {
     setError("");
     setGoogleLoading(true);
     try {
-      await signIn("google", { callbackUrl });
+      // Capacitor Android must use Custom Tabs + deep-link handoff; in-WebView Google OAuth fails.
+      await signInWithGoogle(callbackUrl);
     } catch {
       setError("Unable to continue with Google right now.");
       setGoogleLoading(false);

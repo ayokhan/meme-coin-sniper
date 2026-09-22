@@ -2,7 +2,8 @@
 
 import { Suspense, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { getProviders } from "next-auth/react";
+import { getProviders, signIn } from "next-auth/react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -13,6 +14,7 @@ import { PasswordInput } from "@/components/PasswordInput";
 import { signInWithGoogle } from "@/lib/google-oauth-client";
 import { readReferralCookie } from "@/components/ReferralCapture";
 import SiteInstagramFooter from "@/components/SiteInstagramFooter";
+import { isCapacitorNative } from "@/lib/capacitor-native";
 
 function GoogleLogo() {
   return (
@@ -26,6 +28,7 @@ function GoogleLogo() {
 }
 
 function RegisterForm() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get("callbackUrl") ?? "/";
   const refFromUrl = searchParams.get("ref");
@@ -123,6 +126,22 @@ function RegisterForm() {
         window.scrollTo({ top: 0, behavior: "smooth" });
         return;
       }
+
+      // On Android/iOS WebView, sign in immediately so users aren't stuck needing a second step.
+      if (isCapacitorNative()) {
+        const login = await signIn("email", {
+          email: email.trim().toLowerCase(),
+          password,
+          otpCode: "",
+          redirect: false,
+        });
+        if (!login?.error) {
+          router.push(callbackUrl);
+          router.refresh();
+          return;
+        }
+      }
+
       setSuccess(registerSuccessMessage);
     } catch {
       setError("Something went wrong.");
@@ -312,12 +331,7 @@ function RegisterForm() {
                       />
                       <span>
                         I have read and accept the{" "}
-                        <Link
-                          href="/nova-connect-terms#rules"
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="underline hover:no-underline"
-                        >
+                        <Link href="/nova-connect-terms#rules" className="underline hover:no-underline">
                           Community rules (summary)
                         </Link>
                       </span>
@@ -331,12 +345,7 @@ function RegisterForm() {
                       />
                       <span>
                         I have read and accept the{" "}
-                        <Link
-                          href="/nova-connect-terms#privacy"
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="underline hover:no-underline"
-                        >
+                        <Link href="/nova-connect-terms#privacy" className="underline hover:no-underline">
                           Presence &amp; privacy
                         </Link>
                       </span>
