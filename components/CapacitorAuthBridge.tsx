@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { useRouter } from "next/navigation";
-import { getSession } from "next-auth/react";
 import { CAPACITOR_APP_SCHEME, isCapacitorNative } from "@/lib/capacitor-native";
+
+export const CAPACITOR_JUST_SIGNED_IN_KEY = "novastaris_just_signed_in";
 
 function parseAuthCallbackUrl(url: string): { token?: string; next?: string } {
   const prefix = `${CAPACITOR_APP_SCHEME}://auth/callback`;
@@ -17,7 +17,6 @@ function parseAuthCallbackUrl(url: string): { token?: string; next?: string } {
 }
 
 export default function CapacitorAuthBridge() {
-  const router = useRouter();
   const handling = useRef(false);
 
   useEffect(() => {
@@ -50,29 +49,28 @@ export default function CapacitorAuthBridge() {
           });
           const data = (await res.json()) as { success?: boolean };
           if (data.success) {
-            // Force SessionProvider to pick up the new cookie (router.refresh alone is not enough).
-            await getSession();
+            try {
+              sessionStorage.setItem(CAPACITOR_JUST_SIGNED_IN_KEY, "1");
+            } catch {
+              /* ignore */
+            }
+            // Full reload so SessionProvider mounts with the new cookie (soft navigate left guest UI).
             const dest = next && next.startsWith("/") ? next : "/";
-            router.replace(dest);
-            router.refresh();
-            // Second pass in case HomeGate rendered before session broadcast settled.
-            window.setTimeout(() => {
-              void getSession();
-            }, 150);
+            window.location.assign(dest);
+            return;
           }
         } finally {
           handling.current = false;
         }
       };
 
-      // Cold start: app was killed while Custom Tabs was open; deep link arrives as launch URL.
       try {
         const launch = await App.getLaunchUrl();
         if (launch?.url) {
           await completeAuth(launch.url);
         }
       } catch {
-        /* getLaunchUrl unavailable or no launch URL */
+        /* no launch URL */
       }
 
       const listener = await App.addListener("appUrlOpen", async (event) => {
@@ -87,7 +85,7 @@ export default function CapacitorAuthBridge() {
     return () => {
       removeListener?.();
     };
-  }, [router]);
+  }, []);
 
   return null;
 }
