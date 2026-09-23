@@ -612,7 +612,7 @@ export default function AdminEmailsPanel({ onNotice, onError }: Props) {
                 ctaUrl: FUTURES_WRAP_APP_URL,
               });
               onNotice?.(
-                "Loaded today’s Daily Wrap into the Daily Futures Brief. Edit if needed, then send."
+                "Loaded today’s Daily Wrap into the Daily Market Brief. Edit if needed, then send."
               );
               return;
             }

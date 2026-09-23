@@ -60,7 +60,18 @@ export default function GooglePlayInAppPromo({ className = "" }: { className?: s
             <span className="font-semibold text-amber-300">{PLAY_STORE_GIVEAWAY.prizeLabel}</span> by{" "}
             {PLAY_STORE_GIVEAWAY.drawLabel}.
           </p>
-          <p className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-zinc-500">
+          <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-zinc-500">
+            <a
+              href={NOVASTARIS_SOCIAL.instagram.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hover:text-zinc-300"
+            >
+              Instagram @{NOVASTARIS_SOCIAL.instagram.handle}
+            </a>
+            <span className="text-zinc-700" aria-hidden>
+              ·
+            </span>
             <a
               href={NOVASTARIS_SOCIAL.tiktok.url}
               target="_blank"
@@ -69,7 +80,9 @@ export default function GooglePlayInAppPromo({ className = "" }: { className?: s
             >
               TikTok @{NOVASTARIS_SOCIAL.tiktok.handle}
             </a>
-            <span className="text-zinc-700">·</span>
+            <span className="text-zinc-700" aria-hidden>
+              ·
+            </span>
             <a
               href={NOVASTARIS_SOCIAL.x.url}
               target="_blank"

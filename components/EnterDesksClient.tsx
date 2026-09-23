@@ -712,15 +712,15 @@ export default function EnterDesksClient() {
         </a>
       )}
 
-      <footer className="relative z-10 mx-auto flex max-w-6xl flex-wrap gap-4 px-4 pb-16 pt-8 text-xs text-zinc-500 sm:px-6">
+      <footer className="relative z-10 mx-auto flex max-w-6xl flex-wrap items-center gap-x-5 gap-y-3 px-4 pb-16 pt-8 text-xs text-zinc-500 sm:px-6">
         {ft.showInstagram && ig.enabled && (
           <a
             href={ig.url}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-1 hover:text-zinc-300"
+            className="inline-flex h-8 items-center gap-1.5 leading-none hover:text-zinc-300"
           >
-            <Instagram className="h-3 w-3" />
+            <Instagram className="h-3.5 w-3.5 shrink-0" />
             @{ig.handle}
           </a>
         )}
@@ -728,7 +728,7 @@ export default function EnterDesksClient() {
           href={NOVASTARIS_SOCIAL.tiktok.url}
           target="_blank"
           rel="noopener noreferrer"
-          className="hover:text-zinc-300"
+          className="inline-flex h-8 items-center leading-none hover:text-zinc-300"
         >
           TikTok @{NOVASTARIS_SOCIAL.tiktok.handle}
         </a>
@@ -736,33 +736,35 @@ export default function EnterDesksClient() {
           href={NOVASTARIS_SOCIAL.x.url}
           target="_blank"
           rel="noopener noreferrer"
-          className="hover:text-zinc-300"
+          className="inline-flex h-8 items-center leading-none hover:text-zinc-300"
         >
           X @{NOVASTARIS_SOCIAL.x.handle}
         </a>
-        <GooglePlayDownloadLink variant="compact" />
+        <span className="inline-flex h-8 items-center">
+          <GooglePlayDownloadLink variant="compact" />
+        </span>
         {ft.showUniversity && (
-          <Link href={ft.universityHref} className="hover:text-zinc-300">
+          <Link href={ft.universityHref} className="inline-flex h-8 items-center leading-none hover:text-zinc-300">
             {ft.universityLabel}
           </Link>
         )}
         {ft.showStartHere && (
-          <Link href={ft.startHereHref} className="hover:text-zinc-300">
+          <Link href={ft.startHereHref} className="inline-flex h-8 items-center leading-none hover:text-zinc-300">
             {ft.startHereLabel}
           </Link>
         )}
         {ft.showAffiliate && (
-          <Link href={ft.affiliateHref} className="hover:text-zinc-300">
+          <Link href={ft.affiliateHref} className="inline-flex h-8 items-center leading-none hover:text-zinc-300">
             {ft.affiliateLabel}
           </Link>
         )}
         {ft.showWins && (
-          <Link href={ft.winsHref} className="hover:text-zinc-300">
+          <Link href={ft.winsHref} className="inline-flex h-8 items-center leading-none hover:text-zinc-300">
             {ft.winsLabel}
           </Link>
         )}
         {caseStudiesFlagOn && ft.showCaseStudies && (
-          <Link href={ft.caseStudiesHref} className="hover:text-zinc-300">
+          <Link href={ft.caseStudiesHref} className="inline-flex h-8 items-center leading-none hover:text-zinc-300">
             {ft.caseStudiesLabel}
           </Link>
         )}

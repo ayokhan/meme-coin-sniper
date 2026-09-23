@@ -171,11 +171,11 @@ export const DEFAULT_ENTER_LANDING: EnterLandingConfig = {
   },
   instagram: {
     enabled: true,
-    handle: "novastaris",
+    handle: "Novastaris",
     url: "https://www.instagram.com/novastaris/",
     stripBlurb: "Behind the desks — setups, wins, and product drops",
     stripCta: "Follow on Instagram",
-    marqueeText: "Follow the desk · @novastaris · setups · desks · wins · Instagram",
+    marqueeText: "Follow the desk · @Novastaris · setups · desks · wins · Instagram",
     showOnPublicFooters: true,
     publicFooterLabel: "Follow @{handle} on Instagram",
   },

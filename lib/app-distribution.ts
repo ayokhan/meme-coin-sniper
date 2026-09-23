@@ -10,7 +10,7 @@ export const PLAY_STORE_BADGE_IMG =
 
 export const NOVASTARIS_SOCIAL = {
   instagram: {
-    handle: "novastaris",
+    handle: "Novastaris",
     url: "https://www.instagram.com/novastaris/",
   },
   tiktok: {

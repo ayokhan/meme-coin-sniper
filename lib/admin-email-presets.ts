@@ -155,9 +155,9 @@ export const ADMIN_EMAIL_PRESETS: AdminEmailPreset[] = [
   },
   {
     id: "futures-morning-brief",
-    label: "Daily Futures Brief",
+    label: "Daily Market Brief",
     blurb: "Loads today’s Daily Wrap when available — else sample. Timezone-neutral name; send anytime.",
-    subject: "Daily Futures Brief | Today",
+    subject: "Daily Market Brief | Today",
     body: morningFuturesBriefPlainBody([
       {
         id: "1",

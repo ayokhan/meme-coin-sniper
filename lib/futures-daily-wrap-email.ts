@@ -1,5 +1,5 @@
 /**
- * Daily Futures Brief + Daily Market Wrap email HTML (NovaStaris dark digest).
+ * Daily Market Brief + Daily Market Wrap email HTML (NovaStaris dark digest).
  */
 import type { FuturesWrapItem } from "@/lib/futures-daily-wrap";
 import { FUTURES_WRAP_APP_URL } from "@/lib/futures-daily-wrap";
@@ -99,6 +99,7 @@ function howToUseBlock(): string {
 }
 
 function playStoreFooterBlock(): string {
+  const ig = NOVASTARIS_SOCIAL.instagram;
   const tt = NOVASTARIS_SOCIAL.tiktok;
   const x = NOVASTARIS_SOCIAL.x;
   return `
@@ -114,6 +115,8 @@ function playStoreFooterBlock(): string {
                 <tr>
                   <td align="center">
                     <p style="margin:0;font-size:12px;line-height:1.7;color:#71717a;">
+                      <a href="${ig.url}" target="_blank" rel="noopener noreferrer" style="color:#5eead4;text-decoration:underline;">Instagram @${ig.handle}</a>
+                      &nbsp;·&nbsp;
                       <a href="${tt.url}" target="_blank" rel="noopener noreferrer" style="color:#5eead4;text-decoration:underline;">TikTok @${tt.handle}</a>
                       &nbsp;·&nbsp;
                       <a href="${x.url}" target="_blank" rel="noopener noreferrer" style="color:#5eead4;text-decoration:underline;">X @${x.handle}</a>
@@ -198,7 +201,7 @@ export function buildMorningFuturesBriefEmailHtml(args: MorningBriefEmailArgs): 
   const inner = `
     <tr>
       <td align="center" style="padding:28px 28px 8px 28px;">
-        <p style="margin:0 0 10px 0;font-size:11px;letter-spacing:0.16em;text-transform:uppercase;color:#a1a1aa;">NovaStaris · Crypto Futures</p>
+        <p style="margin:0 0 10px 0;font-size:11px;letter-spacing:0.16em;text-transform:uppercase;color:#a1a1aa;">NovaStaris · Daily Market Brief</p>
         <p style="margin:0 0 8px 0;font-size:24px;line-height:1.25;font-weight:700;color:#fafafa;letter-spacing:-0.02em;">
           ${escapeHtml(args.title)}
         </p>
@@ -224,16 +227,16 @@ export function buildMorningFuturesBriefEmailHtml(args: MorningBriefEmailArgs): 
 }
 
 export function morningFuturesBriefSubject(title: string): string {
-  // "Daily Market Wrap | Aug 21" → "Daily Futures Brief | Aug 21"
+  // "Daily Market Wrap | Aug 21" → "Daily Market Brief | Aug 21"
   const datePart = title.includes("|") ? title.split("|").slice(1).join("|").trim() : title;
-  return `Daily Futures Brief | ${datePart}`;
+  return `Daily Market Brief | ${datePart}`;
 }
 
 /** Plain-text fallback body for admin presets / logs. */
 export function morningFuturesBriefPlainBody(teaser: FuturesWrapItem[]): string {
   const lines = teaser.map((t) => `• ${t.text}`);
   return [
-    "Your Daily Futures Brief is ready.",
+    "Your Daily Market Brief is ready.",
     "",
     "Today’s Hot Topics",
     ...lines,
@@ -246,6 +249,7 @@ export function morningFuturesBriefPlainBody(teaser: FuturesWrapItem[]): string 
     `Open the full Daily Market Wrap: ${FUTURES_WRAP_APP_URL}`,
     "",
     `Get it on Google Play: ${PLAY_STORE_URL}`,
+    `Instagram @${NOVASTARIS_SOCIAL.instagram.handle}: ${NOVASTARIS_SOCIAL.instagram.url}`,
     `TikTok @${NOVASTARIS_SOCIAL.tiktok.handle}: ${NOVASTARIS_SOCIAL.tiktok.url}`,
     `X @${NOVASTARIS_SOCIAL.x.handle}: ${NOVASTARIS_SOCIAL.x.url}`,
   ].join("\n");

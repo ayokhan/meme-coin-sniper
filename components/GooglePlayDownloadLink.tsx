@@ -42,7 +42,7 @@ export default function GooglePlayDownloadLink({
         href={PLAY_STORE_URL}
         target="_blank"
         rel="noopener noreferrer"
-        className={`inline-flex items-center gap-2 rounded-md border border-white/15 bg-black/60 px-2.5 py-1.5 text-xs font-medium text-white transition-colors hover:border-white/30 hover:bg-black/80 ${className}`}
+        className={`inline-flex h-8 items-center gap-2 rounded-md border border-white/15 bg-black/60 px-2.5 text-xs font-medium text-white transition-colors hover:border-white/30 hover:bg-black/80 ${className}`}
         aria-label="Get it on Google Play"
       >
         <GooglePlayMark className="h-4 w-4 shrink-0" />
