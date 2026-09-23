@@ -621,7 +621,7 @@ export default function AdminEmailsPanel({ onNotice, onError }: Props) {
             "No Daily Wrap stored yet — showing sample brief. Publish today under Crypto Futures → Daily Wrap (or wait for the wrap cron), then reload this preset."
           );
         } catch {
-          onNotice?.("Could not load Daily Wrap — using sample Daily Futures Brief.");
+          onNotice?.("Could not load Daily Wrap — using sample Daily Market Brief.");
         }
       }
       setDraft({
