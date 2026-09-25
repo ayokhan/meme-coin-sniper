@@ -281,6 +281,26 @@ export async function getTrendingSolanaPairs(limit = 20): Promise<DexPair[]> {
   }
 }
 
+/** Robinhood Chain meme movers by 24h volume + price change (for digest / trending UI). */
+export async function getTrendingRobinhoodPairs(limit = 20): Promise<DexPair[]> {
+  try {
+    const pairs = await fetchChainPairsViaSearch('robinhood');
+    const usd = (p: DexPair) => p.liquidity?.usd ?? 0;
+    const vol = (p: DexPair) => p.volume?.h24 ?? 0;
+    const change = (p: DexPair) => p.priceChange?.h24 ?? p.priceChange?.h6 ?? 0;
+    const dexOk = (p: DexPair) => {
+      const d = (p.dexId || '').toLowerCase();
+      return d.includes('uniswap') || d.includes('robinhood');
+    };
+    return pairs
+      .filter((p) => dexOk(p) && usd(p) >= 1000 && vol(p) >= 2000)
+      .sort((a, b) => (vol(b) * (1 + (change(b) ?? 0) / 100)) - (vol(a) * (1 + (change(a) ?? 0) / 100)))
+      .slice(0, limit);
+  } catch {
+    return [];
+  }
+}
+
 export type SurgeWindow = 'm5' | 'm15' | 'm30' | 'h1' | 'h6' | 'h24';
 
 /** Surge = high volume in a time window. DexScreener provides h1, h6, h24; 5m/15m/30m are estimated from 1h. */

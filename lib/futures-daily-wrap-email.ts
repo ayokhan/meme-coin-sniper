@@ -16,7 +16,7 @@ function escapeHtml(s: string): string {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
 
-/** Highlight known keywords in orange (case-sensitive match against highlights list). */
+/** Highlight known keywords (case-sensitive match against highlights list). */
 export function highlightWrapText(text: string, highlights: string[]): string {
   if (!highlights.length) return escapeHtml(text);
   const sorted = [...highlights].filter(Boolean).sort((a, b) => b.length - a.length);
@@ -88,14 +88,53 @@ function howToUseBlock(): string {
           <tr>
             <td style="padding:16px 18px;">
               <p style="margin:0 0 10px 0;font-size:13px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:${ACCENT};">How to use this brief</p>
-              <p style="margin:0 0 8px 0;font-size:14px;line-height:1.55;color:#cbd5e1;">1. Skim Hot Topics for the day’s narrative.</p>
-              <p style="margin:0 0 8px 0;font-size:14px;line-height:1.55;color:#cbd5e1;">2. Open Daily Wrap in-app for mark prices, funding, and movers.</p>
+              <p style="margin:0 0 8px 0;font-size:14px;line-height:1.55;color:#cbd5e1;">1. Skim Hot Topics + most traded perps for the day’s flow.</p>
+              <p style="margin:0 0 8px 0;font-size:14px;line-height:1.55;color:#cbd5e1;">2. Check Solana &amp; Robinhood meme lines — open Trending / Go Hunting in-app.</p>
               <p style="margin:0;font-size:14px;line-height:1.55;color:#cbd5e1;">3. Use Chart AI / Liquidation Map before you size a trade.</p>
             </td>
           </tr>
         </table>
       </td>
     </tr>`;
+}
+
+function partitionWrapItems(items: FuturesWrapItem[]): {
+  hot: FuturesWrapItem[];
+  traded: FuturesWrapItem[];
+  memes: FuturesWrapItem[];
+  other: FuturesWrapItem[];
+} {
+  const hotIds = new Set(["majors", "momentum", "funding"]);
+  return {
+    hot: items.filter((t) => hotIds.has(t.id)),
+    traded: items.filter((t) => t.id === "most-traded" || t.id === "volume"),
+    memes: items.filter((t) => t.id.startsWith("meme-")),
+    other: items.filter(
+      (t) => !hotIds.has(t.id) && t.id !== "most-traded" && t.id !== "volume" && !t.id.startsWith("meme-")
+    ),
+  };
+}
+
+function sectionsFromItems(items: FuturesWrapItem[], defaultHotLabel: string): string {
+  const { hot, traded, memes, other } = partitionWrapItems(items);
+  let html = "";
+  if (hot.length) {
+    html += sectionHeading(defaultHotLabel);
+    html += itemRows(hot);
+  }
+  if (traded.length) {
+    html += sectionHeading("Most traded perps");
+    html += itemRows(traded);
+  }
+  if (memes.length) {
+    html += sectionHeading("Meme watch — Solana & Robinhood");
+    html += itemRows(memes);
+  }
+  if (other.length) {
+    html += sectionHeading("More market updates");
+    html += itemRows(other);
+  }
+  return html;
 }
 
 function playStoreFooterBlock(): string {
@@ -181,20 +220,13 @@ export function buildMorningFuturesBriefEmailHtml(args: MorningBriefEmailArgs): 
     timeZone: "UTC",
   });
 
-  const teaserItems = args.teaser.slice(0, 5);
-  const bodyItems = args.full ? null : itemRows(teaserItems);
-
   const fullBody = args.full
     ? `
-      ${sectionHeading("Hot Topics")}
-      ${itemRows(args.hotTopics ?? args.teaser)}
-      ${sectionHeading("Market Updates")}
-      ${itemRows(args.marketUpdates ?? [])}
+      ${sectionsFromItems([...(args.hotTopics ?? []), ...(args.marketUpdates ?? [])], "Hot Topics")}
       ${howToUseBlock()}
     `
     : `
-      ${sectionHeading("Today’s Hot Topics")}
-      ${bodyItems}
+      ${sectionsFromItems(args.teaser.slice(0, 6), "Today’s Hot Topics")}
       ${howToUseBlock()}
     `;
 
@@ -207,7 +239,7 @@ export function buildMorningFuturesBriefEmailHtml(args: MorningBriefEmailArgs): 
         </p>
         <p style="margin:0 0 8px 0;font-size:12px;color:#71717a;">${escapeHtml(when)} UTC</p>
         <p style="margin:0 0 20px 0;font-size:14px;line-height:1.5;color:#a1a1aa;max-width:440px;">
-          A quick read on perp narratives and market structure — then open the full Daily Wrap for prices, funding, and movers.
+          Perps flow, most traded names, and Solana + Robinhood meme movers — then open the full Daily Wrap in the app.
         </p>
       </td>
     </tr>
@@ -218,7 +250,7 @@ export function buildMorningFuturesBriefEmailHtml(args: MorningBriefEmailArgs): 
         </table>
         ${ctaButton(args.full ? "Open Daily Wrap in app" : "Read full Market Wrap in app", FUTURES_WRAP_APP_URL)}
         <p style="margin:12px 0 0 0;font-size:12px;line-height:1.5;color:#71717a;text-align:center;">
-          Or open <a href="${FUTURES_WRAP_APP_URL}" style="color:${ACCENT};">Daily Wrap</a> · Chart AI · Liquidation Map
+          Or open <a href="${FUTURES_WRAP_APP_URL}" style="color:${ACCENT};">Daily Wrap</a> · Trending · Robinhood · Chart AI
         </p>
       </td>
     </tr>`;
@@ -227,23 +259,25 @@ export function buildMorningFuturesBriefEmailHtml(args: MorningBriefEmailArgs): 
 }
 
 export function morningFuturesBriefSubject(title: string): string {
-  // "Daily Market Wrap | Aug 21" → "Daily Market Brief | Aug 21"
   const datePart = title.includes("|") ? title.split("|").slice(1).join("|").trim() : title;
   return `Daily Market Brief | ${datePart}`;
 }
 
 /** Plain-text fallback body for admin presets / logs. */
 export function morningFuturesBriefPlainBody(teaser: FuturesWrapItem[]): string {
-  const lines = teaser.map((t) => `• ${t.text}`);
+  const { hot, traded, memes, other } = partitionWrapItems(teaser);
+  const block = (label: string, items: FuturesWrapItem[]) =>
+    items.length ? ["", label, ...items.map((t) => `• ${t.text}`)] : [];
   return [
     "Your Daily Market Brief is ready.",
-    "",
-    "Today’s Hot Topics",
-    ...lines,
+    ...block("Today’s Hot Topics", hot),
+    ...block("Most traded perps", traded),
+    ...block("Meme watch — Solana & Robinhood", memes),
+    ...block("More updates", other),
     "",
     "How to use this brief",
-    "1. Skim Hot Topics for the day’s narrative.",
-    "2. Open Daily Wrap in-app for mark prices, funding, and movers.",
+    "1. Skim Hot Topics + most traded perps for the day’s flow.",
+    "2. Check Solana & Robinhood meme lines — open Trending / Go Hunting in-app.",
     "3. Use Chart AI / Liquidation Map before you size a trade.",
     "",
     `Open the full Daily Market Wrap: ${FUTURES_WRAP_APP_URL}`,

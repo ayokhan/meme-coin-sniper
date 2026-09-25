@@ -11,7 +11,7 @@ import {
 } from "@/lib/futures-daily-wrap-email";
 
 export const dynamic = "force-dynamic";
-export const maxDuration = 60;
+export const maxDuration = 90;
 
 /**
  * Dedicated lightweight cron: Daily Futures Wrap + optional Daily Futures Brief emails.

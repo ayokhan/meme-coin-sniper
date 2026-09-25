@@ -1,9 +1,14 @@
 /**
- * Daily Futures Market Wrap — rules-based, built once per UTC day from Hyperliquid
- * perp data. No per-request AI. Stored in DB and served cheaply to the app + email.
+ * Daily Market Wrap — rules-based, built once per UTC day from Hyperliquid
+ * perps + Solana/Robinhood meme movers. Stored in DB for app + email.
  */
 import { futuresWrapDb as prisma } from "@/lib/futures-daily-wrap-db";
 import { getTrendingPerps, getPerpsByCoins, type TrendingPerp } from "@/lib/api-clients/hyperliquid";
+import {
+  getTrendingSolanaPairs,
+  getTrendingRobinhoodPairs,
+  type DexPair,
+} from "@/lib/api-clients/dexscreener";
 
 const APP_ORIGIN = (process.env.NEXT_PUBLIC_APP_URL ?? "https://novastaris.ai").replace(/\/$/, "");
 /** Public top-level tab — no login required. */
@@ -11,9 +16,13 @@ export const FUTURES_WRAP_APP_URL = `${APP_ORIGIN}/?tab=futures&futures=daily-wr
 export const FUTURES_HOT_PERPS_URL = `${APP_ORIGIN}/?tab=futures&futures=hot-perps`;
 export const FUTURES_WORKFLOW_URL = `${APP_ORIGIN}/?tab=futures&futures=workflow`;
 export const FUTURES_LIQ_URL = `${APP_ORIGIN}/?tab=futures&futures=liquidation-map`;
+export const MEME_TRENDING_URL = `${APP_ORIGIN}/?tab=trending`;
+export const ROBINHOOD_HUNT_URL = `${APP_ORIGIN}/?tab=robinhood`;
 
 const NEW_DAYS = 7;
-const TOP_MOMENTUM = 10;
+/** Wide enough universe so “most traded” is not just top |%| movers. */
+const PERP_UNIVERSE_LIMIT = 120;
+const MEME_DIGEST_LIMIT = 4;
 
 export type FuturesWrapItem = {
   id: string;
@@ -51,14 +60,44 @@ function fmtFunding(raw?: string): string | null {
   if (raw == null || raw === "") return null;
   const n = Number(raw);
   if (!Number.isFinite(n)) return null;
-  // Hyperliquid funding is per 8h typically; show as %
   return `${n >= 0 ? "+" : ""}${(n * 100).toFixed(4)}%`;
+}
+
+function fmtNotional(v: number): string {
+  if (v >= 1e9) return `$${(v / 1e9).toFixed(1)}B`;
+  if (v >= 1e6) return `$${(v / 1e6).toFixed(0)}M`;
+  return `$${Math.round(v).toLocaleString()}`;
 }
 
 function pickMajors(all: TrendingPerp[]): TrendingPerp[] {
   const want = ["BTC", "ETH", "SOL"];
   const byCoin = new Map(all.map((p) => [p.coin.toUpperCase(), p]));
   return want.map((c) => byCoin.get(c)).filter((p): p is TrendingPerp => !!p);
+}
+
+function memeSymbol(pair: DexPair): string {
+  return (pair.baseToken?.symbol || "?").trim().toUpperCase() || "?";
+}
+
+function memePct(pair: DexPair): number {
+  return pair.priceChange?.h24 ?? pair.priceChange?.h6 ?? 0;
+}
+
+function buildMemeHighlight(
+  id: string,
+  label: string,
+  pairs: DexPair[],
+  href: string
+): FuturesWrapItem | null {
+  if (!pairs.length) return null;
+  const top = pairs.slice(0, MEME_DIGEST_LIMIT);
+  const line = top.map((p) => `${memeSymbol(p)} ${fmtPct(memePct(p))}`).join(" · ");
+  return {
+    id,
+    text: `${label}: ${line}.`,
+    highlights: [...label.split(/\s+/).filter(Boolean), ...top.map(memeSymbol)],
+    href,
+  };
 }
 
 function buildHotTopics(
@@ -73,11 +112,15 @@ function buildHotTopics(
     const parts: string[] = [];
     const highlights: string[] = [];
     if (btc) {
-      parts.push(`Bitcoin ${fmtPct(btc.dayPct)} (mark $${Number(btc.markPx).toLocaleString("en-US", { maximumFractionDigits: 0 })})`);
+      parts.push(
+        `Bitcoin ${fmtPct(btc.dayPct)} (mark $${Number(btc.markPx).toLocaleString("en-US", { maximumFractionDigits: 0 })})`
+      );
       highlights.push("Bitcoin");
     }
     if (eth) {
-      parts.push(`ETH ${fmtPct(eth.dayPct)} ($${Number(eth.markPx).toLocaleString("en-US", { maximumFractionDigits: 0 })})`);
+      parts.push(
+        `ETH ${fmtPct(eth.dayPct)} ($${Number(eth.markPx).toLocaleString("en-US", { maximumFractionDigits: 0 })})`
+      );
       highlights.push("ETH");
     }
     items.push({
@@ -126,9 +169,26 @@ function buildHotTopics(
 
 function buildMarketUpdates(
   newPerps: TrendingPerp[],
-  trending: TrendingPerp[]
+  allPerps: TrendingPerp[],
+  memeItems: FuturesWrapItem[]
 ): FuturesWrapItem[] {
   const items: FuturesWrapItem[] = [];
+
+  const volumeLeaders = [...allPerps]
+    .filter((p) => Number(p.dayNtlVlm) > 0)
+    .sort((a, b) => Number(b.dayNtlVlm) - Number(a.dayNtlVlm))
+    .slice(0, 5);
+  if (volumeLeaders.length > 0) {
+    const line = volumeLeaders
+      .map((p) => `${p.coin} ${fmtNotional(Number(p.dayNtlVlm))} (${fmtPct(p.dayPct)})`)
+      .join(" · ");
+    items.push({
+      id: "most-traded",
+      text: `Most traded perps (24h notional): ${line}.`,
+      highlights: ["Most traded", ...volumeLeaders.map((p) => p.coin)],
+      href: FUTURES_HOT_PERPS_URL,
+    });
+  }
 
   if (newPerps.length > 0) {
     const line = newPerps
@@ -150,34 +210,36 @@ function buildMarketUpdates(
     });
   }
 
-  const volumeLeaders = [...trending]
-    .filter((p) => Number(p.dayNtlVlm) > 0)
-    .sort((a, b) => Number(b.dayNtlVlm) - Number(a.dayNtlVlm))
-    .slice(0, 3);
-  if (volumeLeaders.length > 0) {
-    const line = volumeLeaders
-      .map((p) => {
-        const v = Number(p.dayNtlVlm);
-        const label = v >= 1e9 ? `$${(v / 1e9).toFixed(1)}B` : v >= 1e6 ? `$${(v / 1e6).toFixed(0)}M` : `$${Math.round(v).toLocaleString()}`;
-        return `${p.coin} ${label}`;
-      })
-      .join(" · ");
-    items.push({
-      id: "volume",
-      text: `Highest 24h notional volume: ${line}.`,
-      highlights: volumeLeaders.map((p) => p.coin),
-      href: FUTURES_WORKFLOW_URL,
-    });
-  }
+  for (const m of memeItems) items.push(m);
 
   items.push({
     id: "desk-cta",
-    text: "Open Institutional Workflow or Liquidation Map on NovaStaris to turn today’s movers into a plan.",
-    highlights: ["Institutional Workflow", "Liquidation Map", "NovaStaris"],
+    text: "Open Institutional Workflow, Go Hunting, or Liquidation Map on NovaStaris to turn today’s movers into a plan.",
+    highlights: ["Institutional Workflow", "Go Hunting", "Liquidation Map", "NovaStaris"],
     href: FUTURES_WRAP_APP_URL,
   });
 
   return items;
+}
+
+/** Newsletter teaser: majors + most traded + memes (+ momentum if room). */
+function buildEmailTeaser(
+  hotTopics: FuturesWrapItem[],
+  marketUpdates: FuturesWrapItem[]
+): FuturesWrapItem[] {
+  const byId = (id: string) =>
+    hotTopics.find((t) => t.id === id) ?? marketUpdates.find((t) => t.id === id);
+
+  const ordered = [
+    byId("majors"),
+    byId("most-traded"),
+    byId("meme-solana"),
+    byId("meme-robinhood"),
+    byId("momentum"),
+    byId("funding"),
+  ].filter((t): t is FuturesWrapItem => !!t);
+
+  return ordered.slice(0, 5);
 }
 
 function buildTelegramHtml(
@@ -186,18 +248,26 @@ function buildTelegramHtml(
   marketUpdates: FuturesWrapItem[]
 ): string {
   const hot = hotTopics.map((t) => `• ${t.text}`).join("\n");
-  const mkt = marketUpdates.map((t) => `• ${t.text}`).join("\n");
-  return [
+  const traded = marketUpdates.filter((t) => t.id === "most-traded");
+  const memes = marketUpdates.filter((t) => t.id.startsWith("meme-"));
+  const other = marketUpdates.filter((t) => t.id !== "most-traded" && !t.id.startsWith("meme-"));
+  const sections = [
     `📊 <b>${title}</b>`,
     "",
     "🔥 <b>Hot Topics</b>",
     hot,
-    "",
-    "📰 <b>Market Updates</b>",
-    mkt,
-    "",
-    `🔗 <a href="${FUTURES_WRAP_APP_URL}">Open Daily Wrap in NovaStaris</a>`,
-  ].join("\n");
+  ];
+  if (traded.length) {
+    sections.push("", "📈 <b>Most traded perps</b>", traded.map((t) => `• ${t.text}`).join("\n"));
+  }
+  if (memes.length) {
+    sections.push("", "🐸 <b>Meme watch</b>", memes.map((t) => `• ${t.text}`).join("\n"));
+  }
+  if (other.length) {
+    sections.push("", "📰 <b>Market Updates</b>", other.map((t) => `• ${t.text}`).join("\n"));
+  }
+  sections.push("", `🔗 <a href="${FUTURES_WRAP_APP_URL}">Open Daily Wrap in NovaStaris</a>`);
+  return sections.join("\n");
 }
 
 /** Build wrap payload from live market data (no DB write). */
@@ -213,14 +283,16 @@ export async function buildFuturesDailyWrapContent(now = new Date()): Promise<{
   const dateKey = utcDateKey(now);
   const newCutoff = new Date(now.getTime() - NEW_DAYS * 24 * 60 * 60 * 1000);
 
-  const [trending, newRows] = await Promise.all([
-    getTrendingPerps(TOP_MOMENTUM + 20),
+  const [allPerps, newRows, solanaPairs, robinhoodPairs] = await Promise.all([
+    getTrendingPerps(PERP_UNIVERSE_LIMIT),
     prisma.knownPerpSymbol.findMany({
       where: { firstSeenAt: { gte: newCutoff } },
       select: { symbol: true },
       orderBy: { firstSeenAt: "desc" },
       take: 8,
     }),
+    getTrendingSolanaPairs(MEME_DIGEST_LIMIT + 2).catch(() => [] as DexPair[]),
+    getTrendingRobinhoodPairs(MEME_DIGEST_LIMIT + 2).catch(() => [] as DexPair[]),
   ]);
 
   const newSymbols = newRows.map((r) => r.symbol);
@@ -229,8 +301,7 @@ export async function buildFuturesDailyWrapContent(now = new Date()): Promise<{
     newPerps = await getPerpsByCoins(newSymbols);
   }
 
-  // Prefer majors from a dedicated fetch if missing from trending slice
-  let majors = pickMajors(trending);
+  let majors = pickMajors(allPerps);
   if (majors.length < 3) {
     const extra = await getPerpsByCoins(["BTC", "ETH", "SOL"]);
     const map = new Map(majors.map((p) => [p.coin.toUpperCase(), p]));
@@ -238,9 +309,14 @@ export async function buildFuturesDailyWrapContent(now = new Date()): Promise<{
     majors = ["BTC", "ETH", "SOL"].map((c) => map.get(c)).filter((p): p is TrendingPerp => !!p);
   }
 
-  const hotTopics = buildHotTopics(trending, majors);
-  const marketUpdates = buildMarketUpdates(newPerps, trending);
-  const emailTeaser = [...hotTopics, ...marketUpdates].slice(0, 3);
+  const memeItems = [
+    buildMemeHighlight("meme-solana", "Solana memes", solanaPairs, MEME_TRENDING_URL),
+    buildMemeHighlight("meme-robinhood", "Robinhood memes", robinhoodPairs, ROBINHOOD_HUNT_URL),
+  ].filter((t): t is FuturesWrapItem => !!t);
+
+  const hotTopics = buildHotTopics(allPerps, majors);
+  const marketUpdates = buildMarketUpdates(newPerps, allPerps, memeItems);
+  const emailTeaser = buildEmailTeaser(hotTopics, marketUpdates);
   const title = `Daily Market Wrap | ${formatDisplayDate(dateKey)}`;
   const telegramHtml = buildTelegramHtml(title, hotTopics, marketUpdates);
 
