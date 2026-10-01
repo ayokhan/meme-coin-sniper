@@ -10,6 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Zap, BarChart3, Sparkles, Bell, CreditCard, Gift, User, Receipt } from "lucide-react";
 import { PasswordInput } from "@/components/PasswordInput";
 import TwoFactorSettings from "@/components/TwoFactorSettings";
+import BiometricSettings from "@/components/BiometricSettings";
 import AccountBillingHistory from "@/components/AccountBillingHistory";
 
 type Profile = {
@@ -554,6 +555,8 @@ export default function AccountPage() {
         )}
 
         {hasEmailPassword && <TwoFactorSettings hasPassword={!!profile?.hasPassword} />}
+
+        <BiometricSettings />
 
         {!hasEmailPassword && (
           <p className="text-sm text-muted-foreground">You signed in with Google or a wallet. Password change is only for email/password accounts.</p>

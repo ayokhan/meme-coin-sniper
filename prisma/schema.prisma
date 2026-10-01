@@ -243,6 +243,7 @@ model User {
   billingInvoices            BillingInvoice[]
   tradingUniversityProgress  TradingUniversityProgress?
   loginEvents                LoginEvent[]
+  biometricCredentials       BiometricCredential[]
   jobAgentProfile            JobAgentProfile?
   jobAgentResumes            JobAgentResume[]
   jobAgentApplications       JobAgentApplication[]
@@ -1490,6 +1491,21 @@ model LoginEvent {
   @@index([userId, createdAt])
   @@index([createdAt])
   @@index([country])
+}
+
+/** Per-device fingerprint sign-in credential (Android app). The raw secret lives only in the device Keystore. */
+model BiometricCredential {
+  id          String    @id @default(cuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /** SHA-256 of the device secret. */
+  secretHash  String
+  deviceLabel String?
+  createdAt   DateTime  @default(now())
+  lastUsedAt  DateTime?
+  revokedAt   DateTime?
+
+  @@index([userId])
 }
 
 // Crypto Futures Trading Bot — owner-only; provider: Blofin or Hyperliquid

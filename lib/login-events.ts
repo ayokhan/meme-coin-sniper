@@ -5,7 +5,7 @@ import { parseUserAgent } from "@/lib/ua-parse";
 import { getAuthRequest } from "@/lib/auth-request-context";
 import { FEATURE_FLAG_KEYS, getFeatureFlag } from "@/lib/feature-flags";
 
-export type LoginProvider = "email" | "google" | "wallet" | "capacitor";
+export type LoginProvider = "email" | "google" | "wallet" | "capacitor" | "biometric";
 
 export type LoginEventRow = {
   id: string;
@@ -109,6 +109,7 @@ function normalizeProvider(raw: string | null | undefined): LoginProvider {
   if (p === "google") return "google";
   if (p === "wallet") return "wallet";
   if (p === "capacitor") return "capacitor";
+  if (p === "biometric") return "biometric";
   return "email";
 }
 
@@ -312,6 +313,7 @@ export async function getLoginIntelByUserIds(userIds: string[]): Promise<
     const usedAndroidApp = list.some(
       (r) =>
         r.provider === "capacitor" ||
+        r.provider === "biometric" ||
         (r.os ?? "").toLowerCase() === "android"
     );
     map.set(userId, {

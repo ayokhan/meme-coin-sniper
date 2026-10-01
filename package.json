@@ -29,6 +29,7 @@
     "@capacitor/core": "^8.4.0",
     "@capacitor/splash-screen": "^8.0.1",
     "@capacitor/status-bar": "^8.0.2",
+    "@capgo/capacitor-native-biometric": "^8.7.0",
     "@prisma/client": "^6.19.2",
     "@radix-ui/react-slot": "^1.2.4",
     "@radix-ui/react-tabs": "^1.1.13",

@@ -10,6 +10,7 @@ import { Zap } from "lucide-react";
 import { PasswordInput } from "@/components/PasswordInput";
 import { signInWithGoogle } from "@/lib/google-oauth-client";
 import SiteInstagramFooter from "@/components/SiteInstagramFooter";
+import BiometricSignInButton from "@/components/BiometricSignInButton";
 
 function GoogleLogo() {
   return (
@@ -177,6 +178,8 @@ function SignInForm() {
               {error}
             </div>
           )}
+
+          <BiometricSignInButton callbackUrl={callbackUrl} onError={setError} />
 
           {googleEnabled && (
             <Button type="button" variant="outline" className="w-full" disabled={googleLoading} onClick={handleGoogleSignIn}>

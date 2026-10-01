@@ -9,6 +9,7 @@ import { WelcomeVoice } from "@/components/WelcomeVoice";
 import AnalyticsPing from "@/components/AnalyticsPing";
 import CapacitorAuthBridge from "@/components/CapacitorAuthBridge";
 import AuthWelcomeBanner from "@/components/AuthWelcomeBanner";
+import BiometricEnrollPrompt from "@/components/BiometricEnrollPrompt";
 import NovaScalpPlanWatcher from "@/components/NovaScalpPlanWatcher";
 import NovaScalpWatchBanner from "@/components/NovaScalpWatchBanner";
 import NovaScalpActiveTradeBar from "@/components/NovaScalpActiveTradeBar";
@@ -25,6 +26,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
         <DashboardScreenProvider>
           <CapacitorAuthBridge />
           <AuthWelcomeBanner />
+          <BiometricEnrollPrompt />
           <AnalyticsPing />
           <WelcomeVoice />
           <Suspense fallback={null}>

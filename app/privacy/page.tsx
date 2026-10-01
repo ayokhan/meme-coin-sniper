@@ -207,6 +207,12 @@ export default function PrivacyPage() {
               billing rules may apply separately if you purchase through Google Play; web subscriptions are
               managed on novastaris.ai.
             </p>
+            <p>
+              <strong>Optional fingerprint sign-in:</strong> if you turn it on, your fingerprint is checked
+              by Android on your phone. NovaStaris never receives or stores fingerprint or other biometric
+              data — we only store a random, revocable device sign-in key (hashed on our servers). You can
+              remove it anytime in Account.
+            </p>
 
             <h2 className="text-base font-semibold text-zinc-900 dark:text-zinc-100 pt-2">
               11. Changes to this policy
