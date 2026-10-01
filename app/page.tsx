@@ -307,6 +307,7 @@ const GO_HUNTING_CHAIN_FILTERS: { id: GoHuntingChainFilter; label: string }[] = 
   { id: "hyperevm", label: "HyperEVM" },
 ];
 const GO_HUNTING_CHAIN_LS_KEY = "novastaris-go-hunting-chain";
+const GO_HUNTING_PAGE_ROWS = 60;
 const GO_HUNTING_CHAIN_BADGE: Record<GoHuntingChainId, { label: string; className: string }> = {
   solana: { label: "SOL", className: "bg-violet-100 text-violet-800 dark:bg-violet-900/50 dark:text-violet-200" },
   bsc: { label: "BSC", className: "bg-amber-100 text-amber-900 dark:bg-amber-900/45 dark:text-amber-200" },
@@ -924,6 +925,10 @@ function Dashboard() {
   const [goHuntingChain, setGoHuntingChainState] = useState<GoHuntingChainFilter>("all");
   const [goHuntingChainCounts, setGoHuntingChainCounts] = useState<Partial<Record<GoHuntingChainFilter, number | null>>>({});
   const [surgeSortByTrades, setSurgeSortByTrades] = useState(false);
+  const [goHuntingVisibleRows, setGoHuntingVisibleRows] = useState(GO_HUNTING_PAGE_ROWS);
+  useEffect(() => {
+    setGoHuntingVisibleRows(GO_HUNTING_PAGE_ROWS);
+  }, [goHuntingView, goHuntingChain]);
   const setGoHuntingChain = useCallback((c: GoHuntingChainFilter) => {
     setGoHuntingChainState(c);
     try {
@@ -10505,7 +10510,7 @@ function Dashboard() {
               <div
                 className={
                   activeTab === "new"
-                    ? "mx-3 sm:mx-6 mb-8 sm:mb-10 max-h-[min(70vh,760px)] overflow-auto rounded-xl border border-teal-500/20 dark:border-teal-400/15 [&_table]:w-full [&_table]:min-w-[980px]"
+                    ? "mx-3 sm:mx-6 mb-8 sm:mb-10 overflow-x-auto rounded-xl border border-teal-500/20 dark:border-teal-400/15 [&_table]:w-full [&_table]:min-w-[1100px]"
                     : "mx-3 sm:mx-6 overflow-x-auto pb-8 sm:pb-10 [&_table]:w-full [&_table]:min-w-[980px]"
                 }
               >
@@ -10513,7 +10518,7 @@ function Dashboard() {
                 <TableHeader
                   className={
                     activeTab === "new"
-                      ? "sticky top-0 z-10 bg-white/95 dark:bg-zinc-900/95 backdrop-blur-sm [&_tr]:border-b [&_tr]:border-teal-500/20 dark:[&_tr]:border-teal-400/15"
+                      ? "bg-white dark:bg-zinc-900 [&_tr]:border-b [&_tr]:border-teal-500/20 dark:[&_tr]:border-teal-400/15"
                       : undefined
                   }
                 >
@@ -10563,7 +10568,7 @@ function Dashboard() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {tokensForDisplay.map((tok) => (
+                  {(activeTab === "new" ? tokensForDisplay.slice(0, goHuntingVisibleRows) : tokensForDisplay).map((tok) => (
                     <TableRow
                       key={tok.id}
                       className={
@@ -10660,7 +10665,7 @@ function Dashboard() {
                         <div
                           className={
                             activeTab === "new"
-                              ? "flex items-center justify-end gap-2.5 flex-wrap"
+                              ? "flex items-center justify-end gap-1.5 whitespace-nowrap"
                               : "flex items-center justify-end gap-1.5 flex-wrap"
                           }
                         >
@@ -10825,6 +10830,18 @@ function Dashboard() {
                   ))}
                 </TableBody>
               </Table>
+              {activeTab === "new" && tokensForDisplay.length > goHuntingVisibleRows && (
+                <div className="flex justify-center border-t border-teal-500/20 py-3 dark:border-teal-400/15">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setGoHuntingVisibleRows((n) => n + GO_HUNTING_PAGE_ROWS)}
+                    className="border-teal-500/40 text-teal-800 dark:text-teal-200"
+                  >
+                    Show more ({tokensForDisplay.length - goHuntingVisibleRows} left)
+                  </Button>
+                </div>
+              )}
               </div>
             )}
               </div>
