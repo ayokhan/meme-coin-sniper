@@ -14,7 +14,7 @@ import {
   getLocalEnrollment,
 } from "@/lib/biometric-client";
 
-/** Android app only: turn fingerprint sign-in on or off for this device. */
+/** Android app only: turn biometric sign-in on or off for this device. */
 export default function BiometricSettings() {
   const { data: session } = useSession();
   const userId = session?.user?.id ?? "";
@@ -48,11 +48,11 @@ export default function BiometricSettings() {
     setBusy(true);
     try {
       await enableBiometricSignIn({ id: userId, label });
-      setSuccess("Fingerprint sign-in is on. Next time, tap \"Sign in with fingerprint\".");
+      setSuccess("Biometric sign-in is on. Next time, tap \"Sign in with biometrics\".");
       await refresh();
     } catch (e) {
       if (!(e instanceof BiometricCancelledError)) {
-        setError(e instanceof Error ? e.message : "Could not enable fingerprint sign-in.");
+        setError(e instanceof Error ? e.message : "Could not enable biometric sign-in.");
       }
     } finally {
       setBusy(false);
@@ -65,7 +65,7 @@ export default function BiometricSettings() {
     setBusy(true);
     try {
       await disableBiometricSignIn();
-      setSuccess("Fingerprint sign-in removed from this device.");
+      setSuccess("Biometric sign-in removed from this device.");
       await refresh();
     } finally {
       setBusy(false);
@@ -77,10 +77,10 @@ export default function BiometricSettings() {
       <CardHeader>
         <CardTitle className="text-lg flex items-center gap-2">
           <Fingerprint className="h-5 w-5 text-cyan-500" />
-          Fingerprint sign-in
+          Biometric sign-in
         </CardTitle>
         <p className="text-sm text-muted-foreground">
-          Sign in to the NovaStaris Android app with your fingerprint instead of typing your password.
+          Sign in to the NovaStaris Android app with your fingerprint or face instead of typing your password.
         </p>
       </CardHeader>
       <CardContent className="space-y-3">
@@ -93,7 +93,7 @@ export default function BiometricSettings() {
 
         {availability.status === "not-enrolled-on-device" && !enabledHere && (
           <p className="text-sm text-muted-foreground">
-            No fingerprint is set up on this phone. Add one in your phone&apos;s Settings → Security, then come back here.
+            No fingerprint or secure face unlock is set up on this phone. Add one in your phone&apos;s Settings → Security, then come back here.
           </p>
         )}
 
@@ -101,7 +101,7 @@ export default function BiometricSettings() {
           <>
             <p className="text-sm text-emerald-700 dark:text-emerald-400 font-medium">On for this device</p>
             <Button type="button" variant="outline" className="w-full sm:w-auto" disabled={busy} onClick={() => void remove()}>
-              {busy ? "Removing…" : "Remove fingerprint sign-in"}
+              {busy ? "Removing…" : "Remove biometric sign-in"}
             </Button>
           </>
         )}
@@ -110,12 +110,12 @@ export default function BiometricSettings() {
           <>
             {otherAccountLinked && (
               <p className="text-xs text-amber-700 dark:text-amber-400">
-                Fingerprint sign-in on this phone is linked to another NovaStaris account. Turning it on here will replace it.
+                Biometric sign-in on this phone is linked to another NovaStaris account. Turning it on here will replace it.
               </p>
             )}
             <Button type="button" className="w-full sm:w-auto" disabled={busy} onClick={() => void enable()}>
               <Fingerprint className="h-4 w-4 mr-2" />
-              {busy ? "Waiting for fingerprint…" : "Enable fingerprint sign-in"}
+              {busy ? "Waiting for biometrics…" : "Enable biometric sign-in"}
             </Button>
           </>
         )}

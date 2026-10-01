@@ -42,7 +42,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ success: true, credentialId, deviceToken });
   } catch (e) {
     console.error("account biometric POST:", e);
-    return NextResponse.json({ success: false, error: "Could not enable fingerprint sign-in." }, { status: 500 });
+    return NextResponse.json({ success: false, error: "Could not enable biometric sign-in." }, { status: 500 });
   }
 }
 

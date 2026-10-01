@@ -13,7 +13,7 @@ import {
 
 const AUTO_PROMPTED_KEY = "novastaris_biometric_auto_prompted";
 
-/** Shown on /signin in the Android app when fingerprint sign-in is enabled on this device. */
+/** Shown on /signin in the Android app when biometric sign-in is enabled on this device. */
 export default function BiometricSignInButton({
   callbackUrl,
   onError,
@@ -42,7 +42,7 @@ export default function BiometricSignInButton({
       return;
     } catch (e) {
       if (!(e instanceof BiometricCancelledError)) {
-        onError(e instanceof Error ? e.message : "Fingerprint sign-in failed.");
+        onError(e instanceof Error ? e.message : "Biometric sign-in failed.");
       }
       if (!getLocalEnrollment()) setReady(false);
     }
@@ -83,7 +83,7 @@ export default function BiometricSignInButton({
         onClick={() => void run()}
       >
         <Fingerprint className="h-5 w-5 mr-2" />
-        {busy ? "Waiting for fingerprint…" : "Sign in with fingerprint"}
+        {busy ? "Waiting for biometrics…" : "Sign in with biometrics"}
       </Button>
       {label && <p className="text-xs text-center text-muted-foreground">as {label}</p>}
     </div>

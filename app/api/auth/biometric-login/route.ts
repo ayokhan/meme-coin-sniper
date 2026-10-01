@@ -17,7 +17,7 @@ export async function POST(req: Request) {
       : null;
   if (!userId) {
     return NextResponse.json(
-      { success: false, error: "Fingerprint sign-in is no longer active on this device.", revoked: true },
+      { success: false, error: "Biometric sign-in is no longer active on this device.", revoked: true },
       { status: 401 }
     );
   }

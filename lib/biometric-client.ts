@@ -6,7 +6,7 @@ const KEYSTORE_SERVER = "novastaris.ai";
 const LOCAL_KEY = "novastaris_biometric_v1";
 export const BIOMETRIC_PROMPT_DISMISSED_KEY = "novastaris_biometric_prompt_dismissed_v1";
 
-/** Non-secret metadata so the UI knows fingerprint is set up without triggering a prompt. */
+/** Non-secret metadata so the UI knows biometric sign-in is set up without triggering a prompt. */
 export type BiometricEnrollment = {
   credentialId: string;
   userId: string;
@@ -86,7 +86,7 @@ export async function getBiometricAvailability(): Promise<BiometricAvailability>
   }
 }
 
-/** Creates a server device token and stores it in the Android Keystore behind the fingerprint. */
+/** Creates a server device token and stores it in the Android Keystore behind biometrics. */
 export async function enableBiometricSignIn(user: { id: string; label: string }): Promise<void> {
   const { NativeBiometric, AccessControl } = await plugin();
   const previous = getLocalEnrollment();
@@ -102,7 +102,7 @@ export async function enableBiometricSignIn(user: { id: string; label: string })
   });
   const data = (await res.json()) as { success?: boolean; credentialId?: string; deviceToken?: string; error?: string };
   if (!res.ok || !data.success || !data.credentialId || !data.deviceToken) {
-    throw new Error(data.error ?? "Could not enable fingerprint sign-in.");
+    throw new Error(data.error ?? "Could not enable biometric sign-in.");
   }
 
   try {
@@ -112,7 +112,7 @@ export async function enableBiometricSignIn(user: { id: string; label: string })
       username: user.id,
       password: data.deviceToken,
       accessControl: AccessControl.BIOMETRY_CURRENT_SET,
-      title: "Enable fingerprint sign-in",
+      title: "Enable biometric sign-in",
       negativeButtonText: "Cancel",
     });
   } catch (e) {
@@ -123,13 +123,13 @@ export async function enableBiometricSignIn(user: { id: string; label: string })
       body: JSON.stringify({ credentialId: data.credentialId }),
     });
     if (errorCode(e) === ERR_USER_CANCEL) throw new BiometricCancelledError();
-    throw new Error("Fingerprint could not be saved on this device.");
+    throw new Error("Biometric sign-in could not be saved on this device.");
   }
 
   setLocalEnrollment({ credentialId: data.credentialId, userId: user.id, label: user.label });
 }
 
-/** Removes the fingerprint credential from this device and revokes it server-side when signed in. */
+/** Removes the biometric credential from this device and revokes it server-side when signed in. */
 export async function disableBiometricSignIn(): Promise<void> {
   const local = getLocalEnrollment();
   await deleteKeystoreCredential();
@@ -148,7 +148,7 @@ export async function disableBiometricSignIn(): Promise<void> {
   }
 }
 
-/** Shows the fingerprint prompt and exchanges the Keystore token for a session cookie. */
+/** Shows the biometric prompt and exchanges the Keystore token for a session cookie. */
 export async function signInWithBiometric(): Promise<void> {
   const { NativeBiometric } = await plugin();
   let deviceToken: string;
@@ -156,7 +156,7 @@ export async function signInWithBiometric(): Promise<void> {
     const creds = await NativeBiometric.getSecureCredentials({
       server: KEYSTORE_SERVER,
       title: "Sign in to NovaStaris",
-      subtitle: "Use your fingerprint",
+      subtitle: "Use your fingerprint or face",
       negativeButtonText: "Use password",
     });
     deviceToken = creds.password;
@@ -165,9 +165,9 @@ export async function signInWithBiometric(): Promise<void> {
     if (code === ERR_USER_CANCEL) throw new BiometricCancelledError();
     if (code === ERR_NO_PROTECTED_CREDENTIALS) {
       setLocalEnrollment(null);
-      throw new Error("Your fingerprints changed on this device. Sign in with your password, then turn fingerprint sign-in back on in Account.");
+      throw new Error("Your fingerprint or face settings changed on this device. Sign in with your password, then turn biometric sign-in back on in Account.");
     }
-    throw new Error("Fingerprint not recognized. Try again or sign in with your password.");
+    throw new Error("Not recognized. Try again or sign in with your password.");
   }
 
   const res = await fetch("/api/auth/biometric-login", {
@@ -182,6 +182,6 @@ export async function signInWithBiometric(): Promise<void> {
       await deleteKeystoreCredential();
       setLocalEnrollment(null);
     }
-    throw new Error(data.error ?? "Fingerprint sign-in failed. Sign in with your password.");
+    throw new Error(data.error ?? "Biometric sign-in failed. Sign in with your password.");
   }
 }

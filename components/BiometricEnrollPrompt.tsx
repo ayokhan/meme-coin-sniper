@@ -33,7 +33,7 @@ function markDismissed(userId: string) {
   }
 }
 
-/** Android app: one-time offer to turn on fingerprint sign-in after the user signs in. */
+/** Android app: one-time offer to turn on biometric sign-in after the user signs in. */
 export default function BiometricEnrollPrompt() {
   const { status, data: session } = useSession();
   const pathname = usePathname();
@@ -77,7 +77,7 @@ export default function BiometricEnrollPrompt() {
       window.setTimeout(() => setVisible(false), 2500);
     } catch (e) {
       if (!(e instanceof BiometricCancelledError)) {
-        setError(e instanceof Error ? e.message : "Could not enable fingerprint sign-in.");
+        setError(e instanceof Error ? e.message : "Could not enable biometric sign-in.");
       }
     } finally {
       setBusy(false);
@@ -88,15 +88,15 @@ export default function BiometricEnrollPrompt() {
     <div className="fixed inset-x-0 bottom-0 z-[90] flex justify-center px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
       <div className="w-full max-w-md rounded-xl border border-cyan-500/40 bg-zinc-900/95 p-4 shadow-xl backdrop-blur-sm">
         {done ? (
-          <p className="text-sm font-semibold text-emerald-300 text-center">Fingerprint sign-in is on.</p>
+          <p className="text-sm font-semibold text-emerald-300 text-center">Biometric sign-in is on.</p>
         ) : (
           <>
             <div className="flex items-start gap-3">
               <Fingerprint className="h-8 w-8 shrink-0 text-cyan-400" />
               <div>
-                <p className="text-sm font-semibold text-zinc-100">Sign in faster with your fingerprint?</p>
+                <p className="text-sm font-semibold text-zinc-100">Sign in faster with biometrics?</p>
                 <p className="mt-0.5 text-xs text-zinc-400">
-                  Skip typing your password next time. You can remove it anytime in Account.
+                  Use your fingerprint or face instead of typing your password. You can remove it anytime in Account.
                 </p>
               </div>
             </div>

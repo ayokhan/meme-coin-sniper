@@ -208,8 +208,8 @@ export default function PrivacyPage() {
               managed on novastaris.ai.
             </p>
             <p>
-              <strong>Optional fingerprint sign-in:</strong> if you turn it on, your fingerprint is checked
-              by Android on your phone. NovaStaris never receives or stores fingerprint or other biometric
+              <strong>Optional biometric sign-in:</strong> if you turn it on, your fingerprint or face is checked
+              by Android on your phone. NovaStaris never receives or stores fingerprint, face, or other biometric
               data — we only store a random, revocable device sign-in key (hashed on our servers). You can
               remove it anytime in Account.
             </p>
