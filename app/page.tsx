@@ -2571,6 +2571,7 @@ function Dashboard() {
     if (typeof window !== "undefined") window.localStorage.setItem("novaConnectNicknamePromptDismissed", "1");
   };
 
+  const tokenFetchSeqRef = useRef(0);
   const fetchTokens = async (tab: TabId = activeTab, showLoading = true, countTowardLimit = false) => {
     const marketFetchInit = countTowardLimit
       ? { headers: { "X-Nova-Count-Refresh": "1" } as HeadersInit }
@@ -2601,6 +2602,8 @@ function Dashboard() {
       setWalletAlerts([]);
       return;
     }
+    const seq = ++tokenFetchSeqRef.current;
+    let superseded = false;
     if (tab === "new" && goHuntingView === "surge" && !isPaid) {
       if (showLoading) setLoading(false);
       setError(null);
@@ -2614,6 +2617,11 @@ function Dashboard() {
         const qs = new URLSearchParams({ view: goHuntingView, chain: goHuntingChain, window: surgeWindow });
         const res = await fetch(`/api/go-hunting?${qs.toString()}`, marketFetchInit);
         const data = await res.json();
+        // A slower earlier request (e.g. New pairs waiting on the Solana feed) must not overwrite the current view.
+        if (seq !== tokenFetchSeqRef.current) {
+          superseded = true;
+          return;
+        }
         if (res.status === 429 && data.limitReached) {
           setError(data.error || "Go Hunting refresh limit reached. Upgrade to VIP for unlimited refresh.");
           return;
@@ -2716,9 +2724,13 @@ function Dashboard() {
         else setError(data.error || "Failed to load tokens");
       }
     } catch (e) {
+      if (tab === "new" && seq !== tokenFetchSeqRef.current) {
+        superseded = true;
+        return;
+      }
       setError(e instanceof Error ? e.message : "Failed to fetch");
     } finally {
-      if (showLoading) setLoading(false);
+      if (showLoading && !superseded) setLoading(false);
     }
   };
 
