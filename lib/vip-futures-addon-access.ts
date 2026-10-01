@@ -181,6 +181,15 @@ export async function getNovaPatternDetectorAccess(session: Session | null): Pro
   return base;
 }
 
+export async function getNovaSessionSweepAccess(session: Session | null): Promise<VipFuturesAddonAccess> {
+  return assertTriStateFlag(
+    session,
+    FEATURE_FLAG_KEYS.NOVA_SESSION_SWEEP,
+    FEATURE_FLAG_KEYS.NOVA_SESSION_SWEEP_OWNER_ONLY,
+    "Nova Session Sweep is not available on your account yet. Contact support if you need access."
+  );
+}
+
 export async function getNovaForexAgentAccess(session: Session | null): Promise<VipFuturesAddonAccess> {
   const base = await assertVip(session);
   if (!base.ok) return base;

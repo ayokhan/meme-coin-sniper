@@ -166,6 +166,13 @@ export const FEATURE_FLAG_KEYS = {
   NOVA_EXTRA: 'nova_extra',
   /** VIP: Nova Pattern Detector under NovaForecast Agent (swing high/low zones, range cycles, multi-TF). Default OFF until admin enables. */
   NOVA_PATTERN_DETECTOR: 'nova_pattern_detector',
+  /**
+   * VIP: Nova Session Sweep under NovaForecast Agent (Asia/London/NY range sweep → CHoCH → BOS entries, 1:3 R:R, backtest).
+   * Master switch, default ON. Pair with NOVA_SESSION_SWEEP_OWNER_ONLY for Off / Owner / All VIP.
+   */
+  NOVA_SESSION_SWEEP: 'nova_session_sweep',
+  /** When master ON: only the owner sees Nova Session Sweep. Default ON (owner backtesting). Turn OFF for All VIP. */
+  NOVA_SESSION_SWEEP_OWNER_ONLY: 'nova_session_sweep_owner_only',
   /** VIP: Nova Forex Agent tab + core subtabs (forecast, NovaQ, smart, radar). Default OFF until admin enables. */
   NOVA_FOREX_AGENT: 'nova_forex_agent',
   /** VIP: Nova Forex Fib subtab. Default OFF until admin enables. */

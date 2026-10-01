@@ -163,6 +163,11 @@ const FLAG_GROUPS: { id: string; title: string; match: (key: string) => boolean 
     match: (k) => k === "nova_crypto_buddie" || k === "nova_crypto_buddie_owner_only",
   },
   {
+    id: "session-sweep",
+    title: "Nova Session Sweep",
+    match: (k) => k === "nova_session_sweep" || k === "nova_session_sweep_owner_only",
+  },
+  {
     id: "gmgn-vip-bot",
     title: "GMGN VIP Bot",
     match: (k) => k.startsWith("nova_gmgn_vip_bot"),
@@ -535,6 +540,15 @@ const FLAG_LABELS: Record<string, { label: string; description: string }> = {
     label: "Crypto Buddie — owner only",
     description:
       "When ON (and Crypto Buddie master is ON), only you see the tab and API. Turn OFF for all VIP.",
+  },
+  nova_session_sweep: {
+    label: "Nova Session Sweep (NovaForecast)",
+    description:
+      "Master switch for the Nova Session Sweep subtab: Asia / London / New York range sweeps, change of character + break of structure entries at 1:3, with backtest. Use Off / Owner only / All VIP.",
+  },
+  nova_session_sweep_owner_only: {
+    label: "Nova Session Sweep — owner only",
+    description: "When ON (and the master is ON), only you see the subtab and API. Turn OFF for all VIP.",
   },
   nova_scalp_agent: {
     label: "Nova Scalp Agent (Nova Pulse → Futures)",
@@ -1147,6 +1161,8 @@ export default function AdminFeatureFlagsPage() {
     (key.startsWith("page_tab_") && key !== "page_tab_nova_job_agent" && key !== "page_tab_coach_calls") ||
     key === "coach_calls_owner_only" ||
     key === "nova_crypto_buddie_owner_only" ||
+    key === "nova_session_sweep" ||
+    key === "nova_session_sweep_owner_only" ||
     key === "nova_find_wallet" ||
     key === "nova_find_wallet_owner_only" ||
     key === "nova_smart_money_alerts" ||
@@ -1166,6 +1182,7 @@ export default function AdminFeatureFlagsPage() {
       g.id === "nova-jobs-agent" ||
       g.id === "coach-calls" ||
       g.id === "crypto-buddie" ||
+      g.id === "session-sweep" ||
       g.id === "gmgn-vip-bot" ||
       g.id === "narratives-early" ||
       g.id === "wallet-subs"
@@ -1670,6 +1687,64 @@ export default function AdminFeatureFlagsPage() {
                                         "nova_crypto_buddie_owner_only",
                                         opt.id
                                       )
+                                    }
+                                  >
+                                    {busy && audience !== opt.id ? "…" : opt.label}
+                                  </Button>
+                                ))}
+                              </div>
+                            </div>
+                          );
+                        })()}
+                      </div>
+                    ) : group.id === "session-sweep" ? (
+                      <div className="space-y-4 px-4 pb-4 border-t border-zinc-200 dark:border-zinc-700 pt-3">
+                        <p className="text-xs text-muted-foreground">
+                          Nova Session Sweep is a <strong className="text-zinc-800 dark:text-zinc-200">VIP</strong> subtab under
+                          NovaForecast Agent. Keep it on <strong className="text-zinc-800 dark:text-zinc-200">Owner only</strong>{" "}
+                          while you backtest, then switch to{" "}
+                          <strong className="text-zinc-800 dark:text-zinc-200">All VIP</strong>.
+                        </p>
+                        {(() => {
+                          const audience = forexAudienceFromFlags("nova_session_sweep", "nova_session_sweep_owner_only");
+                          const busy = toggling === "nova_session_sweep";
+                          return (
+                            <div className="rounded-lg bg-zinc-50/80 dark:bg-zinc-900/50 p-3 space-y-3">
+                              <div className="flex flex-wrap items-start justify-between gap-2">
+                                <div className="min-w-0 flex-1">
+                                  <p className="font-medium text-zinc-900 dark:text-zinc-100">Nova Session Sweep</p>
+                                  <p className="text-xs text-muted-foreground mt-0.5">
+                                    Session high/low sweep, then change of character and break of structure, entry at 1:3. Forex,
+                                    metals and crypto perps.
+                                  </p>
+                                </div>
+                                <span
+                                  className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
+                                    audience === "off"
+                                      ? "bg-zinc-200 text-zinc-600 dark:bg-zinc-700 dark:text-zinc-400"
+                                      : audience === "owner"
+                                        ? "bg-amber-100 text-amber-900 dark:bg-amber-950 dark:text-amber-200"
+                                        : "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300"
+                                  }`}
+                                >
+                                  {audience === "off" ? "OFF" : audience === "owner" ? "OWNER ONLY" : "ALL VIP"}
+                                </span>
+                              </div>
+                              <div className="flex flex-wrap gap-2">
+                                {(
+                                  [
+                                    { id: "off" as const, label: "Off" },
+                                    { id: "owner" as const, label: "Owner only (test)" },
+                                    { id: "vip" as const, label: "All VIP" },
+                                  ] as const
+                                ).map((opt) => (
+                                  <Button
+                                    key={opt.id}
+                                    size="sm"
+                                    variant={audience === opt.id ? "default" : "outline"}
+                                    disabled={busy}
+                                    onClick={() =>
+                                      void setForexAudience("nova_session_sweep", "nova_session_sweep_owner_only", opt.id)
                                     }
                                   >
                                     {busy && audience !== opt.id ? "…" : opt.label}

@@ -132,6 +132,7 @@ import NovaQFibPanel from "@/components/NovaQFibPanel";
 import NovaQRunBar, { notifyNovaQRunSuccess } from "@/components/NovaQRunBar";
 import NovaQResultToolbar from "@/components/NovaQResultToolbar";
 import NovaPatternDetectorPanel from "@/components/NovaPatternDetectorPanel";
+import NovaSessionSweepPanel from "@/components/NovaSessionSweepPanel";
 import NovaExtraPanel from "@/components/NovaExtraPanel";
 import NovaSmartHighLowTable from "@/components/NovaSmartHighLowTable";
 import NovaTimeframeCheckboxPicker from "@/components/NovaTimeframeCheckboxPicker";
@@ -1350,6 +1351,7 @@ function Dashboard() {
     novaForexBot: boolean;
     novaForexScalpBot: boolean;
     gmgnVipBot: boolean;
+    novaSessionSweep: boolean;
   } | null>(null);
   const [showNovaPerpWalletAnalyst, setShowNovaPerpWalletAnalyst] = useState(false);
   const [showMemeLeaderboard, setShowMemeLeaderboard] = useState(false);
@@ -1383,6 +1385,7 @@ function Dashboard() {
           novaForexBot: !!d.novaForexBot,
           novaForexScalpBot: !!d.novaForexScalpBot,
           gmgnVipBot: !!d.gmgnVipBot,
+          novaSessionSweep: !!d.novaSessionSweep,
         });
       })
       .catch(() => {
@@ -1404,6 +1407,7 @@ function Dashboard() {
             novaForexBot: false,
             novaForexScalpBot: false,
             gmgnVipBot: false,
+            novaSessionSweep: false,
           });
         }
       });
@@ -1824,7 +1828,7 @@ function Dashboard() {
   const [novaForecastRange, setNovaForecastRange] = useState<string>("2w");
   const [novaForecastRangeLabel, setNovaForecastRangeLabel] = useState<string>("2 weeks");
   const [novaForecastSubTab, setNovaForecastSubTab] = useState<
-    "agent" | "nova-smart" | "nova-q" | "nova-q-fib" | "nova-extra" | "nova-pattern" | "nova-radar"
+    "agent" | "nova-smart" | "nova-q" | "nova-q-fib" | "nova-extra" | "nova-pattern" | "nova-session-sweep" | "nova-radar"
   >("agent");
   const [dashboardUrlReady, setDashboardUrlReady] = useState(false);
   /** Sub-tab under Nova Forex Bots (kept in URL so Scalp handoffs survive sync). */
@@ -1925,6 +1929,7 @@ function Dashboard() {
           forecast === "nova-q-fib" ||
           forecast === "nova-extra" ||
           forecast === "nova-pattern" ||
+          forecast === "nova-session-sweep" ||
           forecast === "nova-radar"
         ) {
           setNovaForecastSubTab(forecast);
@@ -2052,6 +2057,7 @@ function Dashboard() {
       forecast === "nova-q-fib" ||
       forecast === "nova-extra" ||
       forecast === "nova-pattern" ||
+      forecast === "nova-session-sweep" ||
       forecast === "nova-radar"
     ) {
       setNovaForecastSubTab(forecast);
@@ -8717,7 +8723,7 @@ function Dashboard() {
               })()
             ) : activeTab === "nova-forecast" ? (
               <div className="mx-6 py-6">
-                <Tabs value={novaForecastSubTab} onValueChange={(v) => setNovaForecastSubTab(v as "agent" | "nova-smart" | "nova-q" | "nova-q-fib" | "nova-extra" | "nova-pattern" | "nova-radar")} className="space-y-4">
+                <Tabs value={novaForecastSubTab} onValueChange={(v) => setNovaForecastSubTab(v as "agent" | "nova-smart" | "nova-q" | "nova-q-fib" | "nova-extra" | "nova-pattern" | "nova-session-sweep" | "nova-radar")} className="space-y-4">
                   <TabsList className="bg-zinc-100 dark:bg-zinc-800/80 border border-zinc-200/80 dark:border-zinc-700/80 p-1 rounded-lg flex-wrap h-auto gap-1">
                     <TabsTrigger value="agent" className="rounded-md px-3 py-1.5 text-sm font-medium data-[state=inactive]:bg-transparent data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:text-zinc-300 data-[state=active]:bg-violet-500 data-[state=active]:text-white dark:data-[state=active]:bg-violet-600">
                       NovaForecast Agent
@@ -8741,6 +8747,11 @@ function Dashboard() {
                     {vipFuturesAddons?.novaPatternDetector && (
                       <TabsTrigger value="nova-pattern" className="rounded-md px-3 py-1.5 text-sm font-medium data-[state=inactive]:bg-transparent data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:text-zinc-300 data-[state=active]:bg-violet-500 data-[state=active]:text-white dark:data-[state=active]:bg-violet-600">
                         Nova Playbook
+                      </TabsTrigger>
+                    )}
+                    {vipFuturesAddons?.novaSessionSweep && (
+                      <TabsTrigger value="nova-session-sweep" className="rounded-md px-3 py-1.5 text-sm font-medium data-[state=inactive]:bg-transparent data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:text-zinc-300 data-[state=active]:bg-violet-500 data-[state=active]:text-white dark:data-[state=active]:bg-violet-600">
+                        Nova Session Sweep
                       </TabsTrigger>
                     )}
                     <TabsTrigger value="nova-radar" className="rounded-md px-3 py-1.5 text-sm font-medium data-[state=inactive]:bg-transparent data-[state=inactive]:text-zinc-700 dark:data-[state=inactive]:text-zinc-300 data-[state=active]:bg-violet-500 data-[state=active]:text-white dark:data-[state=active]:bg-violet-600">
@@ -9153,6 +9164,13 @@ function Dashboard() {
                           enabled={!!vipFuturesAddons.novaPatternDetector}
                           isVip={isVip || isOwner}
                         />
+                      </div>
+                    </TabsContent>
+                  )}
+                  {vipFuturesAddons?.novaSessionSweep && (
+                    <TabsContent value="nova-session-sweep" className="mt-0">
+                      <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 p-4">
+                        <NovaSessionSweepPanel enabled={!!vipFuturesAddons.novaSessionSweep} isVip={isVip || isOwner} isOwner={isOwner} />
                       </div>
                     </TabsContent>
                   )}
