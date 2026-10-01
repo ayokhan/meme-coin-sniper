@@ -10535,7 +10535,7 @@ function Dashboard() {
                     <TableHead
                       className={
                         activeTab === "new"
-                          ? "hidden xl:table-cell text-[10px] font-semibold uppercase tracking-[0.14em] text-zinc-500 dark:text-zinc-400"
+                          ? "hidden"
                           : "hidden sm:table-cell font-semibold text-zinc-700 dark:text-zinc-300"
                       }
                     >
@@ -10578,7 +10578,7 @@ function Dashboard() {
                       }
                     >
                       <TableCell className="font-semibold text-zinc-900 dark:text-zinc-100" title={tok.name}>{tok.symbol}</TableCell>
-                      <TableCell className={`max-w-[140px] truncate hidden ${activeTab === "new" ? "xl:table-cell" : "sm:table-cell"} text-muted-foreground`}>
+                      <TableCell className={`max-w-[140px] truncate hidden ${activeTab === "new" ? "" : "sm:table-cell"} text-muted-foreground`}>
                         {tok.name}
                       </TableCell>
                       {activeTab === "new" && (
@@ -10692,16 +10692,6 @@ function Dashboard() {
                               >
                                 Dex
                               </a>
-                              {(rowChain(tok) === "solana" || rowChain(tok) === "bsc") && (
-                                <a
-                                  href={fomoUrl(tok, rowChain(tok) === "bsc" ? "bsc" : "solana")}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className={memeTableExtLinkQuietClass}
-                                >
-                                  FOMO
-                                </a>
-                              )}
                               <MemeRowMoreMenu
                                 items={[
                                   {
@@ -10725,6 +10715,9 @@ function Dashboard() {
                                       setTimeout(() => setCopiedTokenId(null), 2000);
                                     },
                                   },
+                                  ...(rowChain(tok) === "solana" || rowChain(tok) === "bsc"
+                                    ? [{ type: "link" as const, label: "FOMO", href: fomoUrl(tok, rowChain(tok) === "bsc" ? "bsc" : "solana") }]
+                                    : []),
                                   ...(rowChain(tok) === "solana"
                                     ? [
                                         { type: "link" as const, label: "Pump", href: pumpFunUrl(tok) },
