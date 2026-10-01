@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
-import { getSurgeSolanaPairs, type DexPair, type SurgeWindow } from '@/lib/api-clients/dexscreener';
+import { getSurgeSolanaPairs, type SurgeWindow } from '@/lib/api-clients/dexscreener';
 import { getSessionAndSubscription } from '@/lib/auth-server';
 import { checkGoHuntingRefreshLimit } from '@/lib/go-hunting-refresh-limit';
-import { pairToMemeToken } from '@/lib/meme-token-out';
+import { pairToSurgeToken } from '@/lib/meme-token-out';
 
 const WINDOW_LABELS: Record<string, string> = {
   m5: '5m',
@@ -12,21 +12,6 @@ const WINDOW_LABELS: Record<string, string> = {
   h6: '6h',
   h24: '24h',
 };
-
-function pairToSurgeToken(pair: DexPair) {
-  const vol1 = pair.volume?.h1 ?? null;
-  const vol6 = pair.volume?.h6 ?? null;
-  const vol24 = pair.volume?.h24 ?? 0;
-  const vol1hNum = vol1 ?? vol6 ?? vol24 ?? 0;
-  return {
-    ...pairToMemeToken(pair),
-    volume5m: vol1hNum > 0 ? vol1hNum / 12 : null,
-    volume15m: vol1hNum > 0 ? vol1hNum / 4 : null,
-    volume30m: vol1hNum > 0 ? vol1hNum / 2 : null,
-    volume1h: vol1 != null && vol1 > 0 ? vol1 : null,
-    volume6h: vol6 != null && vol6 > 0 ? vol6 : null,
-  };
-}
 
 /** Default min volume (USD) per window so short windows show more surging coins. */
 function defaultMinVolumeForWindow(window: SurgeWindow): number {

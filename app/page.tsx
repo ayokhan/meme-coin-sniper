@@ -203,6 +203,8 @@ type Token = {
   pct6h?: number | null;
   pct24h?: number | null;
   dexId?: string | null;
+  chain?: string;
+  launchpad?: string | null;
 };
 
 type WalletAlert = {
@@ -293,6 +295,43 @@ const EVM_DESK_API: Record<MemeDeskEvmTab, string> = {
   robinhood: "/api/new-pairs-robinhood",
   hyperevm: "/api/new-pairs-hyperevm",
 };
+type GoHuntingView = "new_pairs" | "final_stretch" | "migrated" | "trending" | "surge";
+type GoHuntingChainId = "solana" | "bsc" | "robinhood" | "hyperevm";
+type GoHuntingChainFilter = GoHuntingChainId | "all";
+const GO_HUNTING_VIEWS: GoHuntingView[] = ["new_pairs", "final_stretch", "migrated", "trending", "surge"];
+const GO_HUNTING_CHAIN_FILTERS: { id: GoHuntingChainFilter; label: string }[] = [
+  { id: "all", label: "All chains" },
+  { id: "solana", label: "Solana" },
+  { id: "bsc", label: "BSC" },
+  { id: "robinhood", label: "Robinhood" },
+  { id: "hyperevm", label: "HyperEVM" },
+];
+const GO_HUNTING_CHAIN_LS_KEY = "novastaris-go-hunting-chain";
+const GO_HUNTING_CHAIN_BADGE: Record<GoHuntingChainId, { label: string; className: string }> = {
+  solana: { label: "SOL", className: "bg-violet-100 text-violet-800 dark:bg-violet-900/50 dark:text-violet-200" },
+  bsc: { label: "BSC", className: "bg-amber-100 text-amber-900 dark:bg-amber-900/45 dark:text-amber-200" },
+  robinhood: { label: "HOOD", className: "bg-lime-100 text-lime-900 dark:bg-lime-900/45 dark:text-lime-200" },
+  hyperevm: { label: "HYPE", className: "bg-emerald-100 text-emerald-900 dark:bg-emerald-900/45 dark:text-emerald-200" },
+};
+function isGoHuntingView(v: string | null | undefined): v is GoHuntingView {
+  return !!v && (GO_HUNTING_VIEWS as string[]).includes(v);
+}
+function isGoHuntingChainFilter(v: string | null | undefined): v is GoHuntingChainFilter {
+  return !!v && GO_HUNTING_CHAIN_FILTERS.some((c) => c.id === v);
+}
+/** Old top tabs that now live inside Go Hunting (sub-view + chain). Links like ?tab=robinhood keep working. */
+const GO_HUNTING_MERGED_TABS = new Set<TabId>(["trending", "surge", "transactions", "bsc", "robinhood", "hyperevm"]);
+function resolveMergedMemeTab(
+  tab: string | null,
+  params?: URLSearchParams
+): { view: GoHuntingView; chain?: GoHuntingChainFilter; sortByTrades?: boolean } | null {
+  if (!tab || !GO_HUNTING_MERGED_TABS.has(tab as TabId)) return null;
+  if (tab === "trending") return { view: "trending" };
+  if (tab === "surge") return { view: "surge" };
+  if (tab === "transactions") return { view: "surge", sortByTrades: true };
+  const sub = params?.get(tab);
+  return { view: isGoHuntingView(sub) ? sub : "new_pairs", chain: tab as GoHuntingChainId };
+}
 type TopTabFilter = "all" | "core" | "pro" | "vip" | "bots";
 const PAID_TABS: TabId[] = ["surge", "transactions", "futures", "trending-perps", "perp-radar", "narratives", "ct", "wallets", "coach-calls", "nova-forecast", "nova-pulse", "nova-forex", "nova-forex-bot", "nova-plus", "nova-connect"];
 /** Platform: surge, transactions, ai-analysis, futures. VIP-only: ct, wallets, coach-calls, nova-forecast. BSC + Watchlist are free for all. */
@@ -683,7 +722,8 @@ function Dashboard() {
     return true;
   };
 
-  const showTopTab = (tab: TabId) => isTabVisibleInGui(tab) && matchesTopTabFilter(tab);
+  const showTopTab = (tab: TabId) =>
+    !GO_HUNTING_MERGED_TABS.has(tab) && isTabVisibleInGui(tab) && matchesTopTabFilter(tab);
   const isNewTopTab = (tab: TabId) => isTabNewBadgeActive(tab, tabNewBadges);
 
   const fetchSubscription = useCallback(() => {
@@ -879,8 +919,26 @@ function Dashboard() {
   const [firstBuyAlerts, setFirstBuyAlerts] = useState<Array<{ walletAddress: string; walletLabel?: string | null; contractAddress: string; symbol: string; name: string; liquidity?: number | null; priceUSD?: number | null; sentAt: string }>>([]);
   const [firstBuyToggling, setFirstBuyToggling] = useState(false);
   const [surgeWindow, setSurgeWindow] = useState<"5m" | "15m" | "30m" | "1h" | "6h" | "24h">("24h");
-  type GoHuntingView = "new_pairs" | "final_stretch" | "migrated";
   const [goHuntingView, setGoHuntingView] = useState<GoHuntingView>("new_pairs");
+  const [goHuntingChain, setGoHuntingChainState] = useState<GoHuntingChainFilter>("all");
+  const [goHuntingChainCounts, setGoHuntingChainCounts] = useState<Partial<Record<GoHuntingChainFilter, number | null>>>({});
+  const [surgeSortByTrades, setSurgeSortByTrades] = useState(false);
+  const setGoHuntingChain = useCallback((c: GoHuntingChainFilter) => {
+    setGoHuntingChainState(c);
+    try {
+      window.localStorage.setItem(GO_HUNTING_CHAIN_LS_KEY, c);
+    } catch {
+      /* private mode */
+    }
+  }, []);
+  useEffect(() => {
+    try {
+      const saved = window.localStorage.getItem(GO_HUNTING_CHAIN_LS_KEY);
+      if (isGoHuntingChainFilter(saved)) setGoHuntingChainState(saved);
+    } catch {
+      /* private mode */
+    }
+  }, []);
   const [memeSortKey, setMemeSortKey] = useState<MemeTableSortKey>("age");
   const [memeSortDir, setMemeSortDir] = useState<MemeTableSortDir>("desc");
   type BscGoHuntingView = "new_pairs" | "final_stretch" | "migrated" | "trending";
@@ -1795,6 +1853,16 @@ function Dashboard() {
           window.location.assign(href);
           return;
         }
+        const merged = resolveMergedMemeTab(tab, url.searchParams);
+        if (merged) {
+          if (!isTabVisibleInGui("new")) return;
+          setActiveTab("new");
+          setGoHuntingView(merged.view);
+          if (merged.chain) setGoHuntingChainState(merged.chain);
+          if (merged.sortByTrades) setSurgeSortByTrades(true);
+          window.scrollTo({ top: 0, behavior: "smooth" });
+          return;
+        }
         // Tab feature-flagged off: do not navigate into a dead/fallback tab.
         if (!isTabVisibleInGui(tab as TabId)) {
           return;
@@ -1802,8 +1870,12 @@ function Dashboard() {
         setActiveTab(tab as TabId);
 
         const gh = url.searchParams.get("goHunting");
-        if (gh === "new_pairs" || gh === "final_stretch" || gh === "migrated") {
+        if (isGoHuntingView(gh)) {
           setGoHuntingView(gh);
+        }
+        const ghChain = url.searchParams.get("chain");
+        if (tab === "new" && isGoHuntingChainFilter(ghChain)) {
+          setGoHuntingChainState(ghChain);
         }
         const bsc = url.searchParams.get("bsc");
         if (bsc === "new_pairs" || bsc === "final_stretch" || bsc === "migrated" || bsc === "trending") {
@@ -1903,7 +1975,13 @@ function Dashboard() {
     // Nova Forex Bots / PnL Calculator visibility depends on vipFuturesAddons. If we mark the URL
     // "ready" before those flags load, the sync effect rewrites ?tab=… to Go Hunting and the deep link is lost.
     if ((tab === "nova-forex-bot" || tab === "pnl-calculator" || tab === "gmgn-vip-bot") && vipFuturesAddons === null) return;
-    if (tab && URL_TAB_IDS.has(tab) && isTabVisibleInGui(tab as TabId)) {
+    const merged = resolveMergedMemeTab(tab, params);
+    if (merged) {
+      setActiveTab("new");
+      setGoHuntingView(merged.view);
+      if (merged.chain) setGoHuntingChainState(merged.chain);
+      if (merged.sortByTrades) setSurgeSortByTrades(true);
+    } else if (tab && URL_TAB_IDS.has(tab) && isTabVisibleInGui(tab as TabId)) {
       setActiveTab(tab as TabId);
     }
     const forex = params.get("forex");
@@ -1911,8 +1989,12 @@ function Dashboard() {
       setForexBotSubTab(forex);
     }
     const gh = params.get("goHunting");
-    if (gh === "new_pairs" || gh === "final_stretch" || gh === "migrated") {
+    if (!merged && isGoHuntingView(gh)) {
       setGoHuntingView(gh);
+    }
+    const ghChain = params.get("chain");
+    if (!merged && tab === "new" && isGoHuntingChainFilter(ghChain)) {
+      setGoHuntingChainState(ghChain);
     }
     const bsc = params.get("bsc");
     if (bsc === "new_pairs" || bsc === "final_stretch" || bsc === "migrated" || bsc === "trending") {
@@ -2198,6 +2280,7 @@ function Dashboard() {
     const params = new URLSearchParams();
     params.set("tab", activeTab);
     if (activeTab === "new") params.set("goHunting", goHuntingView);
+    if (activeTab === "new" && goHuntingChain !== "all") params.set("chain", goHuntingChain);
     if (activeTab === "bsc") params.set("bsc", bscGoHuntingView);
     if (activeTab === "robinhood") params.set("robinhood", robinhoodGoHuntingView);
     if (activeTab === "hyperevm") params.set("hyperevm", hyperevmGoHuntingView);
@@ -2213,6 +2296,7 @@ function Dashboard() {
   }, [
     activeTab,
     goHuntingView,
+    goHuntingChain,
     bscGoHuntingView,
     robinhoodGoHuntingView,
     hyperevmGoHuntingView,
@@ -2226,12 +2310,22 @@ function Dashboard() {
     setHomeAnalyticsPath,
   ]);
 
+  useEffect(() => {
+    const merged = resolveMergedMemeTab(activeTab);
+    if (!merged) return;
+    setActiveTab("new");
+    setGoHuntingView(merged.view);
+    if (merged.chain) setGoHuntingChainState(merged.chain);
+    if (merged.sortByTrades) setSurgeSortByTrades(true);
+  }, [activeTab]);
+
   /** Keep browser URL in sync so refresh restores tab + sub-view (Nova Q, Go Hunting view, etc.). */
   useEffect(() => {
     if (!dashboardUrlReady || typeof window === "undefined" || window.location.pathname !== "/") return;
     const params = new URLSearchParams();
     params.set("tab", activeTab);
     if (activeTab === "new") params.set("goHunting", goHuntingView);
+    if (activeTab === "new" && goHuntingChain !== "all") params.set("chain", goHuntingChain);
     if (activeTab === "bsc") params.set("bsc", bscGoHuntingView);
     if (activeTab === "robinhood") params.set("robinhood", robinhoodGoHuntingView);
     if (activeTab === "hyperevm") params.set("hyperevm", hyperevmGoHuntingView);
@@ -2251,6 +2345,7 @@ function Dashboard() {
   }, [
     activeTab,
     goHuntingView,
+    goHuntingChain,
     bscGoHuntingView,
     robinhoodGoHuntingView,
     hyperevmGoHuntingView,
@@ -2506,9 +2601,34 @@ function Dashboard() {
       setWalletAlerts([]);
       return;
     }
+    if (tab === "new" && goHuntingView === "surge" && !isPaid) {
+      if (showLoading) setLoading(false);
+      setError(null);
+      setTokens([]);
+      return;
+    }
     if (showLoading) setLoading(true);
     setError(null);
     try {
+      if (tab === "new") {
+        const qs = new URLSearchParams({ view: goHuntingView, chain: goHuntingChain, window: surgeWindow });
+        const res = await fetch(`/api/go-hunting?${qs.toString()}`, marketFetchInit);
+        const data = await res.json();
+        if (res.status === 429 && data.limitReached) {
+          setError(data.error || "Go Hunting refresh limit reached. Upgrade to VIP for unlimited refresh.");
+          return;
+        }
+        if (data.success) {
+          setTokens(data.tokens ?? []);
+          setGoHuntingChainCounts({ ...(data.chainCounts ?? {}), all: data.allCount ?? null });
+          setLastFetched(new Date());
+        } else if (res.status === 403 && data.locked) {
+          setTokens([]);
+        } else {
+          setError(data.error ?? "Failed to load Go Hunting");
+        }
+        return;
+      }
       if (tab === "bsc") {
         const view = bscGoHuntingView;
         const url = view === "trending" ? "/api/trending-bsc" : `/api/new-pairs-bsc?view=${view}&maxAgeMinutes=120&limit=150`;
@@ -2575,12 +2695,10 @@ function Dashboard() {
         return;
       }
       const surgeWindowParam = tab === "surge" ? surgeWindow : "24h";
-      const limit = isPaid ? 200 : 50;
       const url =
         tab === "trending" ? "/api/trending"
         : tab === "surge" ? `/api/surge?window=${surgeWindowParam}&limit=80`
         : tab === "transactions" ? "/api/surge?window=24h&limit=80"
-        : tab === "new" ? `/api/new-pairs?maxAgeMinutes=180&limit=${limit}&view=${goHuntingView}`
         : tab === "ct" ? "/api/tokens?source=twitter"
         : "/api/tokens";
       const res = await fetch(url, marketFetchInit);
@@ -2821,10 +2939,11 @@ function Dashboard() {
     if (activeTab === "wallets") {
       if (walletTrackerView === "meme") fetchTrackedWallets();
     }
-  }, [activeTab, isPaid, isVip, goHuntingView, bscGoHuntingView, robinhoodGoHuntingView, hyperevmGoHuntingView, walletTrackerView, canAccessCtScanEffective, canAccessMemeCoinsTraderEffective]);
+  }, [activeTab, isPaid, isVip, goHuntingView, goHuntingChain, bscGoHuntingView, robinhoodGoHuntingView, hyperevmGoHuntingView, walletTrackerView, canAccessCtScanEffective, canAccessMemeCoinsTraderEffective]);
 
   useEffect(() => {
     if (activeTab === "surge") fetchTokens("surge");
+    if (activeTab === "new" && goHuntingView === "surge") fetchTokens("new");
   }, [surgeWindow]);
 
   const fetchTrendingPerps = async (timeframeOverride?: "24h" | "1h" | "30m" | "15m" | "5m", allTimeframes?: boolean) => {
@@ -3994,6 +4113,9 @@ function Dashboard() {
     });
   }, []);
 
+  const isSurgeView = activeTab === "surge" || (activeTab === "new" && goHuntingView === "surge");
+  const goHuntingTradesSort = activeTab === "new" && goHuntingView === "surge" && surgeSortByTrades;
+
   const renderMemeSortHead = (key: MemeTableSortKey, label: string, align: "left" | "right" = "right") => {
     const hunting = activeTab === "new";
     const activeSort = hunting
@@ -4012,12 +4134,15 @@ function Dashboard() {
       >
         <button
           type="button"
-          onClick={() => toggleMemeSort(key)}
+          onClick={() => {
+            setSurgeSortByTrades(false);
+            toggleMemeSort(key);
+          }}
           className={`inline-flex items-center gap-0.5 w-full ${align === "right" ? "justify-end" : "justify-start"} ${hoverSort} transition-colors`}
           title={`Sort by ${label}`}
         >
           <span>{label}</span>
-          {memeSortKey === key && (
+          {memeSortKey === key && !goHuntingTradesSort && (
             <span className={`${activeSort} text-[10px]`}>{memeSortDir === "desc" ? "▼" : "▲"}</span>
           )}
         </button>
@@ -4028,7 +4153,7 @@ function Dashboard() {
   // Sort + dedupe token rows for meme tables
   const tokensForDisplay = (() => {
     let base: Token[] = tokens;
-    if (activeTab === "transactions" && tokens.length > 0) {
+    if ((activeTab === "transactions" || goHuntingTradesSort) && tokens.length > 0) {
       base = [...tokens].sort((a, b) => {
         const ta = (a.txnsBuys24h ?? 0) + (a.txnsSells24h ?? 0);
         const tb = (b.txnsBuys24h ?? 0) + (b.txnsSells24h ?? 0);
@@ -4286,6 +4411,50 @@ function Dashboard() {
       : dexscreenerTokenUrl(t.contractAddress, chain);
   const memeDeskWatchlistChain = (tab: TabId): "solana" | "bsc" | "robinhood" | "hyperevm" =>
     tab === "bsc" ? "bsc" : tab === "robinhood" ? "robinhood" : tab === "hyperevm" ? "hyperevm" : "solana";
+  const rowChain = (tok: Token): GoHuntingChainId =>
+    tok.chain === "bsc" || tok.chain === "robinhood" || tok.chain === "hyperevm" || tok.chain === "solana"
+      ? tok.chain
+      : memeDeskWatchlistChain(activeTab);
+  const dexUrlForRow = (tok: Token) => {
+    const chain = rowChain(tok);
+    return chain === "solana" ? dexUrl(tok) : dexUrlEvmDesk(tok, chain);
+  };
+  const selectGoHuntingView = (v: GoHuntingView) => {
+    if (v === goHuntingView) return;
+    setTokens([]);
+    setGoHuntingView(v);
+  };
+  const selectGoHuntingChain = (c: GoHuntingChainFilter) => {
+    if (c === goHuntingChain) return;
+    setTokens((prev) => (c === "all" ? [] : prev.filter((tok) => tok.chain === c)));
+    setGoHuntingChain(c);
+  };
+  const goHuntingHint = (() => {
+    const evmNoCurve = goHuntingChain === "robinhood" || goHuntingChain === "hyperevm";
+    switch (goHuntingView) {
+      case "new_pairs":
+        return goHuntingChain === "solana"
+          ? t("ui.huntingNewHint")
+          : goHuntingChain === "bsc"
+            ? t("ui.bscNewHint")
+            : "Newest pairs first. Click a column header to sort.";
+      case "final_stretch":
+        if (goHuntingChain === "solana") return t("ui.huntingFinalHint");
+        if (goHuntingChain === "bsc") return t("ui.bscFinalHint");
+        if (evmNoCurve) return "This chain has no bonding-curve launchpad, so this shows young coins under ~$69k market cap.";
+        return "Bonding-curve coins close to graduating: Pump.fun on Solana and Four.meme on BSC. Robinhood and HyperEVM have no bonding curve; pick them in the chain filter to see their under-$69k coins.";
+      case "migrated":
+        if (goHuntingChain === "solana") return t("ui.huntingMigratedHint");
+        if (goHuntingChain === "bsc") return t("ui.bscMigratedHint");
+        return "Coins trading on a full DEX pool (Raydium, Orca, Meteora, PancakeSwap, Uniswap, HyperSwap).";
+      case "trending":
+        return goHuntingChain === "all"
+          ? "Live movers ranked by 24h volume and price change, mixed evenly across chains."
+          : "Live movers ranked by 24h volume and price change.";
+      case "surge":
+        return "Biggest volume in the selected window (5m/15m/30m estimated from 1h). Smaller chains use lower volume minimums.";
+    }
+  })();
   const isMemeTableTab = (tab: TabId) =>
     tab === "new" || tab === "trending" || isMemeDeskEvmTab(tab) || tab === "surge";
   const bscScanUrl = (t: Token) => `https://bscscan.com/token/${t.contractAddress}`;
@@ -5263,40 +5432,95 @@ function Dashboard() {
                   accent="meme"
                   eyebrow="Meme desk"
                   title={t("tabs.new")}
-                  line="Hunt early Solana momentum, then run AI contract analysis on one pick."
+                  line="Hunt early momentum on Solana, BSC, Robinhood and HyperEVM, then run AI contract analysis on one pick."
                 >
                   <DeskViewSegment
                     accent="meme"
                     value={goHuntingView}
-                    onChange={setGoHuntingView}
+                    onChange={selectGoHuntingView}
                     options={[
                       { id: "new_pairs" as const, label: t("ui.newPairs") },
                       { id: "final_stretch" as const, label: t("ui.finalStretch") },
                       { id: "migrated" as const, label: t("ui.migrated") },
+                      { id: "trending" as const, label: t("tabs.trending") },
+                      { id: "surge" as const, label: isPaid ? t("tabs.surge") : `${t("tabs.surge")} · VIP` },
                     ]}
-                    hint={
-                      goHuntingView === "new_pairs"
-                        ? t("ui.huntingNewHint")
-                        : goHuntingView === "final_stretch"
-                          ? t("ui.huntingFinalHint")
-                          : t("ui.huntingMigratedHint")
-                    }
+                    hint={goHuntingHint}
                   />
+                  <div className="mt-3 flex flex-wrap items-center gap-1.5" role="group" aria-label="Filter by chain">
+                    {GO_HUNTING_CHAIN_FILTERS.map((c) => {
+                      const active = goHuntingChain === c.id;
+                      const count = goHuntingChainCounts[c.id];
+                      const outOfScope = c.id !== "all" && goHuntingView === "final_stretch" && goHuntingChain === "all" && (c.id === "robinhood" || c.id === "hyperevm");
+                      return (
+                        <button
+                          key={c.id}
+                          type="button"
+                          onClick={() => selectGoHuntingChain(c.id)}
+                          className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
+                            active
+                              ? "border-teal-500 bg-teal-500 text-white dark:border-teal-400 dark:bg-teal-600"
+                              : "border-zinc-200 bg-white/70 text-zinc-700 hover:border-teal-400/60 hover:text-teal-800 dark:border-zinc-700 dark:bg-zinc-800/60 dark:text-zinc-300 dark:hover:text-teal-200"
+                          }`}
+                        >
+                          {c.label}
+                          {!outOfScope && count != null && (
+                            <span className={`tabular-nums ${active ? "text-white/85" : "text-zinc-400 dark:text-zinc-500"}`}>{count}</span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {goHuntingView === "surge" && isPaid && (
+                    <div className="mt-3 flex flex-wrap items-center gap-1.5">
+                      <span className="mr-1 text-xs font-medium text-zinc-600 dark:text-zinc-400">{t("ui.volumeWindow")}</span>
+                      {(["5m", "15m", "30m", "1h", "6h", "24h"] as const).map((w) => (
+                        <button
+                          key={w}
+                          type="button"
+                          onClick={() => setSurgeWindow(w)}
+                          className={`rounded-md px-2.5 py-1 text-xs font-medium transition-colors ${
+                            surgeWindow === w
+                              ? "bg-teal-600 text-white dark:bg-teal-500"
+                              : "bg-zinc-200/80 text-zinc-700 hover:bg-zinc-300/80 dark:bg-zinc-700/80 dark:text-zinc-300 dark:hover:bg-zinc-600/80"
+                          }`}
+                        >
+                          {w}
+                        </button>
+                      ))}
+                      <button
+                        type="button"
+                        onClick={() => setSurgeSortByTrades((v) => !v)}
+                        aria-pressed={surgeSortByTrades}
+                        className={`ml-2 rounded-md border px-2.5 py-1 text-xs font-medium transition-colors ${
+                          surgeSortByTrades
+                            ? "border-teal-500 bg-teal-50 text-teal-800 dark:border-teal-400 dark:bg-teal-950/50 dark:text-teal-200"
+                            : "border-zinc-200 text-zinc-600 hover:border-teal-400/60 dark:border-zinc-700 dark:text-zinc-400"
+                        }`}
+                      >
+                        Sort by trades
+                      </button>
+                    </div>
+                  )}
                   {goHuntingView === "new_pairs" && tokensForDisplay.length > 0 && tokensForDisplay.length <= 5 && (
                     <p className="mt-2 text-xs text-slate-600 dark:text-slate-300/90">
                       Only {tokensForDisplay.length} pair{tokensForDisplay.length === 1 ? "" : "s"} launched in this
-                      window right now — Solana new-listing volume varies by hour. Try{" "}
+                      window right now — new-listing volume varies by hour. Try{" "}
+                      {goHuntingChain !== "all" && (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => selectGoHuntingChain("all")}
+                            className="underline font-medium text-teal-700 dark:text-teal-300"
+                          >
+                            All chains
+                          </button>
+                          ,{" "}
+                        </>
+                      )}
                       <button
                         type="button"
-                        onClick={() => setGoHuntingView("final_stretch")}
-                        className="underline font-medium text-teal-700 dark:text-teal-300"
-                      >
-                        Final Stretch
-                      </button>
-                      ,{" "}
-                      <button
-                        type="button"
-                        onClick={() => setActiveTab("trending")}
+                        onClick={() => selectGoHuntingView("trending")}
                         className="underline font-medium text-teal-700 dark:text-teal-300"
                       >
                         Trending
@@ -5304,7 +5528,7 @@ function Dashboard() {
                       , or{" "}
                       <button
                         type="button"
-                        onClick={() => setActiveTab("surge")}
+                        onClick={() => selectGoHuntingView("surge")}
                         className="underline font-medium text-teal-700 dark:text-teal-300"
                       >
                         Surge
@@ -5313,6 +5537,21 @@ function Dashboard() {
                     </p>
                   )}
                 </DeskTabChrome>
+                {goHuntingView === "surge" && !isPaid && (
+                  <div className="flex flex-col items-center justify-center rounded-xl border border-teal-500/20 px-6 py-12 text-center dark:border-teal-400/15">
+                    <p className="text-base font-semibold text-zinc-800 dark:text-zinc-200">
+                      {isGuest ? t("lock.createAccount") : t("lock.subscribe")}
+                    </p>
+                    <p className="mt-2 max-w-md text-sm text-muted-foreground">{t("lockDesc.surge")}</p>
+                    {isGuest ? (
+                      <GuestAuthActions registerHref="/register" signInHref="/signin" />
+                    ) : (
+                      <Button asChild size="sm" className="mt-5 bg-teal-600 text-white hover:bg-teal-500">
+                        <Link href="/subscribe">{t("nav.upgradeVip")}</Link>
+                      </Button>
+                    )}
+                  </div>
+                )}
               </div>
             )}
             {activeTab === "bsc" && (
@@ -10077,7 +10316,7 @@ function Dashboard() {
                   </Table>
                 </div>
               )
-            ) : tokensForDisplay.length === 0 ? (
+            ) : activeTab === "new" && goHuntingView === "surge" && !isPaid ? null : tokensForDisplay.length === 0 ? (
               activeTab === "new" ? (
                 <div className="flex flex-col items-center justify-center py-20 px-6 text-center">
                   <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-teal-700/90 dark:text-teal-200/85">
@@ -10087,7 +10326,9 @@ function Dashboard() {
                     No pairs in this view
                   </p>
                   <p className="mt-2 max-w-sm text-sm text-zinc-600 dark:text-zinc-400 leading-relaxed">
-                    Try Final Stretch or refresh — Solana listings ebb by the hour.
+                    {goHuntingChain === "all"
+                      ? "Try another view or refresh — listings ebb by the hour."
+                      : "Try All chains, another view, or refresh — listings ebb by the hour."}
                   </p>
                   <Button
                     onClick={() => fetchTokens(activeTab, true, true)}
@@ -10230,9 +10471,14 @@ function Dashboard() {
                     >
                       {t("ui.colName")}
                     </TableHead>
+                    {activeTab === "new" && (
+                      <TableHead className="text-[10px] font-semibold uppercase tracking-[0.14em] text-zinc-500 dark:text-zinc-400">
+                        Chain / Pad
+                      </TableHead>
+                    )}
                     {renderMemeSortHead("score", "Score")}
-                    {activeTab === "surge" && <TableHead className="text-right font-semibold text-zinc-700 dark:text-zinc-300">Vol ({surgeWindow})</TableHead>}
-                    {activeTab === "surge" && <TableHead className="text-right font-semibold text-zinc-700 dark:text-zinc-300">TXNS</TableHead>}
+                    {isSurgeView && <TableHead className="text-right font-semibold text-zinc-700 dark:text-zinc-300">Vol ({surgeWindow})</TableHead>}
+                    {isSurgeView && <TableHead className="text-right font-semibold text-zinc-700 dark:text-zinc-300">TXNS</TableHead>}
                     {isMemeTableTab(activeTab) && renderMemeSortHead("pct5m", "5m")}
                     {isMemeTableTab(activeTab) && renderMemeSortHead("pct1h", "1h")}
                     {isMemeTableTab(activeTab) && renderMemeSortHead("pct6h", "6h")}
@@ -10265,6 +10511,18 @@ function Dashboard() {
                       <TableCell className="max-w-[140px] truncate hidden sm:table-cell text-muted-foreground">
                         {tok.name}
                       </TableCell>
+                      {activeTab === "new" && (
+                        <TableCell className="whitespace-nowrap">
+                          <span
+                            className={`inline-flex rounded px-1.5 py-0.5 text-[10px] font-bold tracking-wide ${GO_HUNTING_CHAIN_BADGE[rowChain(tok)].className}`}
+                          >
+                            {GO_HUNTING_CHAIN_BADGE[rowChain(tok)].label}
+                          </span>
+                          {tok.launchpad && (
+                            <span className="ml-1.5 text-[11px] text-zinc-500 dark:text-zinc-400">{tok.launchpad}</span>
+                          )}
+                        </TableCell>
+                      )}
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end gap-1.5">
                           <Badge
@@ -10284,7 +10542,7 @@ function Dashboard() {
                           )}
                         </div>
                       </TableCell>
-                      {activeTab === "surge" && (
+                      {isSurgeView && (
                         <TableCell className="text-right tabular-nums font-medium text-cyan-700 dark:text-cyan-300">
                           {formatVol(
                             surgeWindow === "5m" ? tok.volume5m
@@ -10296,7 +10554,7 @@ function Dashboard() {
                           )}
                         </TableCell>
                       )}
-                      {activeTab === "surge" && (
+                      {isSurgeView && (
                         <TableCell className="text-right tabular-nums text-xs">
                           {tok.txnsBuys24h != null || tok.txnsSells24h != null ? (
                             <>
@@ -10343,41 +10601,43 @@ function Dashboard() {
                         >
                           <button
                             type="button"
-                            onClick={() => toggleWatchlist(tok, memeDeskWatchlistChain(activeTab))}
-                            className={`inline-flex items-center ${activeTab === "new" ? "p-0.5" : "rounded-md px-2 py-1"} text-xs font-medium transition-colors ${isInWatchlist(tok.contractAddress, memeDeskWatchlistChain(activeTab)) ? "text-amber-500 hover:text-amber-600 dark:text-amber-400 dark:hover:text-amber-300" : "text-zinc-500 hover:text-amber-500 dark:text-zinc-400 dark:hover:text-amber-400"}`}
-                            title={isInWatchlist(tok.contractAddress, memeDeskWatchlistChain(activeTab)) ? "Remove from watchlist" : "Add to watchlist"}
+                            onClick={() => toggleWatchlist(tok, rowChain(tok))}
+                            className={`inline-flex items-center ${activeTab === "new" ? "p-0.5" : "rounded-md px-2 py-1"} text-xs font-medium transition-colors ${isInWatchlist(tok.contractAddress, rowChain(tok)) ? "text-amber-500 hover:text-amber-600 dark:text-amber-400 dark:hover:text-amber-300" : "text-zinc-500 hover:text-amber-500 dark:text-zinc-400 dark:hover:text-amber-400"}`}
+                            title={isInWatchlist(tok.contractAddress, rowChain(tok)) ? "Remove from watchlist" : "Add to watchlist"}
                           >
-                            <Star className={`h-3.5 w-3.5 ${isInWatchlist(tok.contractAddress, memeDeskWatchlistChain(activeTab)) ? "fill-current" : ""}`} />
+                            <Star className={`h-3.5 w-3.5 ${isInWatchlist(tok.contractAddress, rowChain(tok)) ? "fill-current" : ""}`} />
                           </button>
                           <MemeTokenTableActions
                             contractAddress={tok.contractAddress}
-                            chain={memeDeskWatchlistChain(activeTab)}
+                            chain={rowChain(tok)}
                             variant={activeTab === "new" ? "quiet" : "default"}
                           />
                           {activeTab === "new" ? (
                             <>
                               <a
-                                href={dexUrl(tok)}
+                                href={dexUrlForRow(tok)}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className={memeTableExtLinkQuietClass}
                               >
                                 Dex
                               </a>
-                              <a
-                                href={fomoUrl(tok)}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className={memeTableExtLinkQuietClass}
-                              >
-                                FOMO
-                              </a>
+                              {(rowChain(tok) === "solana" || rowChain(tok) === "bsc") && (
+                                <a
+                                  href={fomoUrl(tok, rowChain(tok) === "bsc" ? "bsc" : "solana")}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className={memeTableExtLinkQuietClass}
+                                >
+                                  FOMO
+                                </a>
+                              )}
                               <MemeRowMoreMenu
                                 items={[
                                   {
                                     type: "action",
                                     label: "NovaStaris AI Agent",
-                                    onClick: () => openNovaStarisAiAgent(tok.contractAddress, "solana"),
+                                    onClick: () => openNovaStarisAiAgent(tok.contractAddress, rowChain(tok)),
                                   },
                                   {
                                     type: "action",
@@ -10390,14 +10650,20 @@ function Dashboard() {
                                     type: "action",
                                     label: "Share Dex link",
                                     onClick: async () => {
-                                      await navigator.clipboard.writeText(dexUrl(tok));
+                                      await navigator.clipboard.writeText(dexUrlForRow(tok));
                                       setCopiedTokenId(tok.id);
                                       setTimeout(() => setCopiedTokenId(null), 2000);
                                     },
                                   },
-                                  { type: "link", label: "Pump", href: pumpFunUrl(tok) },
-                                  { type: "link", label: "GMGN", href: gmgnUrl(tok) },
-                                  { type: "link", label: "Maestro", href: maestroUrl(tok) },
+                                  ...(rowChain(tok) === "solana"
+                                    ? [
+                                        { type: "link" as const, label: "Pump", href: pumpFunUrl(tok) },
+                                        { type: "link" as const, label: "GMGN", href: gmgnUrl(tok) },
+                                        { type: "link" as const, label: "Maestro", href: maestroUrl(tok) },
+                                      ]
+                                    : rowChain(tok) === "bsc"
+                                      ? [{ type: "link" as const, label: "BscScan", href: bscScanUrl(tok) }]
+                                      : []),
                                   ...(tok.twitter
                                     ? [{ type: "link" as const, label: "X", href: tok.twitter }]
                                     : []),

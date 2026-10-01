@@ -55,29 +55,54 @@ function chainMatches(pair: DexPair, dexChainKey: string): boolean {
   return chain === dexChainKey;
 }
 
+/** Search results are shared across views/chains within one instance; DexScreener caps search at ~300 req/min. */
+const SEARCH_CACHE_TTL_MS = 45_000;
+const SEARCH_CONCURRENCY = 6;
+const searchCache = new Map<string, { at: number; pairs: Promise<DexPair[]> }>();
+
+function searchPairsCached(q: string): Promise<DexPair[]> {
+  const now = Date.now();
+  const hit = searchCache.get(q);
+  if (hit && now - hit.at < SEARCH_CACHE_TTL_MS) return hit.pairs;
+  const pairs = axios
+    .get<{ pairs?: DexPair[] }>(`${DEXSCREENER_BASE}/latest/dex/search`, { params: { q }, timeout: 15000 })
+    .then((res) => res.data?.pairs ?? [])
+    .catch(() => {
+      searchCache.delete(q);
+      return [] as DexPair[];
+    });
+  searchCache.set(q, { at: now, pairs });
+  if (searchCache.size > 500) {
+    for (const [key, entry] of searchCache) {
+      if (now - entry.at >= SEARCH_CACHE_TTL_MS) searchCache.delete(key);
+    }
+  }
+  return pairs;
+}
+
 /** Fetch pairs for a chain via DexScreener search. */
 export async function fetchChainPairsViaSearch(
   dexChainKey: MemeRunnerChainDexKey,
   extraQueries: string[] = []
 ): Promise<DexPair[]> {
-  const queries = [...(CHAIN_BASE_QUERIES[dexChainKey] ?? []), ...extraQueries];
+  const queries = [...new Set([...(CHAIN_BASE_QUERIES[dexChainKey] ?? []), ...extraQueries])];
+  const results: DexPair[][] = new Array(queries.length);
+  let next = 0;
+  const worker = async () => {
+    while (next < queries.length) {
+      const i = next++;
+      results[i] = await searchPairsCached(queries[i]);
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(SEARCH_CONCURRENCY, queries.length) }, worker));
   const seen = new Set<string>();
   const all: DexPair[] = [];
-  for (const q of queries) {
-    try {
-      const res = await axios.get<{ pairs?: DexPair[] }>(`${DEXSCREENER_BASE}/latest/dex/search`, {
-        params: { q },
-        timeout: 15000,
-      });
-      const pairs = res.data?.pairs ?? [];
-      for (const p of pairs) {
-        if (!chainMatches(p, dexChainKey)) continue;
-        if (seen.has(p.pairAddress)) continue;
-        seen.add(p.pairAddress);
-        all.push(p);
-      }
-    } catch {
-      // skip failed query
+  for (const pairs of results) {
+    for (const p of pairs ?? []) {
+      if (!chainMatches(p, dexChainKey)) continue;
+      if (seen.has(p.pairAddress)) continue;
+      seen.add(p.pairAddress);
+      all.push(p);
     }
   }
   return all;
@@ -338,6 +363,48 @@ export async function getSurgeSolanaPairs(
   }
 }
 
+export type ChainMoverOptions = {
+  chain: MemeRunnerChainDexKey;
+  allowedDexIds: string[];
+  minLiquidity: number;
+  limit: number;
+};
+
+/** Trending movers on any search-backed chain (24h volume weighted by price change). */
+export async function getTrendingChainPairs(opts: ChainMoverOptions & { minVolume24h: number }): Promise<DexPair[]> {
+  try {
+    const allowed = new Set(opts.allowedDexIds.map(normalizeDexIdForFilter));
+    const pairs = await fetchChainPairsViaSearch(opts.chain);
+    const usd = (p: DexPair) => p.liquidity?.usd ?? 0;
+    const vol = (p: DexPair) => p.volume?.h24 ?? 0;
+    const change = (p: DexPair) => p.priceChange?.h24 ?? p.priceChange?.h6 ?? 0;
+    return pairs
+      .filter((p) => dexAllowed(p.dexId || '', allowed) && usd(p) >= opts.minLiquidity && vol(p) >= opts.minVolume24h)
+      .sort((a, b) => vol(b) * (1 + change(b) / 100) - vol(a) * (1 + change(a) / 100))
+      .slice(0, opts.limit);
+  } catch {
+    return [];
+  }
+}
+
+/** Surge (volume in a window) on any search-backed chain. */
+export async function getSurgeChainPairs(
+  opts: ChainMoverOptions & { window: SurgeWindow; minVolume: number }
+): Promise<DexPair[]> {
+  try {
+    const allowed = new Set(opts.allowedDexIds.map(normalizeDexIdForFilter));
+    const pairs = await fetchChainPairsViaSearch(opts.chain);
+    const usd = (p: DexPair) => p.liquidity?.usd ?? 0;
+    const vol = (p: DexPair) => getVolumeForWindow(p, opts.window);
+    return pairs
+      .filter((p) => dexAllowed(p.dexId || '', allowed) && usd(p) >= opts.minLiquidity && vol(p) >= opts.minVolume)
+      .sort((a, b) => vol(b) - vol(a))
+      .slice(0, opts.limit);
+  } catch {
+    return [];
+  }
+}
+
 export async function getSolanaToken(mintAddress: string): Promise<DexPair | null> {
   try {
     const response = await axios.get<DexPair[] | { pairs?: DexPair[] }>(`https://api.dexscreener.com/tokens/v1/solana/${mintAddress}`, { timeout: 15000 });
@@ -357,32 +424,7 @@ const BSC_DEX_IDS = ['pancakeswap', 'pancakeswap_v2', 'pancakeswap_v3', 'biswap'
 
 /** Fetch BSC pairs via search (same API, filter by chainId). */
 async function fetchBscPairsViaSearch(extraQueries: string[] = []): Promise<DexPair[]> {
-  const queries = [
-    'BNB', 'BUSD', 'CAKE', 'PEPE', 'FLOKI', 'DOGE', 'SHIB', 'MEME', 'TURBO', 'WOJAK',
-    'bsc', 'pancakeswap', 'meme coin', 'new token', 'binance smart chain',
-    ...extraQueries,
-  ];
-  const seen = new Set<string>();
-  const all: DexPair[] = [];
-  for (const q of queries) {
-    try {
-      const res = await axios.get<{ pairs?: DexPair[] }>(`${DEXSCREENER_BASE}/latest/dex/search`, {
-        params: { q },
-        timeout: 15000,
-      });
-      const pairs = res.data?.pairs ?? [];
-      for (const p of pairs) {
-        const chain = (p.chainId || '').toLowerCase();
-        if (!BSC_CHAIN_IDS.includes(chain) && chain !== 'bnb') continue;
-        if (seen.has(p.pairAddress)) continue;
-        seen.add(p.pairAddress);
-        all.push(p);
-      }
-    } catch {
-      // skip
-    }
-  }
-  return all;
+  return fetchChainPairsViaSearch('bsc', extraQueries);
 }
 
 export async function getNewBscPairs(minLiquidity = 500, maxAgeMinutes = 120): Promise<DexPair[]> {

@@ -22,7 +22,31 @@ export type MemeTokenOut = {
   pct6h: number | null;
   pct24h: number | null;
   dexId: string | null;
+  /** Set by multi-chain Go Hunting. */
+  chain?: string;
+  launchpad?: string | null;
+  volume5m?: number | null;
+  volume15m?: number | null;
+  volume30m?: number | null;
+  volume1h?: number | null;
+  volume6h?: number | null;
 };
+
+/** Adds per-window volumes for Surge (5m/15m/30m are estimated from 1h; DexScreener only reports h1/h6/h24). */
+export function pairToSurgeToken(pair: DexPair): MemeTokenOut {
+  const vol1 = pair.volume?.h1 ?? null;
+  const vol6 = pair.volume?.h6 ?? null;
+  const vol24 = pair.volume?.h24 ?? 0;
+  const vol1hNum = vol1 ?? vol6 ?? vol24 ?? 0;
+  return {
+    ...pairToMemeToken(pair),
+    volume5m: vol1hNum > 0 ? vol1hNum / 12 : null,
+    volume15m: vol1hNum > 0 ? vol1hNum / 4 : null,
+    volume30m: vol1hNum > 0 ? vol1hNum / 2 : null,
+    volume1h: vol1 != null && vol1 > 0 ? vol1 : null,
+    volume6h: vol6 != null && vol6 > 0 ? vol6 : null,
+  };
+}
 
 export function extractPairPriceChanges(pair: DexPair): {
   pct5m: number | null;
