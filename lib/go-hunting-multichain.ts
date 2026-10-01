@@ -21,6 +21,7 @@ import {
   type GoHuntingView,
 } from "@/lib/go-hunting-views";
 import { normalizeDexId } from "@/lib/meme-runner/launchpads";
+import axios from "axios";
 import { pairToMemeToken, pairToSurgeToken, type MemeTokenOut } from "@/lib/meme-token-out";
 
 export type GoHuntingTabView = GoHuntingView | "trending" | "surge";
@@ -342,6 +343,60 @@ export function getChainRows(chain: GoHuntingChain, view: GoHuntingTabView, wind
   });
   rowCache.set(key, { at: now, rows });
   return rows;
+}
+
+/** DexScreener /tokens/v1 accepts up to 30 addresses per call. */
+async function fetchPairsForAddresses(chain: GoHuntingChain, addresses: string[]): Promise<DexPair[]> {
+  const batches: string[][] = [];
+  for (let i = 0; i < addresses.length; i += 30) batches.push(addresses.slice(i, i + 30));
+  const results = await Promise.all(
+    batches.map((batch) =>
+      axios
+        .get<DexPair[] | { pairs?: DexPair[] }>(`https://api.dexscreener.com/tokens/v1/${chain}/${batch.join(",")}`, {
+          timeout: 15000,
+        })
+        .then((res) => (Array.isArray(res.data) ? res.data : res.data?.pairs ?? []))
+        .catch(() => [] as DexPair[])
+    )
+  );
+  return results.flat();
+}
+
+export type WatchlistRequestItem = { chain: GoHuntingChain; address: string; symbol?: string; name?: string };
+
+/** Live rows for watched coins (most liquid pair per token); coins DexScreener no longer lists keep a bare row so they can be removed. */
+export async function fetchWatchlistRows(items: WatchlistRequestItem[]): Promise<GoHuntingRow[]> {
+  const byChain = new Map<GoHuntingChain, WatchlistRequestItem[]>();
+  for (const it of items) byChain.set(it.chain, [...(byChain.get(it.chain) ?? []), it]);
+  const perChain = await Promise.all(
+    [...byChain.entries()].map(async ([chain, list]) => {
+      const pairs = await fetchPairsForAddresses(chain, list.map((i) => i.address));
+      const norm = (a: string) => (chain === "solana" ? a : a.toLowerCase());
+      const best = new Map<string, DexPair>();
+      for (const p of pairs) {
+        const key = norm(p.baseToken?.address || "");
+        const cur = best.get(key);
+        if (!cur || (p.liquidity?.usd ?? 0) > (cur.liquidity?.usd ?? 0)) best.set(key, p);
+      }
+      return list.map((it): GoHuntingRow => {
+        const pair = best.get(norm(it.address));
+        if (pair) return withChain(chain, pairToMemeToken(pair), pair);
+        return withChain(
+          chain,
+          listingToken({
+            addr: it.address,
+            idPrefix: "watch:",
+            symbol: it.symbol,
+            name: it.name,
+            liquidity: 0,
+            dexId: null,
+            launchpad: null,
+          })
+        );
+      });
+    })
+  );
+  return perChain.flat();
 }
 
 export function chainsForView(view: GoHuntingTabView, filter: GoHuntingChainFilter): GoHuntingChain[] {

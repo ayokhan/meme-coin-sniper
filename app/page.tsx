@@ -295,10 +295,10 @@ const EVM_DESK_API: Record<MemeDeskEvmTab, string> = {
   robinhood: "/api/new-pairs-robinhood",
   hyperevm: "/api/new-pairs-hyperevm",
 };
-type GoHuntingView = "new_pairs" | "final_stretch" | "migrated" | "trending" | "surge";
+type GoHuntingView = "new_pairs" | "final_stretch" | "migrated" | "trending" | "surge" | "watchlist";
 type GoHuntingChainId = "solana" | "bsc" | "robinhood" | "hyperevm";
 type GoHuntingChainFilter = GoHuntingChainId | "all";
-const GO_HUNTING_VIEWS: GoHuntingView[] = ["new_pairs", "final_stretch", "migrated", "trending", "surge"];
+const GO_HUNTING_VIEWS: GoHuntingView[] = ["new_pairs", "final_stretch", "migrated", "trending", "surge", "watchlist"];
 const GO_HUNTING_CHAIN_FILTERS: { id: GoHuntingChainFilter; label: string }[] = [
   { id: "all", label: "All chains" },
   { id: "solana", label: "Solana" },
@@ -320,7 +320,7 @@ function isGoHuntingChainFilter(v: string | null | undefined): v is GoHuntingCha
   return !!v && GO_HUNTING_CHAIN_FILTERS.some((c) => c.id === v);
 }
 /** Old top tabs that now live inside Go Hunting (sub-view + chain). Links like ?tab=robinhood keep working. */
-const GO_HUNTING_MERGED_TABS = new Set<TabId>(["trending", "surge", "transactions", "bsc", "robinhood", "hyperevm"]);
+const GO_HUNTING_MERGED_TABS = new Set<TabId>(["trending", "surge", "transactions", "bsc", "robinhood", "hyperevm", "watchlist"]);
 function resolveMergedMemeTab(
   tab: string | null,
   params?: URLSearchParams
@@ -329,6 +329,7 @@ function resolveMergedMemeTab(
   if (tab === "trending") return { view: "trending" };
   if (tab === "surge") return { view: "surge" };
   if (tab === "transactions") return { view: "surge", sortByTrades: true };
+  if (tab === "watchlist") return { view: "watchlist" };
   const sub = params?.get(tab);
   return { view: isGoHuntingView(sub) ? sub : "new_pairs", chain: tab as GoHuntingChainId };
 }
@@ -2613,6 +2614,32 @@ function Dashboard() {
     if (showLoading) setLoading(true);
     setError(null);
     try {
+      if (tab === "new" && goHuntingView === "watchlist") {
+        const items = watchlist
+          .map((w) => ({ chain: w.chain ?? "solana", address: w.contractAddress, symbol: w.symbol, name: w.name }))
+          .filter((w) => goHuntingChain === "all" || w.chain === goHuntingChain);
+        if (items.length === 0) {
+          setTokens([]);
+          return;
+        }
+        const res = await fetch("/api/go-hunting/watchlist", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ items }),
+        });
+        const data = await res.json();
+        if (seq !== tokenFetchSeqRef.current) {
+          superseded = true;
+          return;
+        }
+        if (data.success) {
+          setTokens(data.tokens ?? []);
+          setLastFetched(new Date());
+        } else {
+          setError(data.error ?? "Failed to load watchlist");
+        }
+        return;
+      }
       if (tab === "new") {
         const qs = new URLSearchParams({ view: goHuntingView, chain: goHuntingChain, window: surgeWindow });
         const res = await fetch(`/api/go-hunting?${qs.toString()}`, marketFetchInit);
@@ -2957,6 +2984,11 @@ function Dashboard() {
     if (activeTab === "surge") fetchTokens("surge");
     if (activeTab === "new" && goHuntingView === "surge") fetchTokens("new");
   }, [surgeWindow]);
+
+  const watchlistKey = watchlist.map((w) => `${w.chain ?? "solana"}:${w.contractAddress}`).sort().join(",");
+  useEffect(() => {
+    if (activeTab === "new" && goHuntingView === "watchlist") fetchTokens("new", tokens.length === 0);
+  }, [watchlistKey]);
 
   const fetchTrendingPerps = async (timeframeOverride?: "24h" | "1h" | "30m" | "15m" | "5m", allTimeframes?: boolean) => {
     const tf = timeframeOverride ?? trendingPerpsTimeframe;
@@ -4174,6 +4206,11 @@ function Dashboard() {
     } else if (activeTab === "new" || activeTab === "trending" || isMemeDeskEvmTab(activeTab) || activeTab === "surge") {
       base = sortMemeTokens(tokens, memeSortKey, memeSortDir);
     }
+    if (activeTab === "new" && goHuntingView === "watchlist") {
+      base = base.filter((t) =>
+        watchlist.some((w) => w.contractAddress === t.contractAddress && (w.chain ?? "solana") === (t.chain ?? "solana"))
+      );
+    }
     const seen = new Set<string>();
     return base.filter((t) => {
       if (seen.has(t.id)) return false;
@@ -4465,8 +4502,19 @@ function Dashboard() {
           : "Live movers ranked by 24h volume and price change.";
       case "surge":
         return "Biggest volume in the selected window (5m/15m/30m estimated from 1h). Smaller chains use lower volume minimums.";
+      case "watchlist":
+        return "Coins you starred, with live price, change and liquidity. Tap the star again to remove one. Saved on this device.";
     }
   })();
+  const watchlistChainCounts = (() => {
+    const counts: Partial<Record<GoHuntingChainFilter, number>> = { all: watchlist.length };
+    for (const w of watchlist) {
+      const c = w.chain ?? "solana";
+      counts[c] = (counts[c] ?? 0) + 1;
+    }
+    return counts;
+  })();
+  const chipCounts = goHuntingView === "watchlist" ? watchlistChainCounts : goHuntingChainCounts;
   const isMemeTableTab = (tab: TabId) =>
     tab === "new" || tab === "trending" || isMemeDeskEvmTab(tab) || tab === "surge";
   const bscScanUrl = (t: Token) => `https://bscscan.com/token/${t.contractAddress}`;
@@ -5456,13 +5504,14 @@ function Dashboard() {
                       { id: "migrated" as const, label: t("ui.migrated") },
                       { id: "trending" as const, label: t("tabs.trending") },
                       { id: "surge" as const, label: isPaid ? t("tabs.surge") : `${t("tabs.surge")} · VIP` },
+                      { id: "watchlist" as const, label: `★ Watchlist${watchlist.length > 0 ? ` ${watchlist.length}` : ""}` },
                     ]}
                     hint={goHuntingHint}
                   />
                   <div className="mt-3 flex flex-wrap items-center gap-1.5" role="group" aria-label="Filter by chain">
                     {GO_HUNTING_CHAIN_FILTERS.map((c) => {
                       const active = goHuntingChain === c.id;
-                      const count = goHuntingChainCounts[c.id];
+                      const count = chipCounts[c.id];
                       const outOfScope = c.id !== "all" && goHuntingView === "final_stretch" && goHuntingChain === "all" && (c.id === "robinhood" || c.id === "hyperevm");
                       return (
                         <button
@@ -10335,12 +10384,16 @@ function Dashboard() {
                     Meme desk
                   </p>
                   <p className="mt-2 font-[family-name:var(--font-space-grotesk)] text-xl font-semibold tracking-tight text-zinc-900 dark:text-white">
-                    No pairs in this view
+                    {goHuntingView === "watchlist" ? "Your watchlist is empty" : "No pairs in this view"}
                   </p>
                   <p className="mt-2 max-w-sm text-sm text-zinc-600 dark:text-zinc-400 leading-relaxed">
-                    {goHuntingChain === "all"
-                      ? "Try another view or refresh — listings ebb by the hour."
-                      : "Try All chains, another view, or refresh — listings ebb by the hour."}
+                    {goHuntingView === "watchlist"
+                      ? goHuntingChain === "all"
+                        ? "Tap the star on any coin in New pairs, Trending or Surge to watch it here."
+                        : "No watched coins on this chain. Pick All chains or star a coin from another view."
+                      : goHuntingChain === "all"
+                        ? "Try another view or refresh — listings ebb by the hour."
+                        : "Try All chains, another view, or refresh — listings ebb by the hour."}
                   </p>
                   <Button
                     onClick={() => fetchTokens(activeTab, true, true)}
