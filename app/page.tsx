@@ -10510,7 +10510,7 @@ function Dashboard() {
               <div
                 className={
                   activeTab === "new"
-                    ? "mx-3 sm:mx-6 mb-8 sm:mb-10 overflow-x-auto rounded-xl border border-teal-500/20 dark:border-teal-400/15 [&_table]:w-full [&_table]:min-w-[1100px]"
+                    ? "mx-3 sm:mx-6 mb-8 sm:mb-10 overflow-x-auto rounded-xl border border-teal-500/20 dark:border-teal-400/15 [&_table]:w-full [&_table]:min-w-[980px]"
                     : "mx-3 sm:mx-6 overflow-x-auto pb-8 sm:pb-10 [&_table]:w-full [&_table]:min-w-[980px]"
                 }
               >
@@ -10535,7 +10535,7 @@ function Dashboard() {
                     <TableHead
                       className={
                         activeTab === "new"
-                          ? "hidden sm:table-cell text-[10px] font-semibold uppercase tracking-[0.14em] text-zinc-500 dark:text-zinc-400"
+                          ? "hidden xl:table-cell text-[10px] font-semibold uppercase tracking-[0.14em] text-zinc-500 dark:text-zinc-400"
                           : "hidden sm:table-cell font-semibold text-zinc-700 dark:text-zinc-300"
                       }
                     >
@@ -10577,8 +10577,8 @@ function Dashboard() {
                           : "border-zinc-200/60 dark:border-zinc-800/60 transition-colors hover:bg-cyan-50/40 dark:hover:bg-cyan-950/20"
                       }
                     >
-                      <TableCell className="font-semibold text-zinc-900 dark:text-zinc-100">{tok.symbol}</TableCell>
-                      <TableCell className="max-w-[140px] truncate hidden sm:table-cell text-muted-foreground">
+                      <TableCell className="font-semibold text-zinc-900 dark:text-zinc-100" title={tok.name}>{tok.symbol}</TableCell>
+                      <TableCell className={`max-w-[140px] truncate hidden ${activeTab === "new" ? "xl:table-cell" : "sm:table-cell"} text-muted-foreground`}>
                         {tok.name}
                       </TableCell>
                       {activeTab === "new" && (
