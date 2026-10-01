@@ -2153,6 +2153,56 @@ model EarlyCatchConfig {
   updatedAt       DateTime @updatedAt
 }
 
+/** Strong Runners (Narratives → VIP): mid-cap memes with strong narrative, liquidity and conviction. */
+model StrongRunnerConfig {
+  id                 String   @id @default("default")
+  enabled            Boolean  @default(true)
+  vipDailyLimit      Int      @default(10)
+  minMarketCapUsd    Float    @default(3000000)
+  maxMarketCapUsd    Float    @default(150000000)
+  minLiquidityUsd    Float    @default(250000)
+  minLiquidityRatio  Float    @default(0.04)
+  minVolume24hUsd    Float    @default(1000000)
+  minAgeHours        Float    @default(48)
+  minConvictionScore Int      @default(55)
+  updatedAt          DateTime @updatedAt
+}
+
+/** Cached scan per chain so repeat requests within a few minutes reuse one AI call. */
+model StrongRunnerScan {
+  id        String   @id @default(cuid())
+  chain     String
+  result    Json
+  createdAt DateTime @default(now())
+
+  @@index([chain, createdAt])
+}
+
+/** Every coin flagged by Strong Runners, tracked afterwards to build an honest track record. */
+model StrongRunnerPick {
+  id              String    @id @default(cuid())
+  chain           String
+  tokenAddress    String
+  pairAddress     String
+  symbol          String
+  name            String
+  convictionScore Int
+  narrative       String?
+  mcapAtFlag      Float
+  priceAtFlag     Float
+  liquidityAtFlag Float
+  flaggedAt       DateTime  @default(now())
+  peakMcap        Float?
+  lastMcap        Float?
+  lastCheckedAt   DateTime?
+  mcap1d          Float?
+  mcap7d          Float?
+  mcap30d         Float?
+
+  @@index([chain, tokenAddress, flaggedAt])
+  @@index([flaggedAt])
+}
+
 model EarlyCatchUserLimit {
   id         String   @id @default(cuid())
   userId     String   @unique

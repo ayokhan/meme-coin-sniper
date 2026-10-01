@@ -471,6 +471,7 @@ export default function AdminProductVisibilityPage() {
       <FindWalletConfigCard />
       <SmartMoneyConfigCard />
       <EarlyCatchConfigCard />
+      <StrongRunnersConfigCard />
       <PnlCalculatorConfigCard />
     </div>
   );
@@ -923,6 +924,115 @@ function SmartMoneyConfigCard() {
               Set
             </Button>
           </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+/* ---------- Strong Runners Config ---------- */
+
+type StrongRunnersCfg = {
+  enabled: boolean;
+  vipDailyLimit: number;
+  minMarketCapUsd: number;
+  maxMarketCapUsd: number;
+  minLiquidityUsd: number;
+  minLiquidityRatio: number;
+  minVolume24hUsd: number;
+  minAgeHours: number;
+  minConvictionScore: number;
+};
+
+const STRONG_RUNNER_FIELDS: Array<[keyof StrongRunnersCfg, string]> = [
+  ["vipDailyLimit", "VIP fresh scans / day"],
+  ["minConvictionScore", "Min conviction score (0–100)"],
+  ["minMarketCapUsd", "Min market cap USD"],
+  ["maxMarketCapUsd", "Max market cap USD"],
+  ["minLiquidityUsd", "Min liquidity USD"],
+  ["minLiquidityRatio", "Min liquidity ÷ market cap (e.g. 0.04)"],
+  ["minVolume24hUsd", "Min 24h volume USD"],
+  ["minAgeHours", "Min age (hours)"],
+];
+
+function StrongRunnersConfigCard() {
+  const [cfg, setCfg] = useState<StrongRunnersCfg | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/admin/strong-runners-config")
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.success) setCfg(d.config);
+      });
+  }, []);
+
+  const save = async (patch: Partial<StrongRunnersCfg>) => {
+    setSaving(true);
+    setSaved(false);
+    const r = await fetch("/api/admin/strong-runners-config", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(patch),
+    });
+    const d = await r.json();
+    if (d.success) {
+      setCfg(d.config);
+      setSaved(true);
+    }
+    setSaving(false);
+  };
+
+  if (!cfg) return null;
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-sm">Strong Runners (Narratives, VIP): filters & limits</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4 text-sm">
+        <p className="text-xs text-muted-foreground">
+          Applies to Solana and BSC. Robinhood uses 35% of the market cap, liquidity and volume minimums, and at most 24h age.
+        </p>
+        <label className="flex items-center gap-2 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={cfg.enabled}
+            onChange={() => save({ enabled: !cfg.enabled })}
+            disabled={saving}
+            className="rounded"
+          />
+          Strong Runners enabled for VIP
+        </label>
+        <div className="grid grid-cols-2 gap-3">
+          {STRONG_RUNNER_FIELDS.map(([key, label]) => (
+            <div key={key}>
+              <label className="text-xs text-muted-foreground">{label}</label>
+              <input
+                type="number"
+                min={0}
+                step="any"
+                className="w-full mt-1 px-2 py-1 rounded border text-sm bg-background"
+                value={cfg[key] as number}
+                onChange={(e) => setCfg({ ...cfg, [key]: +e.target.value })}
+              />
+            </div>
+          ))}
+        </div>
+        <div className="flex items-center gap-3">
+          <Button
+            size="sm"
+            disabled={saving}
+            onClick={() => {
+              const { enabled: _enabled, ...numbers } = cfg;
+              void _enabled;
+              void save(numbers);
+            }}
+          >
+            {saving ? "Saving…" : "Save Strong Runners settings"}
+          </Button>
+          {saved && <span className="text-xs text-emerald-600">Saved</span>}
         </div>
       </CardContent>
     </Card>

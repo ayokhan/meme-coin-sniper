@@ -11,6 +11,10 @@
     {
       "path": "/api/cron/emails",
       "schedule": "15 0 * * *"
+    },
+    {
+      "path": "/api/cron/strong-runners-track",
+      "schedule": "30 0 * * *"
     }
   ]
 }

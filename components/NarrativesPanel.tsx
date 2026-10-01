@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import EarlyCatchPanel from "@/components/EarlyCatchPanel";
+import StrongRunnersPanel from "@/components/StrongRunnersPanel";
 
 /* ---------- Types ---------- */
 
@@ -312,7 +313,7 @@ function DiyResearchTab() {
 
 /* ---------- Main component ---------- */
 
-type SubTab = "scanner" | "early-catch" | "diy";
+type SubTab = "scanner" | "early-catch" | "strong-runners" | "diy";
 
 export default function NarrativesPanel({ isPaid }: { isPaid?: boolean }) {
   const [subTab, setSubTab] = useState<SubTab>("scanner");
@@ -397,7 +398,7 @@ export default function NarrativesPanel({ isPaid }: { isPaid?: boolean }) {
       </div>
 
       {/* Sub-tabs */}
-      <div className="flex gap-1 mb-5 border-b border-zinc-200 dark:border-zinc-800 overflow-x-auto">
+      <div className="flex gap-1 mb-5 border-b border-zinc-200 dark:border-zinc-800 overflow-x-auto overflow-y-hidden">
         <button
           className={`px-3 py-2 text-sm font-medium transition-colors border-b-2 -mb-px whitespace-nowrap ${subTab === "scanner" ? "border-cyan-500 text-cyan-600 dark:text-cyan-400" : "border-transparent text-muted-foreground hover:text-zinc-700 dark:hover:text-zinc-300"}`}
           onClick={() => setSubTab("scanner")}
@@ -413,6 +414,13 @@ export default function NarrativesPanel({ isPaid }: { isPaid?: boolean }) {
           </button>
         )}
         <button
+          className={`px-3 py-2 text-sm font-medium transition-colors border-b-2 -mb-px whitespace-nowrap inline-flex items-center gap-1.5 ${subTab === "strong-runners" ? "border-orange-500 text-orange-600 dark:text-orange-400" : "border-transparent text-muted-foreground hover:text-zinc-700 dark:hover:text-zinc-300"}`}
+          onClick={() => setSubTab("strong-runners")}
+        >
+          Strong Runners
+          <span className="text-[9px] px-1 py-px rounded bg-amber-500/15 text-amber-600 dark:text-amber-300 border border-amber-500/30">VIP</span>
+        </button>
+        <button
           className={`px-3 py-2 text-sm font-medium transition-colors border-b-2 -mb-px whitespace-nowrap ${subTab === "diy" ? "border-cyan-500 text-cyan-600 dark:text-cyan-400" : "border-transparent text-muted-foreground hover:text-zinc-700 dark:hover:text-zinc-300"}`}
           onClick={() => setSubTab("diy")}
         >
@@ -424,6 +432,8 @@ export default function NarrativesPanel({ isPaid }: { isPaid?: boolean }) {
         <DiyResearchTab />
       ) : subTab === "early-catch" ? (
         <EarlyCatchPanel />
+      ) : subTab === "strong-runners" ? (
+        <StrongRunnersPanel />
       ) : (
         <div className="space-y-4">
           {/* Chain + Timeframe + Scan */}
