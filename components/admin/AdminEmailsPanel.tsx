@@ -24,6 +24,12 @@ import {
   drawPnlCalculatorPostcard,
 } from "@/lib/pnl-calculator-share-image";
 import {
+  buildSessionSweepShareCaption,
+  downloadSessionSweepPostcard,
+  drawSessionSweepPostcard,
+  sessionSweepPostcardFilename,
+} from "@/lib/session-sweep-share-image";
+import {
   BLOFIN_PARTNER_JOIN_URL,
   buildBlofinPartnerShareCaption,
   downloadBlofinPartnerPostcard,
@@ -872,6 +878,89 @@ export default function AdminEmailsPanel({ onNotice, onError }: Props) {
         </CardContent>
       </Card>
 
+      <Card className="border-teal-200/80 dark:border-teal-800/50">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base">Session Sweep — launch postcards</CardTitle>
+          <p className="text-sm text-muted-foreground">
+            Premium cards with the sweep → CHoCH → BOS chart drawn in code. <strong>Square</strong> for X, Instagram feed,
+            WhatsApp and Telegram; <strong>Story</strong> for Instagram and WhatsApp status. Pair with the{" "}
+            <strong>Session Sweep launch (VIP)</strong> or <strong>explainer (free → VIP)</strong> email presets.
+          </p>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {(["square", "story"] as const).map((size) => (
+            <div key={size} className="space-y-2">
+              <p className="text-xs font-semibold text-teal-800 dark:text-teal-200">
+                {size === "square" ? "Square 1080×1080" : "Story 1080×1920"}
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  type="button"
+                  size="sm"
+                  disabled={postcardBusy}
+                  onClick={async () => {
+                    setPostcardBusy(true);
+                    try {
+                      const blob = await drawSessionSweepPostcard(size);
+                      await sharePnlWithFallback(
+                        blob,
+                        sessionSweepPostcardFilename(size),
+                        buildSessionSweepShareCaption(size)
+                      );
+                      onNotice?.("Session Sweep postcard shared or downloaded.");
+                    } catch {
+                      onError?.("Could not load the Session Sweep postcard.");
+                    } finally {
+                      setPostcardBusy(false);
+                    }
+                  }}
+                >
+                  {postcardBusy ? "Preparing…" : "Share"}
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  disabled={postcardBusy}
+                  onClick={async () => {
+                    setPostcardBusy(true);
+                    try {
+                      await downloadSessionSweepPostcard(size);
+                      onNotice?.("Session Sweep postcard downloaded.");
+                    } catch {
+                      onError?.("Could not load the Session Sweep postcard.");
+                    } finally {
+                      setPostcardBusy(false);
+                    }
+                  }}
+                >
+                  Download
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  onClick={async () => {
+                    try {
+                      await navigator.clipboard.writeText(buildSessionSweepShareCaption(size));
+                      onNotice?.("Caption copied.");
+                    } catch {
+                      onError?.("Could not copy the caption.");
+                    }
+                  }}
+                >
+                  Copy caption
+                </Button>
+              </div>
+            </div>
+          ))}
+          <p className="text-xs text-muted-foreground">
+            The tab only shows for users the Nova Session Sweep flag allows. Set it to <strong>All VIP</strong> in Feature
+            flags before posting or sending.
+          </p>
+        </CardContent>
+      </Card>
+
       <Card className="border-amber-200/80 dark:border-amber-800/50">
         <CardHeader className="pb-2">
           <CardTitle className="text-base">PnL Calculator — social postcards</CardTitle>
@@ -1377,6 +1466,14 @@ export default function AdminEmailsPanel({ onNotice, onError }: Props) {
             <p className="text-xs text-amber-700 dark:text-amber-300 rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2">
               PnL Calculator rich layout is on (teal NovaStaris hero, feature card, Open PnL Calculator CTA). Suggested audience:
               all users with email.
+            </p>
+          )}
+          {format === "rich" && (draft.template === "session-sweep" || draft.template === "session-sweep-upsell") && (
+            <p className="text-xs text-teal-700 dark:text-teal-300 rounded-md border border-teal-500/30 bg-teal-500/10 px-3 py-2">
+              {draft.template === "session-sweep"
+                ? "Session Sweep VIP layout is on (teal hero, chart illustration, How to read it steps, Open Session Sweep CTA). Suggested audience: VIP. Switch the Nova Session Sweep flag to All VIP first."
+                : "Session Sweep explainer layout is on (same chart and steps, VIP tool card, Unlock with VIP CTA). Suggested audience: free users."}{" "}
+              Editing the body replaces the designed copy with your text; the chart stays.
             </p>
           )}
           {format === "rich" && draft.template === "robinhood-hyperevm" && (

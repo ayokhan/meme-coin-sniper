@@ -10,6 +10,13 @@ import {
   shouldUseCustomPnlCalculatorIntro,
 } from "@/lib/pnl-calculator-launch-email";
 import {
+  SESSION_SWEEP_EMAIL_CHART_URL,
+  SESSION_SWEEP_LAUNCH_EMAIL,
+  SESSION_SWEEP_UPSELL_EMAIL,
+  SESSION_SWEEP_URL,
+  shouldUseCustomSessionSweepIntro,
+} from "@/lib/session-sweep-launch-email";
+import {
   ROBINHOOD_HYPEREVM_LAUNCH_EMAIL,
   shouldUseCustomRobinhoodHyperevmIntro,
 } from "@/lib/robinhood-hyperevm-launch-email";
@@ -38,6 +45,8 @@ export type AnnouncementEmailTemplate =
   | "why-traders"
   | "futures-morning-brief"
   | "pnl-calculator"
+  | "session-sweep"
+  | "session-sweep-upsell"
   | "robinhood-hyperevm"
   | "gmgn-vip-bot"
   | "investor-outreach"
@@ -54,6 +63,8 @@ export const ANNOUNCEMENT_EMAIL_TEMPLATES: AnnouncementEmailTemplate[] = [
   "why-traders",
   "futures-morning-brief",
   "pnl-calculator",
+  "session-sweep",
+  "session-sweep-upsell",
   "robinhood-hyperevm",
   "gmgn-vip-bot",
   "investor-outreach",
@@ -676,6 +687,144 @@ export function buildPnlCalculatorLaunchEmailHtml(args?: {
   return pnlCalculatorEmailShell(inner);
 }
 
+function sessionSweepStepRowHtml(n: number, title: string, text: string, color: string): string {
+  return `
+<tr>
+  <td width="40" valign="top" style="padding:0 0 12px 0;">
+    <div style="width:28px;height:28px;line-height:28px;border-radius:14px;background:${color};color:#042f2e;font-size:14px;font-weight:800;text-align:center;font-family:Arial,Helvetica,sans-serif;">${n}</div>
+  </td>
+  <td valign="top" style="padding:3px 0 12px 0;font-family:Arial,Helvetica,sans-serif;">
+    <p style="margin:0 0 2px 0;font-size:15px;font-weight:700;color:#fafafa;">${escapeHtml(title)}</p>
+    <p style="margin:0;font-size:14px;line-height:1.45;color:#d4d4d8;">${escapeHtml(text)}</p>
+  </td>
+</tr>`.trim();
+}
+
+/**
+ * Rich Session Sweep launch email with the code-drawn chart illustration.
+ * `vip` announces the live tab; `upsell` teaches the same sequence to free users and points to VIP.
+ */
+export function buildSessionSweepLaunchEmailHtml(args: {
+  variant: "vip" | "upsell";
+  body?: string;
+  ctaLabel?: string | null;
+  ctaUrl?: string | null;
+}): string {
+  const isVip = args.variant === "vip";
+  const preset = isVip ? SESSION_SWEEP_LAUNCH_EMAIL : SESSION_SWEEP_UPSELL_EMAIL;
+  const customBody = (args.body ?? "").trim();
+  const ctaLabel = args.ctaLabel?.trim() || preset.ctaLabel;
+  const ctaUrl = absoluteAnnouncementUrl(args.ctaUrl?.trim() || preset.ctaUrl);
+  const tabLink = absoluteAnnouncementUrl(SESSION_SWEEP_URL);
+
+  const chart = `
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 6px 0;border-collapse:collapse;">
+  <tr>
+    <td align="center">
+      <img src="${escapeHtml(SESSION_SWEEP_EMAIL_CHART_URL)}" width="504" alt="Illustration: the Asia session low is swept at the London open, then a change of character and a break of structure set up a long with a 3R target." style="display:block;width:100%;max-width:504px;height:auto;border:0;border-radius:12px;" />
+    </td>
+  </tr>
+  <tr>
+    <td align="center" style="padding:6px 0 0 0;font-family:Arial,Helvetica,sans-serif;font-size:11px;color:#71717a;">Illustrative example — not a live trade.</td>
+  </tr>
+</table>`.trim();
+
+  const steps = `
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:18px 0 18px 0;border-collapse:collapse;">
+  <tr>
+    <td style="background:#27272a;border:1px solid #0f766e;border-radius:12px;padding:16px 18px 6px 18px;">
+      <p style="margin:0 0 12px 0;font-size:13px;font-weight:700;color:#5eead4;text-transform:uppercase;letter-spacing:0.06em;font-family:Arial,Helvetica,sans-serif;">How to read it</p>
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;">
+        ${sessionSweepStepRowHtml(1, "Sweep", "Price spikes past a session high or low, where stops sit, then snaps back inside.", "#14b8a6")}
+        ${sessionSweepStepRowHtml(2, "CHoCH (change of character)", "The first close against the old trend.", "#fbbf24")}
+        ${sessionSweepStepRowHtml(3, "BOS (break of structure)", "Structure breaks. That close is the entry, with the stop and a 3R target mapped.", "#14b8a6")}
+      </table>
+    </td>
+  </tr>
+</table>`.trim();
+
+  const included = isVip
+    ? `
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 18px 0;border-collapse:collapse;">
+  <tr>
+    <td style="padding:0 2px;font-family:Arial,Helvetica,sans-serif;">
+      <p style="margin:0 0 10px 0;font-size:13px;font-weight:700;color:#5eead4;text-transform:uppercase;letter-spacing:0.06em;">What&apos;s inside</p>
+      <p style="margin:0 0 7px 0;font-size:14px;line-height:1.45;color:#f4f4f5;">Gold, silver, major forex pairs and crypto perps</p>
+      <p style="margin:0 0 7px 0;font-size:14px;line-height:1.45;color:#f4f4f5;">Asia, London and New York ranges with live level status</p>
+      <p style="margin:0 0 7px 0;font-size:14px;line-height:1.45;color:#f4f4f5;">Zoomable chart with every setup drawn on it</p>
+      <p style="margin:0;font-size:14px;line-height:1.45;color:#f4f4f5;">Backtest with spread and fees included, so the numbers are honest</p>
+    </td>
+  </tr>
+</table>`.trim()
+    : `
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 18px 0;border-collapse:collapse;">
+  <tr>
+    <td style="background:#1c1917;border:1px solid #a16207;border-radius:12px;padding:14px 18px;font-family:Arial,Helvetica,sans-serif;">
+      <p style="margin:0 0 6px 0;font-size:13px;font-weight:700;color:#fcd34d;text-transform:uppercase;letter-spacing:0.06em;">VIP tool</p>
+      <p style="margin:0;font-size:14px;line-height:1.5;color:#f4f4f5;">
+        Session Sweep tracks this live on gold, silver, forex and crypto perps, with every setup drawn on the chart and a
+        backtest that includes spread and fees. It&apos;s part of VIP, alongside the rest of the VIP desks.
+      </p>
+    </td>
+  </tr>
+</table>`.trim();
+
+  const bodyBlock = customBody
+    ? `<td bgcolor="#18181b" style="padding:24px 28px 8px 28px;background:#18181b;">
+        ${chart}
+        <div style="height:16px;line-height:16px;">&nbsp;</div>
+        ${announcementBodyToHtml(customBody)}
+        <div style="margin:8px 0 8px 0;text-align:center;">${pnlCalculatorCtaButtonHtml(ctaLabel, ctaUrl)}</div>
+      </td>`
+    : `<td bgcolor="#18181b" style="padding:24px 28px 8px 28px;background:#18181b;">
+        <p style="margin:0 0 14px 0;font-size:15px;line-height:1.55;color:#e4e4e7;">Hi there,</p>
+        <p style="margin:0 0 18px 0;font-size:15px;line-height:1.55;color:#e4e4e7;">
+          ${
+            isVip
+              ? `<strong style="color:#fafafa;">Session Sweep</strong> is live in your VIP dashboard as its own tab. It tracks the
+          Asia, London and New York session ranges and waits for one specific sequence before anything counts.`
+              : `Most session highs and lows get taken out before the real move. That spike is a
+          <strong style="color:#fafafa;">liquidity sweep</strong>: price runs the stops sitting just past the level, then reverses.`
+          }
+        </p>
+        ${chart}
+        ${steps}
+        ${included}
+        <p style="margin:0 0 18px 0;font-size:14px;line-height:1.55;color:#a1a1aa;">
+          Not every sweep reverses. That&apos;s why it waits for the CHoCH and the BOS instead of fading every spike.
+        </p>
+        ${pnlCalculatorCtaButtonHtml(ctaLabel, ctaUrl)}
+        <p style="margin:20px 0 0 0;font-size:12px;line-height:1.5;color:#a1a1aa;text-align:center;">
+          ${
+            isVip
+              ? `Open the <strong>Session Sweep</strong> tab (marked NEW), or visit
+          <a href="${tabLink}" style="color:#5eead4;">novastaris.ai/?tab=session-sweep</a>`
+              : `See plans at <a href="${escapeHtml(ctaUrl)}" style="color:#5eead4;">novastaris.ai/subscribe</a>`
+          }
+        </p>
+      </td>`;
+
+  const inner = `
+    <tr>
+      <td align="center" bgcolor="#134e4a" style="background:#134e4a;background-image:linear-gradient(160deg,#0a0a0b 0%,#18181b 55%,#134e4a 140%);padding:36px 28px 30px 28px;">
+        <p style="margin:0 0 10px 0;font-family:Arial,Helvetica,sans-serif;font-size:11px;letter-spacing:0.16em;text-transform:uppercase;color:#5eead4;">
+          ${isVip ? "NEW FOR VIP · SESSION SWEEP" : "VIP TOOL · SESSION SWEEP"}
+        </p>
+        <p style="margin:0;font-family:Arial,Helvetica,sans-serif;font-size:26px;line-height:1.25;font-weight:700;color:#ffffff;letter-spacing:-0.02em;">
+          ${isVip ? "Spot the sweep. Wait for the break." : "The liquidity sweep, explained"}
+        </p>
+        <p style="margin:14px 0 0 0;font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.45;color:#ccfbf1;">
+          Asia · London · New York ranges on gold, silver, forex &amp; crypto perps
+        </p>
+      </td>
+    </tr>
+    <tr>
+      ${bodyBlock}
+    </tr>`;
+
+  return pnlCalculatorEmailShell(inner);
+}
+
 /** Rich Robinhood + HyperEVM launch email. */
 export function buildRobinhoodHyperevmLaunchEmailHtml(args?: {
   body?: string;
@@ -1012,6 +1161,15 @@ export function buildAnnouncementEmailHtml(args: {
   if (args.template === "pnl-calculator") {
     return buildPnlCalculatorLaunchEmailHtml({
       body: shouldUseCustomPnlCalculatorIntro(args.body) ? args.body : undefined,
+      ctaLabel: args.ctaLabel,
+      ctaUrl: args.ctaUrl,
+    });
+  }
+
+  if (args.template === "session-sweep" || args.template === "session-sweep-upsell") {
+    return buildSessionSweepLaunchEmailHtml({
+      variant: args.template === "session-sweep" ? "vip" : "upsell",
+      body: shouldUseCustomSessionSweepIntro(args.body) ? args.body : undefined,
       ctaLabel: args.ctaLabel,
       ctaUrl: args.ctaUrl,
     });
@@ -1417,6 +1575,8 @@ export async function sendAnnouncementEmails(args: {
         template === "creator-overview" ||
         template === "futures-morning-brief" ||
         template === "pnl-calculator" ||
+        template === "session-sweep" ||
+        template === "session-sweep-upsell" ||
         template === "robinhood-hyperevm")
     )
   ) {

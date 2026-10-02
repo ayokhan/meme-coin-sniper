@@ -11,6 +11,7 @@ import {
 import { BLOFIN_PARTNERSHIP_EMAIL } from "@/lib/blofin-partner-promo";
 import { COINBASE_PARTNERSHIP_EMAIL, COINBASE_REFERRAL_EMAIL } from "@/lib/coinbase-partner-promo";
 import { PNL_CALCULATOR_LAUNCH_EMAIL } from "@/lib/pnl-calculator-launch-email";
+import { SESSION_SWEEP_LAUNCH_EMAIL, SESSION_SWEEP_UPSELL_EMAIL } from "@/lib/session-sweep-launch-email";
 import {
   VIP_STRATEGY_SESSION_BOOKING_EMAIL,
   VIP_STRATEGY_SESSION_LAUNCH_EMAIL,
@@ -68,6 +69,8 @@ export type AdminEmailPresetId =
   | "forex-rebate"
   | "forex-bots-launch"
   | "pnl-calculator-launch"
+  | "session-sweep-launch"
+  | "session-sweep-upsell"
   | "vip-strategy-session-launch"
   | "vip-strategy-session-booking"
   | "robinhood-hyperevm-launch"
@@ -413,6 +416,32 @@ export const ADMIN_EMAIL_PRESETS: AdminEmailPreset[] = [
     ctaLabel: PNL_CALCULATOR_LAUNCH_EMAIL.ctaLabel,
     ctaUrl: PNL_CALCULATOR_LAUNCH_EMAIL.ctaUrl,
     defaultAudience: "all",
+  },
+  {
+    id: "session-sweep-launch",
+    label: "Session Sweep launch (VIP)",
+    blurb: "New VIP tab — set Nova Session Sweep to All VIP in Feature flags before sending",
+    subject: SESSION_SWEEP_LAUNCH_EMAIL.subject,
+    body: SESSION_SWEEP_LAUNCH_EMAIL.body,
+    template: "session-sweep",
+    includePartnerLogos: false,
+    partnerBrand: "blofin",
+    ctaLabel: SESSION_SWEEP_LAUNCH_EMAIL.ctaLabel,
+    ctaUrl: SESSION_SWEEP_LAUNCH_EMAIL.ctaUrl,
+    defaultAudience: "vip",
+  },
+  {
+    id: "session-sweep-upsell",
+    label: "Session Sweep explainer (free → VIP)",
+    blurb: "Teaches sweep → CHoCH → BOS, clearly framed as a VIP tool",
+    subject: SESSION_SWEEP_UPSELL_EMAIL.subject,
+    body: SESSION_SWEEP_UPSELL_EMAIL.body,
+    template: "session-sweep-upsell",
+    includePartnerLogos: false,
+    partnerBrand: "blofin",
+    ctaLabel: SESSION_SWEEP_UPSELL_EMAIL.ctaLabel,
+    ctaUrl: SESSION_SWEEP_UPSELL_EMAIL.ctaUrl,
+    defaultAudience: "free",
   },
   {
     id: "vip-strategy-session-launch",
