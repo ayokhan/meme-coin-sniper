@@ -136,6 +136,7 @@ import NovaQRunBar, { notifyNovaQRunSuccess } from "@/components/NovaQRunBar";
 import NovaQResultToolbar from "@/components/NovaQResultToolbar";
 import NovaPatternDetectorPanel from "@/components/NovaPatternDetectorPanel";
 import NovaSessionSweepPanel from "@/components/NovaSessionSweepPanel";
+import { GoHuntingPadFilter, type GoHuntingPadGroup } from "@/components/GoHuntingPadFilter";
 import NovaExtraPanel from "@/components/NovaExtraPanel";
 import NovaSmartHighLowTable from "@/components/NovaSmartHighLowTable";
 import NovaTimeframeCheckboxPicker from "@/components/NovaTimeframeCheckboxPicker";
@@ -313,7 +314,6 @@ const GO_HUNTING_CHAIN_FILTERS: { id: GoHuntingChainFilter; label: string }[] = 
 ];
 const GO_HUNTING_CHAIN_LS_KEY = "novastaris-go-hunting-chain";
 const GO_HUNTING_MIN_LIQ_LS_KEY = "novastaris-go-hunting-min-liq";
-const GO_HUNTING_PAD_ALL = "__all";
 const GO_HUNTING_PAD_NONE = "__none";
 const GO_HUNTING_MIN_LIQ_OPTIONS: { value: number; label: string }[] = [
   { value: 0, label: "Any" },
@@ -322,7 +322,11 @@ const GO_HUNTING_MIN_LIQ_OPTIONS: { value: number; label: string }[] = [
   { value: 50_000, label: "$50k+" },
   { value: 100_000, label: "$100k+" },
 ];
-const goHuntingPadKey = (launchpad: string | null | undefined) => launchpad?.trim() || GO_HUNTING_PAD_NONE;
+const goHuntingRowChain = (chain: string | null | undefined): GoHuntingChainId =>
+  chain === "bsc" || chain === "robinhood" || chain === "hyperevm" ? chain : "solana";
+/** `chain|pad` so the same DEX name on two chains stays separate. */
+const goHuntingPadKey = (tok: { chain?: string | null; launchpad?: string | null }) =>
+  `${goHuntingRowChain(tok.chain)}|${tok.launchpad?.trim() || GO_HUNTING_PAD_NONE}`;
 const GO_HUNTING_PAGE_ROWS = 60;
 const GO_HUNTING_CHAIN_BADGE: Record<GoHuntingChainId, { label: string; className: string }> = {
   solana: { label: "SOL", className: "bg-violet-100 text-violet-800 dark:bg-violet-900/50 dark:text-violet-200" },
@@ -970,8 +974,8 @@ function Dashboard() {
       /* private mode */
     }
   }, []);
-  /** Launchpad / DEX label from the row, or GO_HUNTING_PAD_ALL. Pads differ per chain and view, so this resets with them. */
-  const [goHuntingPad, setGoHuntingPad] = useState<string>(GO_HUNTING_PAD_ALL);
+  /** Selected `chain|pad` keys; empty = all. Pads differ per chain and view, so this resets with them. */
+  const [goHuntingPads, setGoHuntingPads] = useState<string[]>([]);
   const [goHuntingMinLiq, setGoHuntingMinLiqState] = useState(0);
   const setGoHuntingMinLiq = useCallback((v: number) => {
     setGoHuntingMinLiqState(v);
@@ -982,7 +986,7 @@ function Dashboard() {
     }
   }, []);
   useEffect(() => {
-    setGoHuntingPad(GO_HUNTING_PAD_ALL);
+    setGoHuntingPads([]);
   }, [goHuntingView, goHuntingChain]);
   const [memeSortKey, setMemeSortKey] = useState<MemeTableSortKey>("age");
   const [memeSortDir, setMemeSortDir] = useState<MemeTableSortDir>("desc");
@@ -4289,25 +4293,39 @@ function Dashboard() {
   const huntRowsAfterLiq = huntFiltersApply && goHuntingMinLiq > 0
     ? tokensBeforeHuntFilters.filter((t) => (t.liquidity ?? 0) >= goHuntingMinLiq)
     : tokensBeforeHuntFilters;
-  const huntPadOptions = (() => {
-    if (!huntFiltersApply) return [] as { key: string; label: string; count: number }[];
+  const huntPadGroups = (() => {
+    if (!huntFiltersApply) return [] as GoHuntingPadGroup[];
     const counts = new Map<string, number>();
-    for (const t of tokensBeforeHuntFilters) counts.set(goHuntingPadKey(t.launchpad), 0);
+    for (const t of tokensBeforeHuntFilters) counts.set(goHuntingPadKey(t), 0);
     for (const t of huntRowsAfterLiq) {
-      const k = goHuntingPadKey(t.launchpad);
+      const k = goHuntingPadKey(t);
       counts.set(k, (counts.get(k) ?? 0) + 1);
     }
-    if (goHuntingPad !== GO_HUNTING_PAD_ALL && !counts.has(goHuntingPad)) counts.set(goHuntingPad, 0);
-    return [...counts.entries()]
-      .map(([key, count]) => ({ key, label: key === GO_HUNTING_PAD_NONE ? "Unlabelled" : key, count }))
-      .sort((a, b) => (a.key === GO_HUNTING_PAD_NONE ? 1 : b.key === GO_HUNTING_PAD_NONE ? -1 : b.count - a.count || a.label.localeCompare(b.label)));
+    for (const k of goHuntingPads) if (!counts.has(k)) counts.set(k, 0);
+    const byChain = new Map<GoHuntingChainId, GoHuntingPadGroup["pads"]>();
+    for (const [key, count] of counts) {
+      const [chain, pad] = key.split("|") as [GoHuntingChainId, string];
+      const list = byChain.get(chain) ?? [];
+      list.push({ key, label: pad === GO_HUNTING_PAD_NONE ? "Unlabelled" : pad, count });
+      byChain.set(chain, list);
+    }
+    return GO_HUNTING_CHAIN_FILTERS.filter((c): c is { id: GoHuntingChainId; label: string } => c.id !== "all" && byChain.has(c.id)).map((c) => ({
+      chain: c.id,
+      chainLabel: c.label,
+      badgeLabel: GO_HUNTING_CHAIN_BADGE[c.id].label,
+      badgeClass: GO_HUNTING_CHAIN_BADGE[c.id].className,
+      pads: (byChain.get(c.id) ?? []).sort((a, b) =>
+        a.label === "Unlabelled" ? 1 : b.label === "Unlabelled" ? -1 : b.count - a.count || a.label.localeCompare(b.label)
+      ),
+    }));
   })();
-  const huntFiltersActive = huntFiltersApply && (goHuntingMinLiq > 0 || goHuntingPad !== GO_HUNTING_PAD_ALL);
-  const tokensForDisplay = huntFiltersApply && goHuntingPad !== GO_HUNTING_PAD_ALL
-    ? huntRowsAfterLiq.filter((t) => goHuntingPadKey(t.launchpad) === goHuntingPad)
+  const huntPadsActive = huntFiltersApply && goHuntingPads.length > 0;
+  const huntFiltersActive = huntFiltersApply && (goHuntingMinLiq > 0 || huntPadsActive);
+  const tokensForDisplay = huntPadsActive
+    ? huntRowsAfterLiq.filter((t) => goHuntingPads.includes(goHuntingPadKey(t)))
     : huntRowsAfterLiq;
   const clearHuntFilters = () => {
-    setGoHuntingPad(GO_HUNTING_PAD_ALL);
+    setGoHuntingPads([]);
     setGoHuntingMinLiq(0);
   };
 
@@ -5639,27 +5657,6 @@ function Dashboard() {
                   </div>
                   {huntFiltersApply && (
                     <div className="mt-2.5 flex flex-wrap items-center gap-x-4 gap-y-2">
-                      {(huntPadOptions.length > 1 || goHuntingPad !== GO_HUNTING_PAD_ALL) && (
-                        <label className="inline-flex items-center gap-2 text-xs font-medium text-zinc-600 dark:text-zinc-400">
-                          Launchpad / DEX
-                          <select
-                            value={goHuntingPad}
-                            onChange={(e) => setGoHuntingPad(e.target.value)}
-                            className={`h-8 rounded-md border px-2 text-xs font-medium outline-none transition-colors focus-visible:ring-2 focus-visible:ring-teal-500/50 ${
-                              goHuntingPad !== GO_HUNTING_PAD_ALL
-                                ? "border-teal-500 bg-teal-50 text-teal-900 dark:border-teal-400 dark:bg-teal-950/50 dark:text-teal-100"
-                                : "border-zinc-200 bg-white/70 text-zinc-800 dark:border-zinc-700 dark:bg-zinc-800/60 dark:text-zinc-200"
-                            }`}
-                          >
-                            <option value={GO_HUNTING_PAD_ALL}>All ({huntRowsAfterLiq.length})</option>
-                            {huntPadOptions.map((p) => (
-                              <option key={p.key} value={p.key}>
-                                {p.label} ({p.count})
-                              </option>
-                            ))}
-                          </select>
-                        </label>
-                      )}
                       <div className="inline-flex flex-wrap items-center gap-1.5" role="group" aria-label="Minimum liquidity">
                         <span className="mr-0.5 text-xs font-medium text-zinc-600 dark:text-zinc-400">Min liquidity</span>
                         {GO_HUNTING_MIN_LIQ_OPTIONS.map((o) => (
@@ -5678,6 +5675,24 @@ function Dashboard() {
                           </button>
                         ))}
                       </div>
+                      {huntPadsActive && (
+                        <span className="inline-flex max-w-full items-center gap-1 rounded-full border border-teal-500/60 bg-teal-50 py-0.5 pl-2.5 pr-1 text-xs font-medium text-teal-900 dark:bg-teal-950/50 dark:text-teal-100">
+                          <span className="truncate">
+                            Pad:{" "}
+                            {goHuntingPads.length <= 2
+                              ? goHuntingPads.map((k) => k.split("|")[1].replace(GO_HUNTING_PAD_NONE, "Unlabelled")).join(", ")
+                              : `${goHuntingPads.length} selected`}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => setGoHuntingPads([])}
+                            aria-label="Remove launchpad filter"
+                            className="rounded-full px-1 leading-none text-teal-700 hover:bg-teal-100 dark:text-teal-300 dark:hover:bg-teal-900/60"
+                          >
+                            ×
+                          </button>
+                        </span>
+                      )}
                       {huntFiltersActive && (
                         <button
                           type="button"
@@ -10421,8 +10436,8 @@ function Dashboard() {
                   <p className="mt-2 max-w-sm text-sm text-zinc-600 dark:text-zinc-400 leading-relaxed">
                     {tokensBeforeHuntFilters.length} coin{tokensBeforeHuntFilters.length === 1 ? " is" : "s are"} loaded in this view, but
                     none pass the {goHuntingMinLiq > 0 ? "minimum liquidity" : ""}
-                    {goHuntingMinLiq > 0 && goHuntingPad !== GO_HUNTING_PAD_ALL ? " and " : ""}
-                    {goHuntingPad !== GO_HUNTING_PAD_ALL ? "launchpad" : ""} filter.
+                    {goHuntingMinLiq > 0 && huntPadsActive ? " and " : ""}
+                    {huntPadsActive ? "launchpad" : ""} filter.
                   </p>
                   <Button onClick={clearHuntFilters} size="sm" className="mt-5 bg-teal-600 hover:bg-teal-500 text-white">
                     Clear filters
@@ -10588,7 +10603,18 @@ function Dashboard() {
                     </TableHead>
                     {activeTab === "new" && (
                       <TableHead className="text-[10px] font-semibold uppercase tracking-[0.14em] text-zinc-500 dark:text-zinc-400">
-                        Chain / Pad
+                        {huntFiltersApply ? (
+                          <GoHuntingPadFilter
+                            groups={huntPadGroups}
+                            selected={goHuntingPads}
+                            onChange={setGoHuntingPads}
+                            shown={tokensForDisplay.length}
+                            total={tokensBeforeHuntFilters.length}
+                            className="tracking-[0.14em]"
+                          />
+                        ) : (
+                          "Chain / Pad"
+                        )}
                       </TableHead>
                     )}
                     {renderMemeSortHead("score", "Score")}
@@ -10647,10 +10673,15 @@ function Dashboard() {
                           {tok.launchpad && huntFiltersApply ? (
                             <button
                               type="button"
-                              onClick={() =>
-                                setGoHuntingPad(goHuntingPad === goHuntingPadKey(tok.launchpad) ? GO_HUNTING_PAD_ALL : goHuntingPadKey(tok.launchpad))
+                              onClick={() => {
+                                const k = goHuntingPadKey(tok);
+                                setGoHuntingPads(goHuntingPads.length === 1 && goHuntingPads[0] === k ? [] : [k]);
+                              }}
+                              title={
+                                goHuntingPads.length === 1 && goHuntingPads[0] === goHuntingPadKey(tok)
+                                  ? "Show all launchpads"
+                                  : `Show only ${tok.launchpad}`
                               }
-                              title={goHuntingPad === goHuntingPadKey(tok.launchpad) ? "Show all launchpads" : `Show only ${tok.launchpad}`}
                               className="ml-1.5 text-[11px] text-zinc-500 underline-offset-2 hover:text-teal-700 hover:underline dark:text-zinc-400 dark:hover:text-teal-300"
                             >
                               {tok.launchpad}
