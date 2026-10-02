@@ -312,6 +312,17 @@ const GO_HUNTING_CHAIN_FILTERS: { id: GoHuntingChainFilter; label: string }[] = 
   { id: "hyperevm", label: "HyperEVM" },
 ];
 const GO_HUNTING_CHAIN_LS_KEY = "novastaris-go-hunting-chain";
+const GO_HUNTING_MIN_LIQ_LS_KEY = "novastaris-go-hunting-min-liq";
+const GO_HUNTING_PAD_ALL = "__all";
+const GO_HUNTING_PAD_NONE = "__none";
+const GO_HUNTING_MIN_LIQ_OPTIONS: { value: number; label: string }[] = [
+  { value: 0, label: "Any" },
+  { value: 10_000, label: "$10k+" },
+  { value: 25_000, label: "$25k+" },
+  { value: 50_000, label: "$50k+" },
+  { value: 100_000, label: "$100k+" },
+];
+const goHuntingPadKey = (launchpad: string | null | undefined) => launchpad?.trim() || GO_HUNTING_PAD_NONE;
 const GO_HUNTING_PAGE_ROWS = 60;
 const GO_HUNTING_CHAIN_BADGE: Record<GoHuntingChainId, { label: string; className: string }> = {
   solana: { label: "SOL", className: "bg-violet-100 text-violet-800 dark:bg-violet-900/50 dark:text-violet-200" },
@@ -953,10 +964,26 @@ function Dashboard() {
     try {
       const saved = window.localStorage.getItem(GO_HUNTING_CHAIN_LS_KEY);
       if (isGoHuntingChainFilter(saved)) setGoHuntingChainState(saved);
+      const savedLiq = Number(window.localStorage.getItem(GO_HUNTING_MIN_LIQ_LS_KEY));
+      if (GO_HUNTING_MIN_LIQ_OPTIONS.some((o) => o.value === savedLiq)) setGoHuntingMinLiqState(savedLiq);
     } catch {
       /* private mode */
     }
   }, []);
+  /** Launchpad / DEX label from the row, or GO_HUNTING_PAD_ALL. Pads differ per chain and view, so this resets with them. */
+  const [goHuntingPad, setGoHuntingPad] = useState<string>(GO_HUNTING_PAD_ALL);
+  const [goHuntingMinLiq, setGoHuntingMinLiqState] = useState(0);
+  const setGoHuntingMinLiq = useCallback((v: number) => {
+    setGoHuntingMinLiqState(v);
+    try {
+      window.localStorage.setItem(GO_HUNTING_MIN_LIQ_LS_KEY, String(v));
+    } catch {
+      /* private mode */
+    }
+  }, []);
+  useEffect(() => {
+    setGoHuntingPad(GO_HUNTING_PAD_ALL);
+  }, [goHuntingView, goHuntingChain]);
   const [memeSortKey, setMemeSortKey] = useState<MemeTableSortKey>("age");
   const [memeSortDir, setMemeSortDir] = useState<MemeTableSortDir>("desc");
   type BscGoHuntingView = "new_pairs" | "final_stretch" | "migrated" | "trending";
@@ -4234,7 +4261,7 @@ function Dashboard() {
   };
 
   // Sort + dedupe token rows for meme tables
-  const tokensForDisplay = (() => {
+  const tokensBeforeHuntFilters = (() => {
     let base: Token[] = tokens;
     if ((activeTab === "transactions" || goHuntingTradesSort) && tokens.length > 0) {
       base = [...tokens].sort((a, b) => {
@@ -4257,6 +4284,32 @@ function Dashboard() {
       return true;
     });
   })();
+  /** Launchpad + min-liquidity filters apply to the Go Hunting table only (not the watchlist, where you starred coins on purpose). */
+  const huntFiltersApply = activeTab === "new" && goHuntingView !== "watchlist";
+  const huntRowsAfterLiq = huntFiltersApply && goHuntingMinLiq > 0
+    ? tokensBeforeHuntFilters.filter((t) => (t.liquidity ?? 0) >= goHuntingMinLiq)
+    : tokensBeforeHuntFilters;
+  const huntPadOptions = (() => {
+    if (!huntFiltersApply) return [] as { key: string; label: string; count: number }[];
+    const counts = new Map<string, number>();
+    for (const t of tokensBeforeHuntFilters) counts.set(goHuntingPadKey(t.launchpad), 0);
+    for (const t of huntRowsAfterLiq) {
+      const k = goHuntingPadKey(t.launchpad);
+      counts.set(k, (counts.get(k) ?? 0) + 1);
+    }
+    if (goHuntingPad !== GO_HUNTING_PAD_ALL && !counts.has(goHuntingPad)) counts.set(goHuntingPad, 0);
+    return [...counts.entries()]
+      .map(([key, count]) => ({ key, label: key === GO_HUNTING_PAD_NONE ? "Unlabelled" : key, count }))
+      .sort((a, b) => (a.key === GO_HUNTING_PAD_NONE ? 1 : b.key === GO_HUNTING_PAD_NONE ? -1 : b.count - a.count || a.label.localeCompare(b.label)));
+  })();
+  const huntFiltersActive = huntFiltersApply && (goHuntingMinLiq > 0 || goHuntingPad !== GO_HUNTING_PAD_ALL);
+  const tokensForDisplay = huntFiltersApply && goHuntingPad !== GO_HUNTING_PAD_ALL
+    ? huntRowsAfterLiq.filter((t) => goHuntingPadKey(t.launchpad) === goHuntingPad)
+    : huntRowsAfterLiq;
+  const clearHuntFilters = () => {
+    setGoHuntingPad(GO_HUNTING_PAD_ALL);
+    setGoHuntingMinLiq(0);
+  };
 
   const fmtPct = (v: number | null | undefined) =>
     v == null ? "—" : `${v >= 0 ? "+" : ""}${v.toFixed(1)}%`;
@@ -5584,6 +5637,60 @@ function Dashboard() {
                       );
                     })}
                   </div>
+                  {huntFiltersApply && (
+                    <div className="mt-2.5 flex flex-wrap items-center gap-x-4 gap-y-2">
+                      {(huntPadOptions.length > 1 || goHuntingPad !== GO_HUNTING_PAD_ALL) && (
+                        <label className="inline-flex items-center gap-2 text-xs font-medium text-zinc-600 dark:text-zinc-400">
+                          Launchpad / DEX
+                          <select
+                            value={goHuntingPad}
+                            onChange={(e) => setGoHuntingPad(e.target.value)}
+                            className={`h-8 rounded-md border px-2 text-xs font-medium outline-none transition-colors focus-visible:ring-2 focus-visible:ring-teal-500/50 ${
+                              goHuntingPad !== GO_HUNTING_PAD_ALL
+                                ? "border-teal-500 bg-teal-50 text-teal-900 dark:border-teal-400 dark:bg-teal-950/50 dark:text-teal-100"
+                                : "border-zinc-200 bg-white/70 text-zinc-800 dark:border-zinc-700 dark:bg-zinc-800/60 dark:text-zinc-200"
+                            }`}
+                          >
+                            <option value={GO_HUNTING_PAD_ALL}>All ({huntRowsAfterLiq.length})</option>
+                            {huntPadOptions.map((p) => (
+                              <option key={p.key} value={p.key}>
+                                {p.label} ({p.count})
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                      )}
+                      <div className="inline-flex flex-wrap items-center gap-1.5" role="group" aria-label="Minimum liquidity">
+                        <span className="mr-0.5 text-xs font-medium text-zinc-600 dark:text-zinc-400">Min liquidity</span>
+                        {GO_HUNTING_MIN_LIQ_OPTIONS.map((o) => (
+                          <button
+                            key={o.value}
+                            type="button"
+                            onClick={() => setGoHuntingMinLiq(o.value)}
+                            aria-pressed={goHuntingMinLiq === o.value}
+                            className={`rounded-md px-2.5 py-1 text-xs font-medium tabular-nums transition-colors ${
+                              goHuntingMinLiq === o.value
+                                ? "bg-teal-600 text-white dark:bg-teal-500"
+                                : "bg-zinc-200/80 text-zinc-700 hover:bg-zinc-300/80 dark:bg-zinc-700/80 dark:text-zinc-300 dark:hover:bg-zinc-600/80"
+                            }`}
+                          >
+                            {o.label}
+                          </button>
+                        ))}
+                      </div>
+                      {huntFiltersActive && (
+                        <button
+                          type="button"
+                          onClick={clearHuntFilters}
+                          className="text-xs font-medium text-teal-700 underline underline-offset-2 hover:text-teal-600 dark:text-teal-300"
+                        >
+                          Clear filters
+                          {tokensBeforeHuntFilters.length > tokensForDisplay.length &&
+                            ` (${tokensBeforeHuntFilters.length - tokensForDisplay.length} hidden)`}
+                        </button>
+                      )}
+                    </div>
+                  )}
                   {goHuntingView === "surge" && isPaid && (
                     <div className="mt-3 flex flex-wrap items-center gap-1.5">
                       <span className="mr-1 text-xs font-medium text-zinc-600 dark:text-zinc-400">{t("ui.volumeWindow")}</span>
@@ -5615,7 +5722,7 @@ function Dashboard() {
                       </button>
                     </div>
                   )}
-                  {goHuntingView === "new_pairs" && tokensForDisplay.length > 0 && tokensForDisplay.length <= 5 && (
+                  {goHuntingView === "new_pairs" && !huntFiltersActive && tokensForDisplay.length > 0 && tokensForDisplay.length <= 5 && (
                     <p className="mt-2 text-xs text-slate-600 dark:text-slate-300/90">
                       Only {tokensForDisplay.length} pair{tokensForDisplay.length === 1 ? "" : "s"} launched in this
                       window right now — new-listing volume varies by hour. Try{" "}
@@ -10306,7 +10413,22 @@ function Dashboard() {
                 </div>
               )
             ) : activeTab === "new" && goHuntingView === "surge" && !isPaid ? null : tokensForDisplay.length === 0 ? (
-              activeTab === "new" ? (
+              activeTab === "new" && huntFiltersActive && tokensBeforeHuntFilters.length > 0 ? (
+                <div className="flex flex-col items-center justify-center py-16 px-6 text-center">
+                  <p className="font-[family-name:var(--font-space-grotesk)] text-lg font-semibold tracking-tight text-zinc-900 dark:text-white">
+                    No coins match your filters
+                  </p>
+                  <p className="mt-2 max-w-sm text-sm text-zinc-600 dark:text-zinc-400 leading-relaxed">
+                    {tokensBeforeHuntFilters.length} coin{tokensBeforeHuntFilters.length === 1 ? " is" : "s are"} loaded in this view, but
+                    none pass the {goHuntingMinLiq > 0 ? "minimum liquidity" : ""}
+                    {goHuntingMinLiq > 0 && goHuntingPad !== GO_HUNTING_PAD_ALL ? " and " : ""}
+                    {goHuntingPad !== GO_HUNTING_PAD_ALL ? "launchpad" : ""} filter.
+                  </p>
+                  <Button onClick={clearHuntFilters} size="sm" className="mt-5 bg-teal-600 hover:bg-teal-500 text-white">
+                    Clear filters
+                  </Button>
+                </div>
+              ) : activeTab === "new" ? (
                 <div className="flex flex-col items-center justify-center py-20 px-6 text-center">
                   <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-teal-700/90 dark:text-teal-200/85">
                     Meme desk
@@ -10506,14 +10628,36 @@ function Dashboard() {
                       </TableCell>
                       {activeTab === "new" && (
                         <TableCell className="whitespace-nowrap">
-                          <span
-                            className={`inline-flex rounded px-1.5 py-0.5 text-[10px] font-bold tracking-wide ${GO_HUNTING_CHAIN_BADGE[rowChain(tok)].className}`}
-                          >
-                            {GO_HUNTING_CHAIN_BADGE[rowChain(tok)].label}
-                          </span>
-                          {tok.launchpad && (
+                          {(() => {
+                            const chain = rowChain(tok);
+                            const onlyThis = goHuntingChain === chain;
+                            const chainName = GO_HUNTING_CHAIN_FILTERS.find((c) => c.id === chain)?.label ?? chain;
+                            return (
+                              <button
+                                type="button"
+                                onClick={() => selectGoHuntingChain(onlyThis ? "all" : chain)}
+                                title={onlyThis ? "Show all chains" : `Show only ${chainName}`}
+                                aria-label={onlyThis ? "Show all chains" : `Show only ${chainName}`}
+                                className={`inline-flex rounded px-1.5 py-0.5 text-[10px] font-bold tracking-wide transition-shadow hover:ring-2 hover:ring-teal-500/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 ${GO_HUNTING_CHAIN_BADGE[chain].className}`}
+                              >
+                                {GO_HUNTING_CHAIN_BADGE[chain].label}
+                              </button>
+                            );
+                          })()}
+                          {tok.launchpad && huntFiltersApply ? (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setGoHuntingPad(goHuntingPad === goHuntingPadKey(tok.launchpad) ? GO_HUNTING_PAD_ALL : goHuntingPadKey(tok.launchpad))
+                              }
+                              title={goHuntingPad === goHuntingPadKey(tok.launchpad) ? "Show all launchpads" : `Show only ${tok.launchpad}`}
+                              className="ml-1.5 text-[11px] text-zinc-500 underline-offset-2 hover:text-teal-700 hover:underline dark:text-zinc-400 dark:hover:text-teal-300"
+                            >
+                              {tok.launchpad}
+                            </button>
+                          ) : tok.launchpad ? (
                             <span className="ml-1.5 text-[11px] text-zinc-500 dark:text-zinc-400">{tok.launchpad}</span>
-                          )}
+                          ) : null}
                         </TableCell>
                       )}
                       <TableCell className="text-right">
