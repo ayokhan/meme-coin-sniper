@@ -4,7 +4,8 @@
  */
 
 import { prisma } from "@/lib/db";
-import { NOVA_PRO_TIER, VIP_PLANS } from "@/lib/subscription";
+import { isCoachUserId, isOwnerUserId } from "@/lib/auth";
+import { getSubscriptionProduct, NOVA_PRO_TIER, VIP_PLANS } from "@/lib/subscription";
 
 const CONFIG_ID = "default";
 
@@ -116,6 +117,14 @@ export async function setNovaProConfig(patch: Partial<Omit<NovaProConfigAdmin, "
     update: next,
   });
   return getNovaProConfig();
+}
+
+/** True when the user's active product is Nova Pro (owner / coach users are never Pro-capped). */
+export async function isNovaProUser(userId: string): Promise<boolean> {
+  if ((await getSubscriptionProduct(userId)) !== "nova_pro") return false;
+  if (await isOwnerUserId(userId)) return false;
+  if (await isCoachUserId(userId)) return false;
+  return true;
 }
 
 /* ------------------------------------------------------------------ */

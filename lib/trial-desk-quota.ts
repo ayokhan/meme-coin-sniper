@@ -7,7 +7,7 @@
 
 import { prisma } from "@/lib/db";
 import { getVipTrialConfig } from "@/lib/vip-trial";
-import { isNovaProUser } from "@/lib/subscription";
+import { isNovaProUser } from "@/lib/nova-pro";
 import { assertNovaProUsage } from "@/lib/nova-pro";
 
 export const TRIAL_DESKS = [

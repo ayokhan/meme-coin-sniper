@@ -156,15 +156,6 @@ export async function getSubscriptionProduct(userId: string): Promise<Subscripti
   return (await getSubscriptionProductInfo(userId)).product;
 }
 
-/** True when the user's active product is Nova Pro (owner / coach users are never Pro-capped). */
-export async function isNovaProUser(userId: string): Promise<boolean> {
-  if ((await getSubscriptionProduct(userId)) !== 'nova_pro') return false;
-  const { isOwnerUserId, isCoachUserId } = await import('@/lib/auth');
-  if (await isOwnerUserId(userId)) return false;
-  if (await isCoachUserId(userId)) return false;
-  return true;
-}
-
 /** Returns true if user has any active (non-expired) subscription. */
 export async function getActiveSubscription(userId: string): Promise<boolean> {
   const sub = await prisma.subscription.findFirst({

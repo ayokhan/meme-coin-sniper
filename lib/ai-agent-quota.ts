@@ -435,7 +435,7 @@ export async function assertAiAgentAccess(
 
   if (isPaid) {
     const { assertTrialDeskAccess, userIsOnVipTrial } = await import("@/lib/trial-desk-quota");
-    const { isNovaProUser } = await import("@/lib/subscription");
+    const { isNovaProUser } = await import("@/lib/nova-pro");
     if ((await isNovaProUser(userId)) || (await userIsOnVipTrial(userId))) {
       const trial = await assertTrialDeskAccess(userId, "ai_agent", { record: true });
       if (!trial.ok) {
