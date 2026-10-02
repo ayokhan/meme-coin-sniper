@@ -176,6 +176,8 @@ export type SweepChart = {
   trades: SweepTrade[];
   fromTs: number;
   toTs: number;
+  /** Hours shown: the backtest window, at least 24h so the source sessions are visible, capped per timeframe. */
+  spanHours: number;
 };
 
 export type SessionSweepResult = {

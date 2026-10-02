@@ -88,12 +88,7 @@ function levelStatusLabel(l: WatchedLevel): { label: string; cls: string } {
   return { label: "Untouched", cls: "text-emerald-600 dark:text-emerald-400" };
 }
 
-const CHART_SPAN_LABEL: Record<SweepTimeframe, string> = {
-  "5m": "36 hours",
-  "15m": "3 days",
-  "30m": "5 days",
-  "1h": "7 days",
-};
+const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
 const LEVEL_STATUS_HELP: { label: string; text: string }[] = [
   { label: "Untouched", text: "Price has not traded beyond this level yet. It is still a target for a sweep." },
@@ -189,7 +184,17 @@ function useElementWidth<T extends HTMLElement>(): [React.RefObject<T | null>, n
   return [ref, width];
 }
 
-function SweepChartView({ chart, tfMinutes, highlightId }: { chart: SweepChart; tfMinutes: number; highlightId: string | null }) {
+function SweepChartView({
+  chart,
+  tfMinutes,
+  highlightId,
+  windowStartTs,
+}: {
+  chart: SweepChart;
+  tfMinutes: number;
+  highlightId: string | null;
+  windowStartTs: number | null;
+}) {
   const [wrapRef, width] = useElementWidth<HTMLDivElement>();
   const [hover, setHover] = useState<number | null>(null);
   const height = 420;
@@ -300,6 +305,31 @@ function SweepChartView({ chart, tfMinutes, highlightId }: { chart: SweepChart; 
               {tk.label}
             </text>
           ))}
+
+          {windowStartTs != null && windowStartTs > bars[0]![0] && windowStartTs <= chartEndTs && (
+            <g>
+              <rect
+                x={padL}
+                y={padT}
+                width={Math.max(0, geom.xTs(windowStartTs) - geom.step / 2 - padL)}
+                height={height - padT - padB}
+                fill="currentColor"
+                fillOpacity={0.05}
+              />
+              <line
+                x1={geom.xTs(windowStartTs) - geom.step / 2}
+                x2={geom.xTs(windowStartTs) - geom.step / 2}
+                y1={padT}
+                y2={height - padB}
+                stroke="currentColor"
+                strokeOpacity={0.45}
+                strokeDasharray="3 3"
+              />
+              <text x={geom.xTs(windowStartTs) - geom.step / 2 + 4} y={padT + 10} fontSize={10} fill="currentColor" fillOpacity={0.7}>
+                Backtest starts
+              </text>
+            </g>
+          )}
 
           {chart.ranges.map((r) => {
             const c = SESSION_COLORS[r.session];
@@ -790,7 +820,17 @@ export default function NovaSessionSweepPanel({ enabled }: Props) {
           <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 p-3">
             <div className="flex flex-wrap items-center justify-between gap-2 mb-2 px-1">
               <h3 className="text-sm font-semibold text-zinc-800 dark:text-zinc-200">
-                {focus ? `Trade from ${fmtTime(focus.entryTs)}` : `Last ${CHART_SPAN_LABEL[result.timeframe]}`}
+                {focus ? `Trade from ${fmtTime(focus.entryTs)}` : capitalize(sweepLookbackLabel(result.chart.spanHours))}
+                {!focus && result.chart.spanHours < result.lookbackHours && (
+                  <span className="ml-2 text-[11px] font-normal text-muted-foreground">
+                    Backtest covers the {sweepLookbackLabel(result.lookbackHours)}; click a signal below to view older trades.
+                  </span>
+                )}
+                {!focus && result.chart.spanHours > result.lookbackHours && (
+                  <span className="ml-2 text-[11px] font-normal text-muted-foreground">
+                    Shaded part is before the backtest window, shown so you can see where the levels came from.
+                  </span>
+                )}
               </h3>
               <div className="flex flex-wrap items-center gap-3 text-[11px] text-muted-foreground">
                 {SESSION_SWEEP_NAMES.map((n) => (
@@ -807,7 +847,12 @@ export default function NovaSessionSweepPanel({ enabled }: Props) {
               </div>
             </div>
             <div className="text-zinc-800 dark:text-zinc-200">
-              <SweepChartView chart={result.chart} tfMinutes={tfMinutes} highlightId={focus?.id ?? null} />
+              <SweepChartView
+                chart={result.chart}
+                tfMinutes={tfMinutes}
+                highlightId={focus?.id ?? null}
+                windowStartTs={focus ? null : result.windowStartTs}
+              />
             </div>
           </div>
 

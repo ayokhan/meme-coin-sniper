@@ -22,7 +22,9 @@ const CACHE_TTL_MS = 60_000;
 const WARMUP_HOURS = 48;
 const YAHOO_MAX_HOURS = 60 * 24;
 
-const CHART_SPAN_HOURS: Record<SweepTimeframe, number> = { "5m": 36, "15m": 72, "30m": 120, "1h": 168 };
+/** Max chart span per timeframe, so the SVG stays readable (~430–500 candles). */
+const CHART_MAX_HOURS: Record<SweepTimeframe, number> = { "5m": 36, "15m": 120, "30m": 240, "1h": 480 };
+const CHART_MIN_HOURS = 24;
 
 export const SESSION_SWEEP_RR = 3;
 
@@ -164,7 +166,8 @@ export async function analyzeSessionSweep(input: {
   const windowTrades = run.trades.filter((tr) => tr.entryTs >= windowStartTs);
   const barsInWindow = bars.filter((b) => b.t >= windowStartTs);
 
-  const spanMs = CHART_SPAN_HOURS[timeframe] * HOUR_MS;
+  const spanHours = Math.min(CHART_MAX_HOURS[timeframe], Math.max(usedHours, CHART_MIN_HOURS));
+  const spanMs = spanHours * HOUR_MS;
   const firstTs = bars[0]!.t;
   const focus = input.focusTs && Number.isFinite(input.focusTs) ? input.focusTs : null;
   let toTs = focus ? focus + spanMs / 2 : lastTs + 1;
@@ -197,7 +200,7 @@ export async function analyzeSessionSweep(input: {
     forming: run.building,
     trades: [...windowTrades].reverse(),
     stats: computeSweepStats(windowTrades),
-    chart: { bars: chartBars, ranges: chartRanges, trades: chartTrades, fromTs, toTs },
+    chart: { bars: chartBars, ranges: chartRanges, trades: chartTrades, fromTs, toTs, spanHours },
   };
 }
 
