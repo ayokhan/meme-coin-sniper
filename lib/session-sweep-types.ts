@@ -1,8 +1,9 @@
 /** Client-safe types and constants for Nova Session Sweep (no server imports). */
 
 export type SweepMarket = "forex" | "metal" | "crypto";
-export type SweepTimeframe = "5m" | "15m" | "30m" | "1h";
+export type SweepTimeframe = "1m" | "5m" | "15m" | "30m" | "1h";
 export type SweepStopMode = "structure" | "sweep";
+export type SweepMode = "standard" | "scalp";
 export type SessionName = "Asia" | "London" | "New York";
 export type SweepDirection = "long" | "short";
 
@@ -27,6 +28,7 @@ export const SESSION_SWEEP_SYMBOLS: SweepSymbol[] = [
 ];
 
 export const SESSION_SWEEP_TIMEFRAMES: { id: SweepTimeframe; label: string; minutes: number }[] = [
+  { id: "1m", label: "1 minute", minutes: 1 },
   { id: "5m", label: "5 minutes", minutes: 5 },
   { id: "15m", label: "15 minutes", minutes: 15 },
   { id: "30m", label: "30 minutes", minutes: 30 },
@@ -63,6 +65,44 @@ export const SESSION_SWEEP_STOP_MODES: { id: SweepStopMode; label: string; hint:
     hint: "Stop just beyond the tip of the sweep wick. Bigger risk, so the 3R target is further away.",
   },
 ];
+
+export const SESSION_SWEEP_MODES: { id: SweepMode; label: string; hint: string }[] = [
+  {
+    id: "standard",
+    label: "Standard (1:3)",
+    hint: "Waits for sweep, CHoCH and BOS. Fewer, slower trades aiming for 3R, held up to 24 hours.",
+  },
+  {
+    id: "scalp",
+    label: "Scalp",
+    hint: "Enters on the CHoCH close with the stop beyond the sweep wick. Quicker trades, 1.5R or 2R target, closed after 2 hours.",
+  },
+];
+
+export const SESSION_SWEEP_STANDARD_RR = 3;
+export const SESSION_SWEEP_SCALP_RRS = [1.5, 2] as const;
+
+/**
+ * Typical retail round-trip cost (spread + commission/fees) deducted from every backtest trade.
+ * "price" is in quote units; "pct" is a fraction of the entry price.
+ */
+export const SESSION_SWEEP_COSTS: Record<string, { kind: "price" | "pct"; value: number; label: string }> = {
+  XAUUSD: { kind: "price", value: 0.3, label: "$0.30" },
+  XAGUSD: { kind: "price", value: 0.03, label: "$0.03" },
+  EURUSD: { kind: "price", value: 0.00008, label: "0.8 pip" },
+  GBPUSD: { kind: "price", value: 0.00012, label: "1.2 pips" },
+  USDJPY: { kind: "price", value: 0.01, label: "1.0 pip" },
+  AUDUSD: { kind: "price", value: 0.0001, label: "1.0 pip" },
+  USDCAD: { kind: "price", value: 0.00015, label: "1.5 pips" },
+  GBPJPY: { kind: "price", value: 0.025, label: "2.5 pips" },
+  EURJPY: { kind: "price", value: 0.018, label: "1.8 pips" },
+};
+/** Hyperliquid taker fee 0.045% each side plus a little spread. */
+export const SESSION_SWEEP_CRYPTO_COST = { kind: "pct" as const, value: 0.001, label: "0.10%" };
+
+export function sweepCostFor(symbol: string, market: SweepMarket): { kind: "price" | "pct"; value: number; label: string } {
+  return market === "crypto" ? SESSION_SWEEP_CRYPTO_COST : SESSION_SWEEP_COSTS[symbol] ?? { kind: "price", value: 0, label: "none" };
+}
 
 export const SESSION_SWEEP_NAMES: SessionName[] = ["Asia", "London", "New York"];
 
@@ -118,8 +158,10 @@ export type SweepTrade = {
   outcome: SweepTradeOutcome;
   exitTs: number | null;
   exitPrice: number | null;
-  /** Realized R multiple (TP = +RR, SL = -1, timeout = mark-to-close). Open trades: unrealized. */
+  /** Realized R multiple after costs (TP = +RR, SL = -1, timeout = mark-to-close, minus costR). Open trades: unrealized. */
   r: number | null;
+  /** Round-trip spread + fees expressed in R (0 when costs are off). */
+  costR: number;
 };
 
 export type SweepLiveStage = "idle" | "swept" | "choch" | "in_trade";
@@ -188,8 +230,11 @@ export type SessionSweepResult = {
   lookbackHours: number;
   /** Trades and stats only count entries at or after this time. */
   windowStartTs: number;
+  mode: SweepMode;
   stopMode: SweepStopMode;
   rr: number;
+  /** Spread + fees deducted per trade, e.g. "$0.30" or "0.10%"; null when costs are off. */
+  costLabel: string | null;
   barsAnalyzed: number;
   firstBarTs: number | null;
   lastBarTs: number | null;

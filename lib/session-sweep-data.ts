@@ -3,12 +3,16 @@ import { getForexCandles } from "@/lib/forex-market";
 import { computeSweepStats, runSessionSweep, type SweepBar } from "@/lib/session-sweep";
 import {
   SESSION_SWEEP_LOOKBACKS,
+  SESSION_SWEEP_SCALP_RRS,
+  SESSION_SWEEP_STANDARD_RR,
   SESSION_SWEEP_SYMBOLS,
   SESSION_SWEEP_TIMEFRAMES,
+  sweepCostFor,
   sweepLookbackLabel,
   type SessionSweepResult,
   type SessionSweepScanRow,
   type SweepChartBar,
+  type SweepMode,
   type SweepStopMode,
   type SweepSymbol,
   type SweepTimeframe,
@@ -18,15 +22,29 @@ const HL_INFO = "https://api.hyperliquid.xyz/info";
 const HL_MAX_CANDLES = 5000;
 const HOUR_MS = 3_600_000;
 const CACHE_TTL_MS = 60_000;
-/** Extra history before the backtest window so session levels, swings and ATR exist from its first candle. */
-const WARMUP_HOURS = 48;
+/**
+ * Extra history before the backtest window so session levels, swings and ATR exist from its first candle.
+ * 1m keeps it shorter because 1m history is only a few days deep; 24h still covers the prior Asia/London/NY ranges.
+ */
+function warmupHours(tf: SweepTimeframe): number {
+  return tf === "1m" ? 24 : 48;
+}
 const YAHOO_MAX_HOURS = 60 * 24;
+const YAHOO_1M_MAX_HOURS = 7 * 24;
 
-/** Max chart span per timeframe, so the SVG stays readable (~430–500 candles). */
-const CHART_MAX_HOURS: Record<SweepTimeframe, number> = { "5m": 36, "15m": 120, "30m": 240, "1h": 480 };
+/** Max chart span per timeframe, so the SVG stays readable (~430–720 candles). */
+const CHART_MAX_HOURS: Record<SweepTimeframe, number> = { "1m": 12, "5m": 36, "15m": 120, "30m": 240, "1h": 480 };
 const CHART_MIN_HOURS = 24;
 
-export const SESSION_SWEEP_RR = 3;
+export function parseSweepMode(raw: unknown): SweepMode {
+  return raw === "scalp" ? "scalp" : "standard";
+}
+
+export function parseSweepRr(mode: SweepMode, raw: unknown): number {
+  if (mode === "standard") return SESSION_SWEEP_STANDARD_RR;
+  const n = Number(raw);
+  return (SESSION_SWEEP_SCALP_RRS as readonly number[]).includes(n) ? n : 2;
+}
 
 const barCache = new Map<string, { at: number; bars: Promise<SweepBar[]> }>();
 
@@ -59,7 +77,7 @@ function tfMinutes(tf: SweepTimeframe): number {
 /** Hours of history the source can serve (Hyperliquid keeps only its latest 5,000 candles per interval). */
 function maxSourceHours(market: SweepSymbol["market"], tf: SweepTimeframe): number {
   if (market === "crypto") return Math.floor((HL_MAX_CANDLES * tfMinutes(tf)) / 60);
-  return YAHOO_MAX_HOURS;
+  return tf === "1m" ? YAHOO_1M_MAX_HOURS : YAHOO_MAX_HOURS;
 }
 
 async function fetchHyperliquidBars(coin: string, tf: SweepTimeframe, hours: number): Promise<SweepBar[]> {
@@ -91,7 +109,7 @@ async function fetchHyperliquidBars(coin: string, tf: SweepTimeframe, hours: num
 
 async function fetchYahooBars(symbol: string, tf: SweepTimeframe, hours: number): Promise<SweepBar[]> {
   const days = hours / 24;
-  const range = days <= 5 ? "5d" : days <= 30 ? "1mo" : "60d";
+  const range = tf === "1m" ? (days <= 5 ? "5d" : "7d") : days <= 5 ? "5d" : days <= 30 ? "1mo" : "60d";
   const candles = await getForexCandles(symbol, tf, 100_000, range);
   const bars: SweepBar[] = [];
   for (const c of candles) {
@@ -141,7 +159,9 @@ function dataNoteFor(sym: SweepSymbol, tf: SweepTimeframe, requestedHours: numbe
       ? ""
       : sym.market === "crypto"
         ? ` Hyperliquid keeps only its latest 5,000 ${tf} candles, so this backtest covers the ${sweepLookbackLabel(usedHours)}. Use bigger candles for a longer backtest.`
-        : ` Yahoo serves about 60 days of intraday candles and 2 days are used to warm up, so this backtest covers the ${sweepLookbackLabel(usedHours)}.`;
+        : tf === "1m"
+          ? ` Yahoo serves about 7 days of 1-minute candles and 1 day is used to warm up, so this backtest covers the ${sweepLookbackLabel(usedHours)}.`
+          : ` Yahoo serves about 60 days of intraday candles and 2 days are used to warm up, so this backtest covers the ${sweepLookbackLabel(usedHours)}.`;
   return `${source}${capped}`;
 }
 
@@ -150,16 +170,24 @@ export async function analyzeSessionSweep(input: {
   timeframe: SweepTimeframe;
   lookbackHours: number;
   stopMode: SweepStopMode;
+  mode?: SweepMode;
+  rr?: number;
+  includeCosts?: boolean;
   focusTs?: number | null;
 }): Promise<SessionSweepResult> {
-  const { symbol: sym, timeframe, stopMode } = input;
+  const { symbol: sym, timeframe } = input;
+  const mode = input.mode ?? "standard";
+  const stopMode: SweepStopMode = mode === "scalp" ? "sweep" : input.stopMode;
+  const rr = parseSweepRr(mode, input.rr);
+  const cost = input.includeCosts === false ? null : sweepCostFor(sym.symbol, sym.market);
+  const warmup = warmupHours(timeframe);
   const sourceHours = maxSourceHours(sym.market, timeframe);
-  const usedHours = Math.max(1, Math.min(input.lookbackHours, sourceHours - WARMUP_HOURS));
-  const fetchHours = Math.ceil((usedHours + WARMUP_HOURS) / 24) * 24;
+  const usedHours = Math.max(1, Math.min(input.lookbackHours, sourceHours - warmup));
+  const fetchHours = Math.ceil((usedHours + warmup) / 24) * 24;
   const bars = await loadSweepBars(sym, timeframe, Math.min(fetchHours, sourceHours));
   if (bars.length < 30) throw new Error(`Not enough ${timeframe} candles for ${sym.symbol} right now. Try again shortly.`);
 
-  const run = runSessionSweep(bars, { tfMinutes: tfMinutes(timeframe), stopMode, rr: SESSION_SWEEP_RR });
+  const run = runSessionSweep(bars, { tfMinutes: tfMinutes(timeframe), stopMode, rr, mode, cost });
   const lastTs = bars[bars.length - 1]!.t;
   const tfMs = tfMinutes(timeframe) * 60_000;
   const windowStartTs = lastTs + tfMs - usedHours * HOUR_MS;
@@ -189,8 +217,10 @@ export async function analyzeSessionSweep(input: {
     timeframe,
     lookbackHours: usedHours,
     windowStartTs,
+    mode,
     stopMode,
-    rr: SESSION_SWEEP_RR,
+    rr,
+    costLabel: cost && cost.value > 0 ? cost.label : null,
     barsAnalyzed: barsInWindow.length,
     firstBarTs: barsInWindow[0]?.t ?? null,
     lastBarTs: lastTs,
@@ -208,6 +238,9 @@ export async function scanSessionSweep(input: {
   timeframe: SweepTimeframe;
   lookbackHours: number;
   stopMode: SweepStopMode;
+  mode?: SweepMode;
+  rr?: number;
+  includeCosts?: boolean;
 }): Promise<SessionSweepScanRow[]> {
   const rows: SessionSweepScanRow[] = new Array(SESSION_SWEEP_SYMBOLS.length);
   let next = 0;

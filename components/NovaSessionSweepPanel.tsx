@@ -1,10 +1,14 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useSession } from "next-auth/react";
+import { Check, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   SESSION_SWEEP_LOOKBACKS,
+  SESSION_SWEEP_MODES,
   SESSION_SWEEP_NAMES,
+  SESSION_SWEEP_SCALP_RRS,
   SESSION_SWEEP_SESSION_HOURS,
   SESSION_SWEEP_STOP_MODES,
   SESSION_SWEEP_SYMBOLS,
@@ -18,6 +22,7 @@ import {
   type SweepChart,
   type SweepLiveState,
   type SweepLookbackId,
+  type SweepMode,
   type SweepStopMode,
   type SweepTimeframe,
   type SweepTrade,
@@ -69,14 +74,18 @@ function stageMeta(live: SweepLiveState): { label: string; cls: string } {
       : { label: "Short entry live", cls: "bg-rose-500 text-white" };
   }
   if (live.stage === "choch") return { label: "CHoCH confirmed: waiting for BOS", cls: "bg-violet-500 text-white" };
-  if (live.stage === "swept") return { label: "Sweep: waiting for CHoCH", cls: "bg-amber-500 text-white" };
+  if (live.stage === "swept") {
+    return live.plannedEntry != null
+      ? { label: "Sweep: scalp entry on CHoCH close", cls: "bg-amber-500 text-white" }
+      : { label: "Sweep: waiting for CHoCH", cls: "bg-amber-500 text-white" };
+  }
   return { label: "Watching levels", cls: "bg-zinc-200 text-zinc-700 dark:bg-zinc-700 dark:text-zinc-200" };
 }
 
-function outcomeChip(tr: SweepTrade): { label: string; cls: string } {
+function outcomeChip(tr: SweepTrade, mode: SweepMode = "standard"): { label: string; cls: string } {
   if (tr.outcome === "tp") return { label: "Target hit", cls: "text-emerald-600 dark:text-emerald-400" };
   if (tr.outcome === "sl") return { label: "Stopped", cls: "text-rose-600 dark:text-rose-400" };
-  if (tr.outcome === "timeout") return { label: "Closed at 24h", cls: "text-zinc-500" };
+  if (tr.outcome === "timeout") return { label: mode === "scalp" ? "Closed at 2h" : "Closed at 24h", cls: "text-zinc-500" };
   return { label: "Open", cls: "text-sky-600 dark:text-sky-400" };
 }
 
@@ -90,6 +99,9 @@ function levelStatusLabel(l: WatchedLevel): { label: string; cls: string } {
 
 const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
+/** Wins needed per N trades to break even at 1:rr, e.g. 1:3 → "4", 1:2 → "3", 1:1.5 → "2.5". */
+const formatBreakeven = (rr: number) => String(Math.round((rr + 1) * 10) / 10);
+
 const LEVEL_STATUS_HELP: { label: string; text: string }[] = [
   { label: "Untouched", text: "Price has not traded beyond this level yet. It is still a target for a sweep." },
   { label: "Being tested", text: "Price is beyond the level right now. If a candle closes back inside within 30 minutes, it becomes a sweep." },
@@ -98,6 +110,65 @@ const LEVEL_STATUS_HELP: { label: string; text: string }[] = [
   { label: "Expired", text: "The range closed over 20 hours ago and is no longer used. A new range replaces it when that session ends." },
   { label: "Forming", text: "The session is open now, so its high and low can still move. It becomes a level when the session closes." },
 ];
+
+function buildCoachCall(r: SessionSweepResult): { title: string; content: string } {
+  const l = r.live;
+  const p = formatSweepPrice;
+  const style = r.mode === "scalp" ? `Scalp 1:${r.rr}` : `Standard 1:${r.rr}`;
+  const dirWord = l.direction === "short" ? "SHORT" : "LONG";
+  const beyond = l.direction === "short" ? "below" : "above";
+  const lines: string[] = [`${r.symbol} (${r.label}) · ${r.timeframe} candles · ${style}`];
+  let headline = "Watching session levels";
+
+  if (l.stage === "in_trade" && l.trade) {
+    const tr = l.trade;
+    headline = `${tr.direction === "short" ? "SHORT" : "LONG"} entry triggered`;
+    lines.push(
+      `Entry: ${p(tr.entry)} (${fmtTime(tr.entryTs)})`,
+      `Stop: ${p(tr.stop)}`,
+      `Target: ${p(tr.target)} (${r.rr}R)`,
+      `Setup: ${tr.sweptSession} ${tr.sweptSide} ${p(tr.sweptLevel)} swept, then ${r.mode === "scalp" ? "change of character" : "CHoCH + break of structure"}.`,
+      l.entryStillValid ? "Price is still near the entry." : "Price has moved more than 0.3R from the entry, late entries get a worse R:R."
+    );
+  } else if (l.plannedEntry != null && (l.stage === "choch" || l.stage === "swept")) {
+    headline = `${dirWord} setup forming, set an alert`;
+    lines.push(
+      `${l.sweptSession} ${l.sweptSide} ${p(l.sweptLevel)} swept (wick ${p(l.sweepExtreme)}).`,
+      `Entry: candle close ${beyond} ${p(l.plannedEntry)}`,
+      `Stop: ${p(l.plannedStop)}`,
+      `Target: ${p(l.plannedTarget)} (${r.rr}R)`,
+      l.stage === "swept"
+        ? `Cancelled if price closes back beyond ${p(l.sweptLevel)} first.`
+        : `Cancelled if price runs beyond the sweep wick ${p(l.sweepExtreme)} first.`
+    );
+  } else if (l.stage === "swept" || l.stage === "choch") {
+    headline = `${dirWord} idea after a sweep, no entry yet`;
+    lines.push(
+      `${l.sweptSession} ${l.sweptSide} ${p(l.sweptLevel)} swept (wick ${p(l.sweepExtreme)}).`,
+      l.stage === "swept"
+        ? `Waiting for a candle close ${beyond} ${p(l.chochLevel)} (change of character).`
+        : "Change of character confirmed, waiting for the break-of-structure level."
+    );
+  } else {
+    const watching = r.levels.filter((x) => x.active && x.status === "untouched");
+    if (watching.length > 0) {
+      lines.push("Untouched levels to watch for a sweep:");
+      for (const x of watching) lines.push(`• ${x.session} ${x.side}: ${p(x.price)}`);
+    } else {
+      lines.push("No fresh session levels left; waiting for the next session range.");
+    }
+  }
+
+  const s = r.stats;
+  lines.push(
+    "",
+    `Backtest (${sweepLookbackLabel(r.lookbackHours)}${r.costLabel ? `, after ${r.costLabel} costs` : ""}): ${s.trades} trades · ${
+      s.winRate != null ? `${s.winRate}% wins` : "no closed trades"
+    } · ${fmtR(s.totalR)}`,
+    "Educational only, not financial advice. Risk a small fixed amount per trade."
+  );
+  return { title: `Nova Session Sweep · ${r.symbol} · ${headline}`, content: lines.join("\n") };
+}
 
 function NextStepBox({ live, rr }: { live: SweepLiveState; rr: number }) {
   const isShort = live.direction === "short";
@@ -112,7 +183,18 @@ function NextStepBox({ live, rr }: { live: SweepLiveState; rr: number }) {
     </>
   );
 
-  if (live.stage === "swept") {
+  if (live.stage === "swept" && live.plannedEntry != null) {
+    title = `Scalp: set an alert at ${formatSweepPrice(live.plannedEntry)}`;
+    tone = "border-amber-400";
+    body = (
+      <>
+        The {live.sweptSession} {live.sweptSide} was swept. Enter {side} only when a candle <strong>closes {beyond}{" "}
+        {formatSweepPrice(live.plannedEntry)}</strong> (the change of character). Expected plan: stop{" "}
+        {formatSweepPrice(live.plannedStop)} beyond the sweep wick, target {formatSweepPrice(live.plannedTarget)} ({rr}R). If
+        price instead closes back beyond {formatSweepPrice(live.sweptLevel)}, the idea is cancelled.
+      </>
+    );
+  } else if (live.stage === "swept") {
     title = "Get ready, but do not enter yet";
     tone = "border-amber-400";
     body = (
@@ -393,10 +475,14 @@ function SweepChartView({
                 <text x={xc - 18} y={geom.y(tr.chochLevel) + (isShort ? 12 : -4)} fontSize={10} fontWeight={700} fill="#8b5cf6">
                   CHoCH
                 </text>
-                <line x1={xe - 18} x2={xe + 6} y1={geom.y(tr.bosLevel)} y2={geom.y(tr.bosLevel)} stroke="#6366f1" strokeWidth={1.5} />
-                <text x={xe - 18} y={geom.y(tr.bosLevel) + (isShort ? 12 : -4)} fontSize={10} fontWeight={700} fill="#6366f1">
-                  BOS
-                </text>
+                {tr.bosTs !== tr.chochTs && (
+                  <>
+                    <line x1={xe - 18} x2={xe + 6} y1={geom.y(tr.bosLevel)} y2={geom.y(tr.bosLevel)} stroke="#6366f1" strokeWidth={1.5} />
+                    <text x={xe - 18} y={geom.y(tr.bosLevel) + (isShort ? 12 : -4)} fontSize={10} fontWeight={700} fill="#6366f1">
+                      BOS
+                    </text>
+                  </>
+                )}
                 <rect
                   x={xe}
                   y={Math.min(geom.y(tr.entry), geom.y(tr.target))}
@@ -483,6 +569,13 @@ export default function NovaSessionSweepPanel({ enabled }: Props) {
   const [alertsOn, setAlertsOn] = useState(false);
   const lastAlertKey = useRef<string | null>(null);
   const [stopMode, setStopMode] = useState<SweepStopMode>("structure");
+  const [strategy, setStrategy] = useState<SweepMode>("standard");
+  const [scalpRr, setScalpRr] = useState<number>(2);
+  const [includeCosts, setIncludeCosts] = useState(true);
+  const { data: session } = useSession();
+  const sessionUser = session?.user as { isCoachUser?: boolean; isOwner?: boolean } | undefined;
+  const canShare = !!(sessionUser?.isOwner || sessionUser?.isCoachUser);
+  const [shareState, setShareState] = useState<"idle" | "sharing" | "done">("idle");
   const [result, setResult] = useState<SessionSweepResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -506,7 +599,16 @@ export default function NovaSessionSweepPanel({ enabled }: Props) {
           method: "POST",
           credentials: "include",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ symbol, timeframe, lookback, stopMode, focusTs: opts?.focusTs ?? null }),
+          body: JSON.stringify({
+            symbol,
+            timeframe,
+            lookback,
+            stopMode,
+            strategy,
+            rr: scalpRr,
+            costs: includeCosts,
+            focusTs: opts?.focusTs ?? null,
+          }),
         });
         const data = await res.json();
         if (seq !== reqSeq.current) return;
@@ -524,7 +626,7 @@ export default function NovaSessionSweepPanel({ enabled }: Props) {
       }
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [symbol, timeframe, lookback, stopMode]
+    [symbol, timeframe, lookback, stopMode, strategy, scalpRr, includeCosts]
   );
 
   const alertsOnRef = useRef(alertsOn);
@@ -533,24 +635,29 @@ export default function NovaSessionSweepPanel({ enabled }: Props) {
   /** First result per symbol only records the state, so opening the tab never fires an old alert. */
   function notifyIfNew(r: SessionSweepResult) {
     const l = r.live;
+    const scalpWatch = r.mode === "scalp" && l.stage === "swept" && l.plannedEntry != null;
     const key =
       l.stage === "in_trade" && l.trade
-        ? `${r.symbol}|trade|${l.trade.id}`
-        : l.stage === "choch" && l.plannedEntry != null
-          ? `${r.symbol}|bos|${l.plannedEntry}`
-          : `${r.symbol}|${l.stage}`;
+        ? `${r.symbol}|${r.mode}|trade|${l.trade.id}`
+        : (l.stage === "choch" || scalpWatch) && l.plannedEntry != null
+          ? `${r.symbol}|${r.mode}|plan|${l.plannedEntry}`
+          : `${r.symbol}|${r.mode}|${l.stage}`;
     const prev = lastAlertKey.current;
     lastAlertKey.current = key;
-    if (!alertsOnRef.current || !prev || !prev.startsWith(`${r.symbol}|`) || prev === key) return;
-    if (l.stage !== "in_trade" && l.stage !== "choch") return;
+    if (!alertsOnRef.current || !prev || !prev.startsWith(`${r.symbol}|${r.mode}|`) || prev === key) return;
+    if (l.stage !== "in_trade" && l.stage !== "choch" && !scalpWatch) return;
     const title =
       l.stage === "in_trade" && l.trade
-        ? `${r.symbol}: ${l.trade.direction === "long" ? "LONG" : "SHORT"} entry ${formatSweepPrice(l.trade.entry)}`
-        : `${r.symbol}: CHoCH confirmed, watch ${formatSweepPrice(l.plannedEntry ?? l.bosLevel)}`;
+        ? `${r.symbol}: ${l.trade.direction === "long" ? "LONG" : "SHORT"} ${r.mode === "scalp" ? "scalp " : ""}entry ${formatSweepPrice(l.trade.entry)}`
+        : scalpWatch
+          ? `${r.symbol}: sweep, scalp triggers on a close beyond ${formatSweepPrice(l.plannedEntry)}`
+          : `${r.symbol}: CHoCH confirmed, watch ${formatSweepPrice(l.plannedEntry ?? l.bosLevel)}`;
     const body =
       l.stage === "in_trade" && l.trade
         ? `Stop ${formatSweepPrice(l.trade.stop)} · Target ${formatSweepPrice(l.trade.target)}`
-        : "Entry triggers on a candle close beyond the break-of-structure level.";
+        : scalpWatch
+          ? `Stop ${formatSweepPrice(l.plannedStop)} · Target ${formatSweepPrice(l.plannedTarget)}`
+          : "Entry triggers on a candle close beyond the break-of-structure level.";
     try {
       if (typeof Notification !== "undefined" && Notification.permission === "granted") new Notification(title, { body });
       const AudioCtx = window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
@@ -598,7 +705,7 @@ export default function NovaSessionSweepPanel({ enabled }: Props) {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mode: "scan", timeframe, lookback, stopMode }),
+        body: JSON.stringify({ mode: "scan", timeframe, lookback, stopMode, strategy, rr: scalpRr, costs: includeCosts }),
       });
       const data = await res.json();
       if (!res.ok || !data.success) {
@@ -611,7 +718,31 @@ export default function NovaSessionSweepPanel({ enabled }: Props) {
     } finally {
       setScanning(false);
     }
-  }, [timeframe, lookback, stopMode]);
+  }, [timeframe, lookback, stopMode, strategy, scalpRr, includeCosts]);
+
+  const shareToCoachCalls = async () => {
+    if (!result || shareState === "sharing") return;
+    setShareState("sharing");
+    try {
+      const res = await fetch("/api/coach-calls", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(buildCoachCall(result)),
+      });
+      const data = (await res.json()) as { success?: boolean; error?: string };
+      if (!res.ok || !data.success) {
+        alert(data.error ?? "Failed to share");
+        setShareState("idle");
+        return;
+      }
+      setShareState("done");
+      window.setTimeout(() => setShareState("idle"), 3000);
+    } catch {
+      alert("Failed to share");
+      setShareState("idle");
+    }
+  };
 
   const focusTrade = (tr: SweepTrade) => {
     setFocus(tr);
@@ -641,7 +772,8 @@ export default function NovaSessionSweepPanel({ enabled }: Props) {
         <p className="text-xs text-muted-foreground mt-1 max-w-3xl">
           Marks the Asia, London and New York session highs and lows. When price sweeps one of those levels, the indicator
           waits for a change of character (CHoCH) and a break of structure (BOS) on closed candles, then gives an entry with a
-          stop and a 1:3 target. Every number below comes from fixed rules, not AI.
+          stop and a 1:3 target. Scalp mode enters earlier, on the CHoCH, with a 1.5R or 2R target. Every number below comes
+          from fixed rules, not AI.
         </p>
       </div>
 
@@ -661,6 +793,28 @@ export default function NovaSessionSweepPanel({ enabled }: Props) {
                   </option>
                 ))}
               </optgroup>
+            ))}
+          </select>
+        </label>
+        <label className="text-xs text-muted-foreground">
+          Style
+          <select
+            value={strategy}
+            onChange={(e) => {
+              const next = e.target.value as SweepMode;
+              setStrategy(next);
+              if (next === "scalp") {
+                if (timeframe !== "1m" && timeframe !== "5m") setTimeframe("1m");
+                if (!["4h", "12h", "24h", "3d", "7d"].includes(lookback)) setLookback("3d");
+              }
+            }}
+            title={SESSION_SWEEP_MODES.find((m) => m.id === strategy)?.hint}
+            className="mt-1 block rounded-md border border-zinc-300 dark:border-zinc-600 px-2 py-1.5 text-sm bg-white dark:bg-zinc-800"
+          >
+            {SESSION_SWEEP_MODES.map((m) => (
+              <option key={m.id} value={m.id}>
+                {m.label}
+              </option>
             ))}
           </select>
         </label>
@@ -692,21 +846,38 @@ export default function NovaSessionSweepPanel({ enabled }: Props) {
             ))}
           </select>
         </label>
-        <label className="text-xs text-muted-foreground">
-          Stop
-          <select
-            value={stopMode}
-            onChange={(e) => setStopMode(e.target.value as SweepStopMode)}
-            title={SESSION_SWEEP_STOP_MODES.find((m) => m.id === stopMode)?.hint}
-            className="mt-1 block rounded-md border border-zinc-300 dark:border-zinc-600 px-2 py-1.5 text-sm bg-white dark:bg-zinc-800"
-          >
-            {SESSION_SWEEP_STOP_MODES.map((m) => (
-              <option key={m.id} value={m.id}>
-                {m.label}
-              </option>
-            ))}
-          </select>
-        </label>
+        {strategy === "scalp" ? (
+          <label className="text-xs text-muted-foreground">
+            Target
+            <select
+              value={scalpRr}
+              onChange={(e) => setScalpRr(Number(e.target.value))}
+              className="mt-1 block rounded-md border border-zinc-300 dark:border-zinc-600 px-2 py-1.5 text-sm bg-white dark:bg-zinc-800"
+            >
+              {SESSION_SWEEP_SCALP_RRS.map((v) => (
+                <option key={v} value={v}>
+                  1:{v}
+                </option>
+              ))}
+            </select>
+          </label>
+        ) : (
+          <label className="text-xs text-muted-foreground">
+            Stop
+            <select
+              value={stopMode}
+              onChange={(e) => setStopMode(e.target.value as SweepStopMode)}
+              title={SESSION_SWEEP_STOP_MODES.find((m) => m.id === stopMode)?.hint}
+              className="mt-1 block rounded-md border border-zinc-300 dark:border-zinc-600 px-2 py-1.5 text-sm bg-white dark:bg-zinc-800"
+            >
+              {SESSION_SWEEP_STOP_MODES.map((m) => (
+                <option key={m.id} value={m.id}>
+                  {m.label}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
         <Button size="sm" onClick={() => (focus ? backToLive() : void load())} disabled={loading}>
           {loading ? "Loading…" : "Refresh"}
         </Button>
@@ -721,9 +892,19 @@ export default function NovaSessionSweepPanel({ enabled }: Props) {
           <input type="checkbox" className="rounded" checked={alertsOn} onChange={(e) => void toggleAlerts(e.target.checked)} />
           Alert me on {symbol}
         </label>
+        <label
+          className="flex items-center gap-1.5 text-xs text-muted-foreground pb-1.5 cursor-pointer"
+          title="Deducts a typical round-trip spread and fee from every backtest trade."
+        >
+          <input type="checkbox" className="rounded" checked={includeCosts} onChange={(e) => setIncludeCosts(e.target.checked)} />
+          Include spread &amp; fees
+        </label>
       </div>
       <p className="text-[11px] text-muted-foreground -mt-2">
-        {SESSION_SWEEP_STOP_MODES.find((m) => m.id === stopMode)?.hint} Alerts work while this tab stays open.
+        {strategy === "scalp"
+          ? SESSION_SWEEP_MODES.find((m) => m.id === "scalp")?.hint
+          : SESSION_SWEEP_STOP_MODES.find((m) => m.id === stopMode)?.hint}{" "}
+        Alerts work while this tab stays open.
       </p>
 
       {error && <p className="text-sm text-rose-600 dark:text-rose-400">{error}</p>}
@@ -744,11 +925,29 @@ export default function NovaSessionSweepPanel({ enabled }: Props) {
             <p className="text-sm text-zinc-700 dark:text-zinc-300">{live.message}</p>
             <NextStepBox live={live} rr={result.rr} />
             {live.stage !== "idle" && (
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+              <div className={`grid grid-cols-2 gap-2 text-xs ${result.mode === "scalp" ? "sm:grid-cols-3" : "sm:grid-cols-4"}`}>
                 <StatTile label={`Swept ${live.sweptSession ?? ""} ${live.sweptSide ?? ""}`} value={formatSweepPrice(live.sweptLevel)} />
                 <StatTile label="Sweep wick" value={formatSweepPrice(live.sweepExtreme)} />
-                <StatTile label="CHoCH level" value={formatSweepPrice(live.chochLevel)} />
-                <StatTile label="BOS level" value={formatSweepPrice(live.bosLevel)} />
+                <StatTile label={result.mode === "scalp" ? "CHoCH level (entry)" : "CHoCH level"} value={formatSweepPrice(live.chochLevel)} />
+                {result.mode !== "scalp" && <StatTile label="BOS level" value={formatSweepPrice(live.bosLevel)} />}
+              </div>
+            )}
+            {canShare && !focus && (
+              <div className="flex flex-wrap items-center gap-2 pt-1">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={shareState === "sharing"}
+                  onClick={() => void shareToCoachCalls()}
+                  className="h-8 text-xs border-cyan-300/80 dark:border-cyan-700 text-cyan-800 dark:text-cyan-200"
+                >
+                  {shareState === "done" ? <Check className="h-3.5 w-3.5 mr-1" /> : <Send className="h-3.5 w-3.5 mr-1" />}
+                  {shareState === "sharing" ? "Sharing…" : shareState === "done" ? "Shared!" : "Share to Coach Calls"}
+                </Button>
+                <span className="text-[11px] text-muted-foreground">
+                  Posts this market&apos;s current setup, entry, stop, target and backtest summary.
+                </span>
               </div>
             )}
             {live.trade && (
@@ -861,7 +1060,10 @@ export default function NovaSessionSweepPanel({ enabled }: Props) {
               <div className="flex flex-wrap items-baseline justify-between gap-2">
                 <h3 className="text-sm font-semibold text-zinc-800 dark:text-zinc-200">
                   Backtest · {result.symbol} · {result.timeframe} candles · {sweepLookbackLabel(result.lookbackHours).toLowerCase()} ·{" "}
-                  {SESSION_SWEEP_STOP_MODES.find((m) => m.id === result.stopMode)?.label.toLowerCase()}
+                  {result.mode === "scalp"
+                    ? `scalp 1:${result.rr}`
+                    : SESSION_SWEEP_STOP_MODES.find((m) => m.id === result.stopMode)?.label.toLowerCase()}
+                  {result.costLabel ? ` · after ${result.costLabel} costs` : " · no costs"}
                 </h3>
                 <span className="text-[11px] text-muted-foreground">
                   {result.barsAnalyzed.toLocaleString()} candles · {fmtTime(result.firstBarTs)} to {fmtTime(result.lastBarTs)}
@@ -895,10 +1097,15 @@ export default function NovaSessionSweepPanel({ enabled }: Props) {
               </div>
               <p className="text-[11px] text-muted-foreground">
                 {smallSample
-                  ? `Only ${stats.trades} closed trade${stats.trades === 1 ? "" : "s"}. Fewer than 30 trades is too small to judge an edge, so try a longer backtest or 15-minute candles. `
+                  ? `Only ${stats.trades} closed trade${stats.trades === 1 ? "" : "s"}. Fewer than 30 trades is too small to judge an edge, so ${
+                      result.mode === "scalp" ? "try a longer backtest or scan all markets" : "try a longer backtest or 15-minute candles"
+                    }. `
                   : ""}
-                At 1:3, about 1 win in 4 is breakeven before costs. Results ignore spread, commission and slippage. If a candle
-                touches both the stop and the target, it counts as a loss. {result.dataNote}
+                At 1:{result.rr}, about 1 win in {formatBreakeven(result.rr)} is breakeven before costs.{" "}
+                {result.costLabel
+                  ? `Each trade pays a ${result.costLabel} round-trip spread and fee, so a win counts slightly less than ${result.rr}R and a loss slightly more than 1R. Slippage is not included.`
+                  : "Spread, fees and slippage are not included."}{" "}
+                If a candle touches both the stop and the target, it counts as a loss. {result.dataNote}
               </p>
             </div>
           )}
@@ -925,7 +1132,7 @@ export default function NovaSessionSweepPanel({ enabled }: Props) {
                   </thead>
                   <tbody>
                     {visibleTrades.map((tr) => {
-                      const oc = outcomeChip(tr);
+                      const oc = outcomeChip(tr, result.mode);
                       return (
                         <tr
                           key={tr.id}
@@ -1020,7 +1227,7 @@ export default function NovaSessionSweepPanel({ enabled }: Props) {
                         {row.lastTrade ? (
                           <>
                             {row.lastTrade.direction === "long" ? "Long" : "Short"} · {fmtTime(row.lastTrade.entryTs)} ·{" "}
-                            <span className={outcomeChip(row.lastTrade).cls}>{outcomeChip(row.lastTrade).label}</span>
+                            <span className={outcomeChip(row.lastTrade, strategy).cls}>{outcomeChip(row.lastTrade, strategy).label}</span>
                           </>
                         ) : (
                           "—"
@@ -1097,6 +1304,17 @@ export default function NovaSessionSweepPanel({ enabled }: Props) {
             <strong>Stop and target.</strong> The structure stop sits just beyond the pullback swing, and the sweep stop sits beyond
             the sweep wick. The stop is never tighter than half the average candle range (ATR), and setups needing more than 6× ATR
             are skipped. The target is 3× the risk. Trades still open after 24 hours are closed at market.
+          </li>
+          <li>
+            <strong>Scalp mode.</strong> Same sweep, but the entry is the CHoCH close (no wait for the BOS) and the stop sits beyond
+            the sweep wick. The CHoCH must come within 1 hour of the sweep, and the idea is cancelled if a candle closes back beyond
+            the swept level first. The target is 1.5R or 2R, and trades still open after 2 hours are closed at market. Session sweeps happen only
+            a few times a day per market, so use Scan all markets to find them. Best on 1-minute or 5-minute candles.
+          </li>
+          <li>
+            <strong>Costs.</strong> With &quot;Include spread &amp; fees&quot; on, every trade pays a typical round trip: gold $0.30,
+            silver $0.03, EUR/USD 0.8 pip, GBP/USD 1.2, USD/JPY 1.0, AUD/USD 1.0, USD/CAD 1.5, GBP/JPY 2.5, EUR/JPY 1.8, crypto
+            0.10% of price. Your broker may charge more or less.
           </li>
           <li>
             <strong>One idea at a time.</strong> While a trade is open, new sweeps are ignored. Signals only use closed candles,

@@ -5,6 +5,7 @@ import { getNovaSessionSweepAccess } from "@/lib/vip-futures-addon-access";
 import {
   analyzeSessionSweep,
   parseSweepLookbackHours,
+  parseSweepMode,
   parseSweepStopMode,
   parseSweepTimeframe,
   resolveSweepSymbol,
@@ -14,7 +15,10 @@ import {
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
-/** POST { mode?: "analyze" | "scan", symbol, timeframe, lookback ("4h"…"60d"), stopMode, focusTs? } */
+/**
+ * POST { mode?: "analyze" | "scan", symbol, timeframe, lookback ("4h"…"60d"), stopMode,
+ *        strategy?: "standard" | "scalp", rr? (scalp: 1.5 | 2), costs? (default true), focusTs? }
+ */
 export async function POST(request: Request) {
   try {
     const session = await getServerSession(authOptions);
@@ -30,10 +34,13 @@ export async function POST(request: Request) {
     const timeframe = parseSweepTimeframe(body.timeframe);
     const lookbackHours = parseSweepLookbackHours(body.lookback ?? body.lookbackDays);
     const stopMode = parseSweepStopMode(body.stopMode);
+    const strategy = parseSweepMode(body.strategy);
+    const rr = Number(body.rr);
+    const includeCosts = body.costs !== false;
 
     if (body.mode === "scan") {
-      const rows = await scanSessionSweep({ timeframe, lookbackHours, stopMode });
-      return NextResponse.json({ success: true, rows, timeframe, lookbackHours, stopMode });
+      const rows = await scanSessionSweep({ timeframe, lookbackHours, stopMode, mode: strategy, rr, includeCosts });
+      return NextResponse.json({ success: true, rows, timeframe, lookbackHours, stopMode, strategy });
     }
 
     const symbol = resolveSweepSymbol(String(body.symbol ?? "XAUUSD"));
@@ -46,6 +53,9 @@ export async function POST(request: Request) {
       timeframe,
       lookbackHours,
       stopMode,
+      mode: strategy,
+      rr,
+      includeCosts,
       focusTs: Number.isFinite(focusTs) && focusTs > 0 ? focusTs : null,
     });
     return NextResponse.json({ success: true, result });

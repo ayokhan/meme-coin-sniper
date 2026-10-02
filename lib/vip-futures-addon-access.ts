@@ -183,8 +183,9 @@ export async function getNovaPatternDetectorAccess(session: Session | null): Pro
 }
 
 /**
- * Master OFF → nobody. Owner and admin-granted users (novaSessionSweepOnDemand) always pass,
- * even while Owner-only or without VIP. Everyone else follows Owner only / All VIP.
+ * Master OFF → nobody. Owner, coaches (so they can share setups to Coach Calls) and admin-granted
+ * users (novaSessionSweepOnDemand) always pass, even while Owner-only or without VIP.
+ * Everyone else follows Owner only / All VIP.
  */
 export async function getNovaSessionSweepAccess(session: Session | null): Promise<VipFuturesAddonAccess> {
   if (!session?.user?.id) {
@@ -195,6 +196,7 @@ export async function getNovaSessionSweepAccess(session: Session | null): Promis
     return { ok: false, status: 403, error: disabledMsg, disabled: true };
   }
   if (isOwnerSession(session)) return { ok: true, userId: session.user.id };
+  if ((session.user as { isCoachUser?: boolean }).isCoachUser) return { ok: true, userId: session.user.id };
 
   const user = (await prisma.user
     .findUnique({ where: { id: session.user.id }, select: { novaSessionSweepOnDemand: true } })

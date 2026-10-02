@@ -10,6 +10,7 @@ import type {
   SessionRange,
   SweepDirection,
   SweepLiveState,
+  SweepMode,
   SweepStats,
   SweepStopMode,
   SweepTrade,
@@ -23,6 +24,10 @@ export type SweepRunOptions = {
   tfMinutes: number;
   stopMode: SweepStopMode;
   rr?: number;
+  /** Scalp enters on the CHoCH close with the stop beyond the sweep wick, and exits within 2 hours. */
+  mode?: SweepMode;
+  /** Round-trip spread + fees, deducted from every trade's R. */
+  cost?: { kind: "price" | "pct"; value: number } | null;
 };
 
 export type SweepRun = {
@@ -153,12 +158,19 @@ function round(n: number, dp = 4): number {
 
 export function runSessionSweep(bars: SweepBar[], opts: SweepRunOptions): SweepRun {
   const rr = opts.rr ?? 3;
+  const scalp = opts.mode === "scalp";
+  const maxRiskAtr = MAX_RISK_ATR;
   const tfMs = opts.tfMinutes * 60_000;
   const barsFor = (minutes: number) => Math.max(1, Math.ceil(minutes / opts.tfMinutes));
   // Floors leave room for a swing (2 bars each side) on 30m / 1h candles.
-  const CHOCH_WINDOW = Math.max(barsFor(180), 6);
+  const CHOCH_WINDOW = scalp ? Math.max(barsFor(60), 4) : Math.max(barsFor(180), 6);
   const BOS_WINDOW = Math.max(barsFor(240), 8);
-  const MAX_HOLD = Math.max(barsFor(24 * 60), 24);
+  const MAX_HOLD = scalp ? Math.max(barsFor(120), 2) : Math.max(barsFor(24 * 60), 24);
+  const costR = (entry: number, risk: number) => {
+    if (!opts.cost || !(opts.cost.value > 0) || !(risk > 0)) return 0;
+    const px = opts.cost.kind === "pct" ? entry * opts.cost.value : opts.cost.value;
+    return round(px / risk, 3);
+  };
   const MAX_RAID = barsFor(30);
   const PROTECTED_LOOKBACK = barsFor(12 * 60);
 
@@ -197,6 +209,46 @@ export function runSessionSweep(bars: SweepBar[], opts: SweepRunOptions): SweepR
     const to = ev.raidStart - 1;
     if (to < 0) return dir === "short" ? bars[ev.extremeIdx]!.l : bars[ev.extremeIdx]!.h;
     return dir === "short" ? minLow(from, to) : maxHigh(from, to);
+  };
+
+  /** Opens a trade at bar t's close. Null when the stop would be too wide (setup skipped). */
+  const openTrade = (t: number, s: Setup, anchor: number, bosLevel: number, structureSwing: number): SweepTrade | null => {
+    const b = bars[t]!;
+    const entry = b.c;
+    const plan = planStop(s.dir, entry, anchor, atr, maxRiskAtr);
+    if (!plan) return null;
+    const { stop, risk } = plan;
+    const ev = s.ev;
+    const isShort = s.dir === "short";
+    const cR = costR(entry, risk);
+    const opened: SweepTrade = {
+      id: `${b.t}-${s.dir}`,
+      direction: s.dir,
+      huntSession: ev.hunt,
+      sweptSession: ev.session,
+      sweptSide: ev.side,
+      sweptLevel: ev.level,
+      sweepTs: bars[s.sweepIdx]!.t,
+      sweepExtreme: s.extreme,
+      chochTs: bars[s.chochIdx]!.t,
+      chochLevel: s.protectedLevel,
+      bosTs: b.t,
+      bosLevel,
+      structureSwing,
+      entryTs: b.t,
+      entry,
+      stop,
+      target: isShort ? entry - rr * risk : entry + rr * risk,
+      risk,
+      outcome: "open",
+      exitTs: null,
+      exitPrice: null,
+      r: round(-cR, 2),
+      costR: cR,
+    };
+    tradeEntryIdx = t;
+    trades.push(opened);
+    return opened;
   };
 
   const finalizeRange = (r: SessionRange) => {
@@ -251,20 +303,21 @@ export function runSessionSweep(bars: SweepBar[], opts: SweepRunOptions): SweepR
       const isShort = trade.direction === "short";
       const hitStop = isShort ? b.h >= trade.stop : b.l <= trade.stop;
       const hitTarget = isShort ? b.l <= trade.target : b.h >= trade.target;
+      const markR = (isShort ? trade.entry - b.c : b.c - trade.entry) / trade.risk;
       if (hitStop) {
         trade.outcome = "sl";
         trade.exitPrice = trade.stop;
-        trade.r = -1;
+        trade.r = round(-1 - trade.costR, 2);
       } else if (hitTarget) {
         trade.outcome = "tp";
         trade.exitPrice = trade.target;
-        trade.r = rr;
+        trade.r = round(rr - trade.costR, 2);
       } else if (t - tradeEntryIdx >= MAX_HOLD) {
         trade.outcome = "timeout";
         trade.exitPrice = b.c;
-        trade.r = round((isShort ? trade.entry - b.c : b.c - trade.entry) / trade.risk, 2);
+        trade.r = round(markR - trade.costR, 2);
       } else {
-        trade.r = round((isShort ? trade.entry - b.c : b.c - trade.entry) / trade.risk, 2);
+        trade.r = round(markR - trade.costR, 2);
       }
       if (trade.outcome !== "open") {
         trade.exitTs = b.t;
@@ -335,6 +388,10 @@ export function runSessionSweep(bars: SweepBar[], opts: SweepRunOptions): SweepR
           if (isShort ? b.c < setup.protectedLevel : b.c > setup.protectedLevel) {
             setup.stage = "choch";
             setup.chochIdx = t;
+            if (scalp) {
+              trade = openTrade(t, setup, setup.extreme, setup.protectedLevel, setup.extreme);
+              setup = null;
+            }
           }
         }
       } else if (pastExtreme || t - setup.chochIdx > BOS_WINDOW) {
@@ -353,39 +410,8 @@ export function runSessionSweep(bars: SweepBar[], opts: SweepRunOptions): SweepR
         if (setup.structureSwing != null && setup.bosLevel != null) {
           const broke = isShort ? b.c < setup.bosLevel : b.c > setup.bosLevel;
           if (broke) {
-            const entry = b.c;
             const anchor = opts.stopMode === "sweep" ? setup.extreme : setup.structureSwing;
-            const plan = planStop(setup.dir, entry, anchor, atr);
-            if (plan) {
-              const { stop, risk } = plan;
-              const ev = setup.ev;
-              trade = {
-                id: `${b.t}-${setup.dir}`,
-                direction: setup.dir,
-                huntSession: ev.hunt,
-                sweptSession: ev.session,
-                sweptSide: ev.side,
-                sweptLevel: ev.level,
-                sweepTs: bars[setup.sweepIdx]!.t,
-                sweepExtreme: setup.extreme,
-                chochTs: bars[setup.chochIdx]!.t,
-                chochLevel: setup.protectedLevel,
-                bosTs: b.t,
-                bosLevel: setup.bosLevel,
-                structureSwing: setup.structureSwing,
-                entryTs: b.t,
-                entry,
-                stop,
-                target: isShort ? entry - rr * risk : entry + rr * risk,
-                risk,
-                outcome: "open",
-                exitTs: null,
-                exitPrice: null,
-                r: 0,
-              };
-              tradeEntryIdx = t;
-              trades.push(trade);
-            }
+            trade = openTrade(t, setup, anchor, setup.bosLevel, setup.structureSwing);
             setup = null;
           }
         }
@@ -413,6 +439,10 @@ export function runSessionSweep(bars: SweepBar[], opts: SweepRunOptions): SweepR
       if (dir === "short" ? b.c < protectedLevel : b.c > protectedLevel) {
         setup.stage = "choch";
         setup.chochIdx = t;
+        if (scalp) {
+          trade = openTrade(t, setup, setup.extreme, protectedLevel, setup.extreme);
+          setup = null;
+        }
       }
     }
   }
@@ -431,7 +461,7 @@ export function runSessionSweep(bars: SweepBar[], opts: SweepRunOptions): SweepR
     );
   }
 
-  const live = describeLive({ trade, setup, levels, lastBar, rr, atr, stopMode: opts.stopMode });
+  const live = describeLive({ trade, setup, levels, lastBar, rr, atr, stopMode: opts.stopMode, scalp, maxRiskAtr });
 
   return { ranges, building: Array.from(building.values()), trades, levels, live };
 }
@@ -441,7 +471,8 @@ function planStop(
   dir: SweepDirection,
   entry: number,
   anchor: number,
-  atr: number
+  atr: number,
+  maxRiskAtr: number
 ): { stop: number; risk: number } | null {
   const isShort = dir === "short";
   const buffer = STOP_BUFFER_ATR * atr;
@@ -452,7 +483,7 @@ function planStop(
     risk = minRisk;
     stop = isShort ? entry + risk : entry - risk;
   }
-  if (!(risk > 0) || risk > MAX_RISK_ATR * atr) return null;
+  if (!(risk > 0) || risk > maxRiskAtr * atr) return null;
   return { stop, risk };
 }
 
@@ -464,8 +495,10 @@ function describeLive(args: {
   rr: number;
   atr: number;
   stopMode: SweepStopMode;
+  scalp: boolean;
+  maxRiskAtr: number;
 }): SweepLiveState {
-  const { trade, setup, levels, lastBar, rr, atr, stopMode } = args;
+  const { trade, setup, levels, lastBar, rr, atr, stopMode, scalp, maxRiskAtr } = args;
   const base: SweepLiveState = {
     stage: "idle",
     direction: null,
@@ -501,7 +534,9 @@ function describeLive(args: {
       bosLevel: trade.bosLevel,
       trade,
       entryStillValid: drift <= 0.3,
-      message: `${dirWord} triggered after the ${trade.sweptSession} ${trade.sweptSide} was swept and structure broke. Target is ${rr}R.`,
+      message: scalp
+        ? `${dirWord} scalp triggered on the change of character after the ${trade.sweptSession} ${trade.sweptSide} sweep. Target is ${rr}R.`
+        : `${dirWord} triggered after the ${trade.sweptSession} ${trade.sweptSide} was swept and structure broke. Target is ${rr}R.`,
     };
   }
 
@@ -510,6 +545,7 @@ function describeLive(args: {
     const dirWord = setup.dir === "long" ? "long" : "short";
     const beyond = setup.dir === "short" ? "below" : "above";
     if (setup.stage === "swept") {
+      const scalpPlan = scalp ? planStop(setup.dir, setup.protectedLevel, setup.extreme, atr, maxRiskAtr) : null;
       return {
         ...base,
         stage: "swept",
@@ -519,7 +555,16 @@ function describeLive(args: {
         sweptLevel: setup.ev.level,
         sweepExtreme: setup.extreme,
         chochLevel: setup.protectedLevel,
-        message: `${sweptLabel} swept. Waiting for a change of character: a candle close ${beyond} the protected swing. No entry yet.`,
+        plannedEntry: scalpPlan ? setup.protectedLevel : null,
+        plannedStop: scalpPlan?.stop ?? null,
+        plannedTarget: scalpPlan
+          ? setup.dir === "short"
+            ? setup.protectedLevel - rr * scalpPlan.risk
+            : setup.protectedLevel + rr * scalpPlan.risk
+          : null,
+        message: scalp
+          ? `${sweptLabel} swept. A candle close ${beyond} the protected swing triggers the ${dirWord} scalp.`
+          : `${sweptLabel} swept. Waiting for a change of character: a candle close ${beyond} the protected swing. No entry yet.`,
       };
     }
     let plannedEntry: number | null = null;
@@ -527,7 +572,7 @@ function describeLive(args: {
     let plannedTarget: number | null = null;
     if (setup.bosLevel != null && setup.structureSwing != null) {
       const anchor = stopMode === "sweep" ? setup.extreme : setup.structureSwing;
-      const plan = planStop(setup.dir, setup.bosLevel, anchor, atr);
+      const plan = planStop(setup.dir, setup.bosLevel, anchor, atr, maxRiskAtr);
       if (plan) {
         plannedEntry = setup.bosLevel;
         plannedStop = plan.stop;
