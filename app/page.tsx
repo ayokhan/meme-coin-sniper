@@ -2504,7 +2504,8 @@ function Dashboard() {
     const nextUrl = nextQuery ? `/?${nextQuery}` : "/";
     const currentUrl = `${window.location.pathname}${window.location.search}`;
     if (currentUrl !== nextUrl) {
-      router.replace(nextUrl, { scroll: false });
+      // Native replaceState: Next keeps useSearchParams in sync without a server round-trip per tab switch.
+      window.history.replaceState(null, "", nextUrl);
     }
   }, [
     activeTab,
@@ -2520,7 +2521,6 @@ function Dashboard() {
     novaPulseSubTab,
     onlineBossSubTab,
     forexBotSubTab,
-    router,
     dashboardUrlReady,
   ]);
 
@@ -5563,7 +5563,7 @@ function Dashboard() {
               </div>
             )}
             {activeTab === "new" && (
-              <div className="mx-3 sm:mx-6 mb-4 sm:mb-5 space-y-3 animate-in fade-in-0 slide-in-from-bottom-1 duration-500">
+              <div className="mx-3 sm:mx-6 mb-4 sm:mb-5 space-y-3">
                 <DeskTabChrome
                   accent="meme"
                   eyebrow="Meme desk"
