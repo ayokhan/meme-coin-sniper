@@ -23,6 +23,9 @@ export async function POST(request: Request) {
         { status: access.status ?? 403 }
       );
     }
+    const { trialDeskLimitResponse } = await import("@/lib/trial-desk-gate");
+    const limited = await trialDeskLimitResponse(access.userId, "ai_extra");
+    if (limited) return limited;
 
     const body = await request.json().catch(() => ({}));
     const symbol = String(body.symbol ?? "BTC").trim();

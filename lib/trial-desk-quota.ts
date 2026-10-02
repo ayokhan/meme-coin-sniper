@@ -1,11 +1,14 @@
 /**
- * Daily usage limits for VIP trial + admin “Limited VIP” grants.
- * Each desk (AI Agent, NovaForecast, Nova Forex, …) has an independent daily cap.
+ * Daily usage limits for VIP trial + admin “Limited VIP” grants, and Nova Pro.
+ * Trial / Limited VIP: each desk (AI Agent, NovaForecast, Nova Forex, …) has an independent daily cap.
+ * Nova Pro: one shared daily pool across all AI desks, plus a separate Nova Pulse pool.
  * Full paid VIP (Stripe/USDC, non-limited admin grants) is unlimited.
  */
 
 import { prisma } from "@/lib/db";
 import { getVipTrialConfig } from "@/lib/vip-trial";
+import { isNovaProUser } from "@/lib/subscription";
+import { assertNovaProUsage } from "@/lib/nova-pro";
 
 export const TRIAL_DESKS = [
   { id: "ai_agent", label: "AI Agent (Meme + Chart)" },
@@ -15,9 +18,15 @@ export const TRIAL_DESKS = [
   { id: "wallets", label: "Wallet Tracker" },
   { id: "nova_plus", label: "Nova+" },
   { id: "nova_radar", label: "Nova Radar / Smart / Q" },
+  { id: "nova_pulse", label: "Nova Pulse (Scalp Agents)" },
 ] as const;
 
 export type TrialDeskId = (typeof TRIAL_DESKS)[number]["id"];
+
+/** Desks that only count toward the Nova Pro shared pool (no trial per-desk cap). */
+export type ProOnlyDeskId = "ai_extra";
+
+export type UsageDeskId = TrialDeskId | ProOnlyDeskId;
 
 export function isTrialDeskId(v: string): v is TrialDeskId {
   return TRIAL_DESKS.some((d) => d.id === v);
@@ -92,12 +101,19 @@ export async function getTrialDeskUsageToday(
  */
 export async function assertTrialDeskAccess(
   userId: string,
-  desk: TrialDeskId,
+  desk: UsageDeskId,
   opts?: { record?: boolean }
 ): Promise<
   | { ok: true; onTrial: boolean; used?: number; limit?: number; remaining?: number }
   | { ok: false; error: string; status: number; used: number; limit: number }
 > {
+  if (await isNovaProUser(userId)) {
+    const pro = await assertNovaProUsage(userId, desk === "nova_pulse" ? "pulse" : "ai", opts);
+    if (!pro.ok) return pro;
+    return { ok: true, onTrial: true, used: pro.used, limit: pro.limit, remaining: pro.remaining };
+  }
+  if (!isTrialDeskId(desk)) return { ok: true, onTrial: false };
+
   const limited = await userHasLimitedDeskQuota(userId);
   if (!limited) return { ok: true, onTrial: false };
 

@@ -1,5 +1,5 @@
 import type { Session } from "next-auth";
-import { isOwnerSession } from "@/lib/auth";
+import { isNovaProSession, isOwnerSession } from "@/lib/auth";
 import { getSubscriptionTier } from "@/lib/subscription";
 import { getFeatureFlag, FEATURE_FLAG_KEYS } from "@/lib/feature-flags";
 import { getOwnerOnlyTabIds } from "@/lib/tab-owner-only";
@@ -270,7 +270,19 @@ export async function assertTriStateFlag(
   return base;
 }
 
+/** Bots are VIP-only: Nova Pro subscribers get an upgrade message. */
+function novaProBotLock(session: Session | null, botName: string): VipFuturesAddonAccess | null {
+  if (!isNovaProSession(session)) return null;
+  return {
+    ok: false,
+    status: 403,
+    error: `${botName} is a VIP feature and is not included in Nova Pro. Upgrade to VIP to use it — your unused Pro days count toward VIP.`,
+  };
+}
+
 export async function getNovaForexBotAccess(session: Session | null): Promise<VipFuturesAddonAccess> {
+  const proLock = novaProBotLock(session, "Nova Forex Bot");
+  if (proLock) return proLock;
   return assertTriStateFlag(
     session,
     FEATURE_FLAG_KEYS.NOVA_FOREX_BOT,
@@ -280,6 +292,8 @@ export async function getNovaForexBotAccess(session: Session | null): Promise<Vi
 }
 
 export async function getGmgnVipBotAccess(session: Session | null): Promise<VipFuturesAddonAccess> {
+  const proLock = novaProBotLock(session, "GMGN VIP Bot");
+  if (proLock) return proLock;
   return assertTriStateFlag(
     session,
     FEATURE_FLAG_KEYS.NOVA_GMGN_VIP_BOT,
@@ -289,6 +303,8 @@ export async function getGmgnVipBotAccess(session: Session | null): Promise<VipF
 }
 
 export async function getNovaForexScalpBotAccess(session: Session | null): Promise<VipFuturesAddonAccess> {
+  const proLock = novaProBotLock(session, "Nova Forex Scalp Bot");
+  if (proLock) return proLock;
   return assertTriStateFlag(
     session,
     FEATURE_FLAG_KEYS.NOVA_FOREX_SCALP_BOT,

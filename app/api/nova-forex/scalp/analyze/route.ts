@@ -17,7 +17,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: false, error: access.error, disabled: access.disabled }, { status: access.status });
     }
     const { trialDeskLimitResponse } = await import("@/lib/trial-desk-gate");
-    const blocked = await trialDeskLimitResponse(session?.user?.id, "nova_forex");
+    const blocked = await trialDeskLimitResponse(session?.user?.id, "nova_pulse");
     if (blocked) return blocked;
 
     const body = (await request.json()) as {

@@ -193,6 +193,14 @@ export const ADMIN_NAV_ITEMS: AdminNavItem[] = [
     ownerOnly: true,
   },
   {
+    href: "/admin/nova-pro",
+    label: "Nova Pro",
+    description: "Turn Pro on/off, daily limits, refunds, founding seats",
+    icon: Gift,
+    group: "product",
+    ownerOnly: true,
+  },
+  {
     href: "/admin/vip-trial",
     label: "VIP trial",
     description: "Trial days, signups, reminder emails, cancel surveys",

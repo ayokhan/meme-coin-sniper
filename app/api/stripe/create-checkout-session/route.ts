@@ -4,7 +4,8 @@ import Stripe from "stripe";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { getStripeCustomerId, planToStripeRecurring } from "@/lib/stripe-billing";
-import { VIP_PLANS, getCardPriceForPlan } from "@/lib/subscription";
+import { VIP_PLANS, getCardPriceForPlan, isNovaProPlanId, novaProPlanForUser, type AnyPlan } from "@/lib/subscription";
+import { getNovaProConfig, novaProPurchaseBlockReason, resolveFoundingForNewPro } from "@/lib/nova-pro";
 import { FEATURE_FLAG_KEYS, getFeatureFlag } from "@/lib/feature-flags";
 import { getVipTrialConfig, getVipTrialPublicOffer, userHasUsedVipTrial } from "@/lib/vip-trial";
 import { getActiveSubscriptionDetails } from "@/lib/subscription";
@@ -66,9 +67,10 @@ export async function POST(request: Request) {
     }
   }
 
-  const planId = startTrial
+  const planId: string = startTrial
     ? trialCfg!.planIdAfterTrial
     : (body.planId ?? body.plan ?? "").toString();
+  const isPro = !startTrial && isNovaProPlanId(planId);
   // Trial always becomes recurring after the free days.
   const autoRenew = startTrial ? true : body.autoRenew === true;
   const successUrl =
@@ -78,10 +80,22 @@ export async function POST(request: Request) {
     (body.cancelUrl ?? request.headers.get("origin") ?? "").trim() ||
     `${process.env.NEXTAUTH_URL ?? ""}/subscribe?canceled=1`;
 
-  const plan = VIP_PLANS.find((p) => p.id === planId);
+  let founding = false;
+  let plan: AnyPlan | undefined;
+  if (isPro) {
+    const blocked = await novaProPurchaseBlockReason(session.user.id);
+    if (blocked) {
+      return NextResponse.json({ success: false, error: blocked }, { status: 400 });
+    }
+    founding = await resolveFoundingForNewPro(session.user.id);
+    plan = novaProPlanForUser(planId, founding);
+  } else {
+    plan = VIP_PLANS.find((p) => p.id === planId);
+  }
   if (!plan) {
     return NextResponse.json({ success: false, error: "Invalid plan." }, { status: 400 });
   }
+  const tier = isPro ? "nova_pro" : "vip";
 
   const cardPriceUsd = getCardPriceForPlan(plan);
   const cardFeeUsd = cardPriceUsd - plan.priceUsd;
@@ -91,21 +105,27 @@ export async function POST(request: Request) {
   }
 
   const trialDays = startTrial ? trialCfg!.trialDays : 0;
+  const productName = isPro ? `NovaStaris Nova Pro${founding ? " (Founding member)" : ""}` : "NovaStaris VIP";
+  const refundMaxRuns = isPro ? (await getNovaProConfig()).refundMaxRuns : 0;
+  const refundTerms = isPro
+    ? `Refund only within 24 hours and only if no more than ${refundMaxRuns} runs were used; card fee is not refundable.`
+    : "Payment terms: no refund after 24 hours of use.";
   const productData = {
     name: startTrial
       ? `NovaStaris VIP — ${trialDays}-day trial then ${plan.label}`
-      : `NovaStaris VIP — ${plan.label}`,
+      : `${productName} — ${plan.label}`,
     description: startTrial
       ? `${trialDays} days free VIP. Card required. We email you ~${trialCfg!.reminderHoursBefore}h before the trial ends so you can cancel. If you don’t cancel, you’re charged $${plan.priceUsd} + $${cardFeeUsd} card fee and VIP renews automatically until you cancel.`
       : autoRenew
-        ? `Recurring VIP: ${plan.label} ($${plan.priceUsd} + $${cardFeeUsd} card fee per billing period). Cancel anytime before renewal.`
-        : `Subscription: ${plan.label} ($${plan.priceUsd} + $${cardFeeUsd} card fee). Payment terms: no refund after 24 hours of use.`,
+        ? `Recurring ${isPro ? "Nova Pro" : "VIP"}: ${plan.label} ($${cardPriceUsd} by card per billing period; $${plan.priceUsd} if paid in USDC). Cancel anytime before renewal. ${refundTerms}`
+        : `Subscription: ${plan.label} ($${cardPriceUsd} by card; $${plan.priceUsd} if paid in USDC). ${refundTerms}`,
   };
 
   try {
     const existingCustomerId = await getStripeCustomerId(session.user.id);
     const sharedMetadata = {
-      tier: "vip",
+      tier,
+      founding: founding ? "true" : "false",
       planId,
       amountUsd: String(plan.priceUsd),
       cardTotalUsd: String(cardPriceUsd),
@@ -128,7 +148,8 @@ export async function POST(request: Request) {
             metadata: {
               planId,
               userId: session.user.id,
-              tier: "vip",
+              tier,
+              founding: founding ? "true" : "false",
               vipTrial: startTrial ? "true" : "false",
               trialDays: startTrial ? String(trialDays) : "",
             },

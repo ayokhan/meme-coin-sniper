@@ -4,7 +4,7 @@ import { Zap } from "lucide-react";
 
 export const metadata = {
   title: "Payment Terms and Conditions — NovaStaris",
-  description: "Payment terms for NovaStaris subscriptions. No refund after 24 hours of use.",
+  description: "Payment terms for NovaStaris VIP and Nova Pro subscriptions. No refund after 24 hours of use.",
 };
 
 export default function PaymentTermsPage() {
@@ -26,6 +26,27 @@ export default function PaymentTermsPage() {
             </p>
             <p>
               <strong>No refund after 24 hours of use.</strong> Once you have used the service for more than 24 hours after your subscription is activated, you are not entitled to a refund. Refund requests made within the first 24 hours of use may be considered at our discretion and are not guaranteed.
+            </p>
+            <p>
+              <strong>Nova Pro refunds.</strong> Nova Pro purchases are refundable only if you request a refund
+              within 24 hours of activation <strong>and</strong> have used no more than 2 AI / Nova Pulse runs in
+              that time (the exact run threshold is shown at checkout and on Subscribe). The $8 card processing fee
+              is not refundable. After 24 hours, or once the run threshold is exceeded, Nova Pro is non-refundable.
+              Complimentary (admin-granted) Nova Pro is not eligible for refunds.
+            </p>
+            <p>
+              <strong>Nova Pro usage limits.</strong> Nova Pro includes the VIP AI desks with a shared daily limit
+              (default 7 AI runs per day across all desks) and a separate Nova Pulse limit (default 5 runs per
+              day). Limits reset at 00:00 UTC and may be adjusted; the current limits are shown on Subscribe. Nova
+              Pro does not include Coach Calls or any bots (NovaScalper, Forex Bots, GMGN VIP Bot, Prop Firm,
+              Nova Ultimate, Polymarket). If you upgrade from Nova Pro to VIP, the unused value of your paid Nova
+              Pro period is credited toward VIP (as extra VIP days for one-time payments, or as a credit on your
+              next auto-renew invoice).
+            </p>
+            <p>
+              <strong>Founding Nova Pro (limited edition).</strong> A limited number of early Nova Pro
+              subscribers receive Founding member status. Founding members keep the price they first paid for as
+              long as they keep renewing without a gap of more than 7 days. Founding status is not transferable.
             </p>
             <p>
               <strong>VIP Strategy Session promo.</strong> While this promotional offer is active (end date
@@ -62,7 +83,9 @@ export default function PaymentTermsPage() {
               <strong>Payment methods.</strong> We accept credit/debit card (via Stripe) and USDC on Solana. USDC payments are charged at the listed subscription price. Card payments include an additional $8 card payment fee per checkout. You are responsible for providing accurate payment details and for any fees charged by your bank or wallet.
             </p>
             <p>
-              <strong>Current list prices (USDC).</strong> VIP: $150/month, $750/6 months, $1,500/12 months. Card checkout adds $8 to these amounts.
+              <strong>Current list prices (USDC).</strong> VIP: $150/month, $750/6 months, $1,500/12 months. Nova
+              Pro (when available): $50/month, $250/6 months, $500/12 months. Card checkout adds $8 to these amounts
+              (for example Nova Pro monthly is $58 by card or $50 with USDC).
             </p>
             <p>
               By clicking &quot;I agree to the Payment Terms and Conditions&quot; and completing payment, you confirm that you have read and accept these terms.

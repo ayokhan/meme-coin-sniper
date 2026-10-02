@@ -8,6 +8,9 @@ import {
   type SiteAnnouncementBannerConfig,
 } from "@/lib/site-announcement-banner";
 import { AFFILIATE_LAUNCH_BANNER } from "@/lib/referral-program";
+import { buildNovaProLaunchBanner } from "@/lib/nova-pro-launch-email";
+import { getFoundingPublicState, getNovaProConfig } from "@/lib/nova-pro";
+import { CARD_PAYMENT_FEE_USD, NOVA_PRO_PLANS } from "@/lib/subscription";
 import { PNL_CALCULATOR_LAUNCH_BANNER } from "@/lib/pnl-calculator-launch-email";
 import {
   buildVipStrategySessionBanner,
@@ -66,6 +69,25 @@ export async function PATCH(request: Request) {
     }
     if (body.preset === "pnl-calculator-launch") {
       const banner = await setSiteAnnouncementBanner({ ...PNL_CALCULATOR_LAUNCH_BANNER });
+      return NextResponse.json({ success: true, banner });
+    }
+    if (body.preset === "nova-pro-launch") {
+      const [cfg, founding] = await Promise.all([getNovaProConfig(), getFoundingPublicState()]);
+      if (!cfg.enabled) {
+        return NextResponse.json(
+          { success: false, error: "Turn Nova Pro ON (Admin → Nova Pro) before announcing it." },
+          { status: 400 }
+        );
+      }
+      const banner = await setSiteAnnouncementBanner({
+        ...buildNovaProLaunchBanner({
+          monthlyUsdc: NOVA_PRO_PLANS[0].priceUsd,
+          cardFee: CARD_PAYMENT_FEE_USD,
+          sharedDailyLimit: cfg.sharedDailyLimit,
+          pulseDailyLimit: cfg.pulseDailyLimit,
+          foundingSeats: founding.enabled ? founding.seats : 0,
+        }),
+      });
       return NextResponse.json({ success: true, banner });
     }
     if (body.preset === "vip-strategy-session") {

@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
-import type { TrialDeskId } from "@/lib/trial-desk-quota";
+import type { UsageDeskId } from "@/lib/trial-desk-quota";
 import { assertTrialDeskAccess } from "@/lib/trial-desk-quota";
 
-/** Returns a NextResponse if trial daily limit blocks; otherwise null. */
+/** Returns a NextResponse if the trial / Limited VIP / Nova Pro daily limit blocks; otherwise null. */
 export async function trialDeskLimitResponse(
   userId: string | null | undefined,
-  desk: TrialDeskId
+  desk: UsageDeskId
 ): Promise<NextResponse | null> {
   if (!userId) return null;
   const trial = await assertTrialDeskAccess(userId, desk, { record: true });

@@ -60,6 +60,12 @@ export async function POST(request: Request) {
           }
         : null;
 
+    if (!reconfirm) {
+      const { trialDeskLimitResponse } = await import("@/lib/trial-desk-gate");
+      const blocked = await trialDeskLimitResponse(access.userId, "nova_pulse");
+      if (blocked) return blocked;
+    }
+
     const metal = isBlofinMetal(symbol);
     const spotMid = metal && usesSpotCalibration(symbol) ? await getForexSpotMid(symbol) : null;
     const hasSpot = spotMid != null && Number.isFinite(spotMid);

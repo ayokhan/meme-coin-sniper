@@ -108,6 +108,8 @@ import PathFirstActionBanner from "@/components/PathFirstActionBanner";
 import DeskTabChrome, { DeskViewSegment } from "@/components/DeskTabChrome";
 import VipSoftPitchPanel from "@/components/VipSoftPitchPanel";
 import VipDeskPreview from "@/components/VipDeskPreview";
+import NovaProVipOnlyLock from "@/components/NovaProVipOnlyLock";
+import NovaProUsageStrip from "@/components/NovaProUsageStrip";
 import PublicStatusStrip from "@/components/PublicStatusStrip";
 import DashboardPaywallHelp from "@/components/DashboardPaywallHelp";
 import type { NextStepAction } from "@/lib/dashboard-next-step";
@@ -571,6 +573,7 @@ function Dashboard() {
   const isPaid = isOwner || isCoachUser || (subscriptionPaid !== null ? subscriptionPaid : sessionPaid);
   const tier = (isOwner || isCoachUser) ? "vip" : (subscriptionTier !== null ? subscriptionTier : sessionTier);
   const isVip = tier === "vip" || tier === "pro" || isPaid;
+  const isNovaPro = !isOwner && !isCoachUser && !!(session?.user as { isNovaPro?: boolean } | undefined)?.isNovaPro;
   const novaConnectAllowedByAdmin = (session?.user as { novaConnectAllowedByAdmin?: boolean } | undefined)?.novaConnectAllowedByAdmin ?? false;
   const canUseNovaConnectPaidFeatures = isPaid || isOwner || novaConnectAllowedByAdmin;
   const ctExpiresAtRaw = (session?.user as { ctScanOnDemandExpiresAt?: Date | string | null } | undefined)?.ctScanOnDemandExpiresAt ?? null;
@@ -999,8 +1002,30 @@ function Dashboard() {
     aiAgentUsage != null &&
     !aiAgentUsage.chartAnalysis?.unlimited &&
     !aiAgentUsage.chartAnalysis?.canUse;
+  const novaProLocked = (() => {
+    if (!isNovaPro) return false;
+    const u = session?.user as Record<string, unknown> | undefined;
+    switch (activeTab) {
+      case "nova-forex-bot":
+      case "gmgn-vip-bot":
+        return true;
+      case "coach-calls":
+        return !u?.coachCallsOnDemand;
+      case "trading-bot":
+        return !u?.tradingBotOnDemand;
+      case "prop-firm-bot":
+        return !u?.propFirmBotOnDemand;
+      case "nova-ultimate":
+        return !u?.novaUltimateOnDemand;
+      case "polymarket-bot":
+        return !u?.polymarketBotOnDemand;
+      default:
+        return false;
+    }
+  })();
   const isTabPaywalled =
     isAiAgentGuestLocked ||
+    novaProLocked ||
     onDemandLocked ||
     coachCallsLocked ||
     (VIP_ONLY_TABS.includes(activeTab) && !isVip && !isOwner) ||
@@ -5261,7 +5286,9 @@ function Dashboard() {
             </Tabs>
           </CardHeader>
           <CardContent className="p-0">
-            {(onDemandLocked || coachCallsLocked || ((VIP_ONLY_TABS.includes(activeTab) && !isVip && !isOwner) || (PAID_TABS.includes(activeTab) && (activeTab === "nova-connect" ? !canUseNovaConnectPaidFeatures : !isPaid)))) ? (
+            {novaProLocked ? (
+              <NovaProVipOnlyLock tabLabel={String(activeTab).replace(/-/g, " ")} />
+            ) : (onDemandLocked || coachCallsLocked || ((VIP_ONLY_TABS.includes(activeTab) && !isVip && !isOwner) || (PAID_TABS.includes(activeTab) && (activeTab === "nova-connect" ? !canUseNovaConnectPaidFeatures : !isPaid)))) ? (
               <div className="flex flex-col items-center justify-center py-16 px-6 text-center">
                 <p className="text-lg font-semibold text-zinc-800 dark:text-zinc-200">
                   {isAiAgentGuestLocked
@@ -5407,6 +5434,7 @@ function Dashboard() {
               </div>
             ) : (
               <div className="pt-4 sm:pt-6 pb-1">
+            {isNovaPro && <NovaProUsageStrip className="mx-3 sm:mx-6 mb-3" />}
             {activeTab === "ct" && ctAccounts.length > 0 && (
               <details className="mx-3 sm:mx-6 mb-3 rounded-lg border border-zinc-200/80 dark:border-zinc-700/80 bg-zinc-50/80 dark:bg-zinc-800/50">
                 <summary className="cursor-pointer px-4 py-2 text-sm font-medium text-zinc-700 dark:text-zinc-300">

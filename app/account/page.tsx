@@ -12,6 +12,7 @@ import { PasswordInput } from "@/components/PasswordInput";
 import TwoFactorSettings from "@/components/TwoFactorSettings";
 import BiometricSettings from "@/components/BiometricSettings";
 import AccountBillingHistory from "@/components/AccountBillingHistory";
+import NovaProUsageStrip from "@/components/NovaProUsageStrip";
 
 type Profile = {
   name: string | null;
@@ -55,6 +56,8 @@ export default function AccountPage() {
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [deleteError, setDeleteError] = useState("");
   const [subscriptionPaid, setSubscriptionPaid] = useState(false);
+  const [isNovaPro, setIsNovaPro] = useState(false);
+  const [isFoundingPro, setIsFoundingPro] = useState(false);
   const [subscriptionExpiresAt, setSubscriptionExpiresAt] = useState<string | null>(null);
   const [subscriptionAutoRenew, setSubscriptionAutoRenew] = useState(false);
   const [cancelAtPeriodEnd, setCancelAtPeriodEnd] = useState(false);
@@ -108,6 +111,8 @@ export default function AccountPage() {
           const sub = await subRes.json();
           if (sub.success) {
             setSubscriptionPaid(!!sub.paid);
+            setIsNovaPro(!!sub.isNovaPro);
+            setIsFoundingPro(!!sub.isFoundingPro);
             setSubscriptionExpiresAt(sub.expiresAt ?? null);
             setSubscriptionAutoRenew(!!sub.autoRenew);
             setCancelAtPeriodEnd(!!sub.cancelAtPeriodEnd);
@@ -685,16 +690,22 @@ export default function AccountPage() {
             <CardHeader>
               <div className="flex items-center gap-2">
                 <CreditCard className="h-5 w-5 text-cyan-500" />
-                <CardTitle className="text-lg">VIP billing</CardTitle>
+                <CardTitle className="text-lg">{isNovaPro ? "Nova Pro billing" : "VIP billing"}</CardTitle>
+                {isFoundingPro && (
+                  <span className="rounded-full bg-violet-100 dark:bg-violet-900/50 px-2 py-0.5 text-[10px] font-semibold text-violet-700 dark:text-violet-300">
+                    ★ Founding member
+                  </span>
+                )}
               </div>
               <p className="text-sm text-muted-foreground">
-                Manage card auto-renewal for your NovaStaris VIP subscription.
+                Manage card auto-renewal for your NovaStaris {isNovaPro ? "Nova Pro" : "VIP"} subscription.
               </p>
             </CardHeader>
             <CardContent className="space-y-4">
+              {isNovaPro && <NovaProUsageStrip />}
               {subscriptionExpiresAt && (
                 <p className="text-sm text-zinc-700 dark:text-zinc-300">
-                  VIP access valid until{" "}
+                  {isNovaPro ? "Nova Pro" : "VIP"} access valid until{" "}
                   <strong>
                     {new Date(subscriptionExpiresAt).toLocaleDateString(undefined, {
                       weekday: "long",
@@ -726,7 +737,7 @@ export default function AccountPage() {
                 <div className="rounded-lg border border-violet-400/35 dark:border-violet-600/40 bg-slate-50/95 dark:bg-slate-900/70 p-4 space-y-3">
                   <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">Turn off automatic renewal?</p>
                   <p className="text-sm text-muted-foreground">
-                    Your VIP access continues until the date above. After that, your card will not be charged unless you renew manually.
+                    Your {isNovaPro ? "Nova Pro" : "VIP"} access continues until the date above. After that, your card will not be charged unless you renew manually.
                   </p>
                   <div className="flex flex-wrap gap-2">
                     <Button
@@ -814,17 +825,31 @@ export default function AccountPage() {
                 ) : (
                   <Card className="border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
                     <CardHeader>
-                      <CardTitle className="text-lg">VIP subscription</CardTitle>
+                      <CardTitle className="text-lg">{isNovaPro ? "Nova Pro subscription" : "VIP subscription"}</CardTitle>
                       <p className="text-sm text-muted-foreground">
-                        {subscriptionPaid
-                          ? "Manage your subscription and payment methods."
-                          : "Upgrade to VIP for full platform access, or subscribe to start earning with the affiliate program."}
+                        {isNovaPro
+                          ? `Nova Pro${isFoundingPro ? " (★ Founding member)" : ""}${
+                              subscriptionExpiresAt ? ` — active until ${new Date(subscriptionExpiresAt).toLocaleDateString()}` : ""
+                            }. Upgrade to VIP anytime for unlimited runs, bots and Coach Calls — unused Pro days are credited.`
+                          : subscriptionPaid
+                            ? "Manage your subscription and payment methods."
+                            : "Upgrade to VIP for full platform access, or subscribe to start earning with the affiliate program."}
                       </p>
                     </CardHeader>
-                    <CardContent>
-                      <Button asChild>
-                        <Link href="/subscribe">View plans &amp; subscribe</Link>
-                      </Button>
+                    <CardContent className="space-y-3">
+                      {isNovaPro && <NovaProUsageStrip />}
+                      <div className="flex flex-wrap gap-2">
+                        <Button asChild>
+                          <Link href={isNovaPro ? "/subscribe?plan=vip" : "/subscribe"}>
+                            {isNovaPro ? "Upgrade to VIP" : "View plans & subscribe"}
+                          </Link>
+                        </Button>
+                        {isNovaPro && (
+                          <Button asChild variant="outline">
+                            <Link href="/subscribe?plan=pro">Renew Nova Pro</Link>
+                          </Button>
+                        )}
+                      </div>
                     </CardContent>
                   </Card>
                 )}

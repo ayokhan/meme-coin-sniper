@@ -5,7 +5,7 @@ import { PublicKey } from '@solana/web3.js';
 import nacl from 'tweetnacl';
 import bs58 from 'bs58';
 import { prisma } from '@/lib/db';
-import { getActiveSubscription, getSubscriptionTier, normalizeSubscriptionTier, type Tier } from '@/lib/subscription';
+import { getActiveSubscription, getSubscriptionProductInfo, getSubscriptionTier, normalizeSubscriptionTier, type Tier } from '@/lib/subscription';
 
 declare module 'next-auth' {
   interface Session {
@@ -23,6 +23,9 @@ declare module 'next-auth' {
       supportStaffName?: string | null;
       isCoachUser?: boolean;
       tier?: Tier | null;
+      /** Active Nova Pro (capped VIP desks, no bots, no Coach Calls). Never true for owner / coach users. */
+      isNovaPro?: boolean;
+      isFoundingPro?: boolean;
       tradingBotOnDemand?: boolean;
       polymarketBotOnDemand?: boolean;
       propFirmBotOnDemand?: boolean;
@@ -87,6 +90,11 @@ export async function isCoachUserId(userId: string | null | undefined): Promise<
   } catch {
     return false;
   }
+}
+
+/** Nova Pro excludes bots and Coach Calls; explicit owner on-demand grants still apply. */
+export function isNovaProSession(session: { user?: { isNovaPro?: boolean; isOwner?: boolean } } | null): boolean {
+  return !!session?.user?.isNovaPro && !session.user.isOwner;
 }
 
 /** True if session can use Trading Bot: owner or VIP with on-demand access. */
@@ -574,6 +582,24 @@ export const authOptions: NextAuthOptions = {
         }
         const normalizedTier = normalizeSubscriptionTier(tier as string | null);
         if (normalizedTier) tier = normalizedTier;
+        let isNovaPro = false;
+        let isFoundingPro = false;
+        const sessionUserId = token.id as string | undefined;
+        if (!owner && !isCoachUser && sessionUserId) {
+          try {
+            const info = await getSubscriptionProductInfo(sessionUserId);
+            isNovaPro = info.product === 'nova_pro';
+            isFoundingPro = isNovaPro && info.founding;
+            if (info.product) {
+              isPaid = true;
+              tier = 'vip';
+            }
+          } catch {
+            /* keep JWT-derived tier */
+          }
+        }
+        session.user.isNovaPro = isNovaPro;
+        session.user.isFoundingPro = isFoundingPro;
         session.user.isPaid = isPaid;
         session.user.isOwner = owner;
         session.user.isCoachUser = isCoachUser;

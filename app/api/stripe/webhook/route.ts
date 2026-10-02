@@ -8,7 +8,15 @@ import {
   upsertSubscriptionFromStripePeriod,
   vipAccessEndFromStripeSubscription,
 } from "@/lib/stripe-billing";
-import { VIP_PLANS, findPlanByListOrCardAmount } from "@/lib/subscription";
+import {
+  findAnyPlanById,
+  findNovaProPlanByListOrCardAmount,
+  findPlanByListOrCardAmount,
+  productForPlanId,
+  storedTierForProduct,
+  type AnyPlan,
+} from "@/lib/subscription";
+import { applyNovaProUpgradeCredit, novaProPeriodStart } from "@/lib/nova-pro";
 import { recordReferralCommissionForSubscription } from "@/lib/referral-commission";
 import {
   findUserIdByStripeCustomerId,
@@ -23,15 +31,52 @@ const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET ?? "";
 
 export const dynamic = "force-dynamic";
 
-function resolvePlan(planId: string, amountUsd: number, totalPaidUsd: number) {
-  let plan = VIP_PLANS.find((p) => p.id === planId);
+function resolvePlan(planId: string, amountUsd: number, totalPaidUsd: number, tierHint?: string): AnyPlan | undefined {
+  let plan: AnyPlan | undefined = findAnyPlanById(planId);
+  const findByAmount = tierHint === "nova_pro" ? findNovaProPlanByListOrCardAmount : findPlanByListOrCardAmount;
   if (!plan && amountUsd > 0) {
-    plan = findPlanByListOrCardAmount(amountUsd);
+    plan = findByAmount(amountUsd);
   }
   if (!plan && totalPaidUsd > 0) {
-    plan = findPlanByListOrCardAmount(totalPaidUsd);
+    plan = findByAmount(totalPaidUsd);
   }
   return plan;
+}
+
+async function sendPaidSubscriptionOwnerAlert(args: {
+  userId: string;
+  plan: AnyPlan;
+  amountUsd: number;
+  founding: boolean;
+  stripeSessionId: string | null;
+  subscriptionId: string | null;
+}) {
+  try {
+    const { sendVipSubscribeOwnerAlert, sendNovaProSubscribeOwnerAlert } = await import("@/lib/vip-subscribe-owner-alert");
+    const alert =
+      productForPlanId(args.plan.id) === "nova_pro"
+        ? await sendNovaProSubscribeOwnerAlert({
+            userId: args.userId,
+            planId: args.plan.id,
+            amountUsd: args.amountUsd,
+            paymentMethod: "card",
+            founding: args.founding,
+            subscriptionId: args.subscriptionId,
+          })
+        : await sendVipSubscribeOwnerAlert({
+            userId: args.userId,
+            planId: args.plan.id,
+            amountUsd: args.amountUsd,
+            paymentMethod: "card",
+            stripeSessionId: args.stripeSessionId,
+            subscriptionId: args.subscriptionId,
+          });
+    if (!alert.ok) {
+      console.warn("Stripe webhook: owner alert failed", alert.error);
+    }
+  } catch (e) {
+    console.warn("Stripe webhook: owner alert error", e);
+  }
 }
 
 async function handleDemoSessionCheckout(session: Stripe.Checkout.Session) {
@@ -348,7 +393,7 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
   const amountUsd = parseInt(session.metadata?.amountUsd ?? "0", 10) || 0;
   const autoRenew = session.metadata?.autoRenew === "true" || session.mode === "subscription";
   const totalPaid = session.amount_total != null ? session.amount_total / 100 : 0;
-  const plan = resolvePlan(planId, amountUsd, totalPaid);
+  const plan = resolvePlan(planId, amountUsd, totalPaid, session.metadata?.tier);
 
   if (!plan) {
     console.error("Stripe webhook: invalid plan", { planId, amountUsd, totalPaid });
@@ -364,6 +409,8 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
 
   let grantedAsTrial = false;
   let createdSubscriptionId: string | null = null;
+  const product = productForPlanId(plan.id);
+  const founding = product === "nova_pro" && session.metadata?.founding === "true";
 
   if (session.mode === "subscription" && session.subscription && stripe) {
     const stripeSub = await stripe.subscriptions.retrieve(session.subscription as string);
@@ -378,7 +425,7 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
     const trialEndsAt = trialEndFromStripeSubscription(stripeSub);
     const periodEnd = vipAccessEndFromStripeSubscription(stripeSub);
 
-    await upsertSubscriptionFromStripePeriod({
+    createdSubscriptionId = await upsertSubscriptionFromStripePeriod({
       userId,
       planId: plan.id,
       amountUsd: amountUsd || plan.priceUsd,
@@ -388,7 +435,18 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
       autoRenew: true,
       isTrial,
       trialEndsAt,
+      product,
+      founding,
     });
+
+    if (product === "vip" && !isTrial) {
+      await applyNovaProUpgradeCredit({
+        userId,
+        vipSubscriptionId: createdSubscriptionId,
+        vipAutoRenew: true,
+        stripeCustomerId: customerId ?? null,
+      }).catch((e) => console.error("Stripe webhook: Nova Pro upgrade credit failed", e));
+    }
 
     if (isTrial) {
       try {
@@ -417,22 +475,30 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
       }
     }
   } else {
-    const expiresAt = new Date();
+    const expiresAt = product === "nova_pro" ? new Date(await novaProPeriodStart(userId)) : new Date();
     expiresAt.setMonth(expiresAt.getMonth() + plan.months);
 
     const created = await prisma.subscription.create({
       data: {
         userId,
-        tier: "vip",
+        tier: storedTierForProduct(product),
         plan: plan.id,
         amountUsd: amountUsd || plan.priceUsd,
         expiresAt,
         stripeSessionId: session.id,
         autoRenew: false,
+        founding,
       } as Record<string, unknown>,
     });
     createdSubscriptionId = created.id;
     await recordReferralCommissionForSubscription(created.id);
+    if (product === "vip") {
+      await applyNovaProUpgradeCredit({
+        userId,
+        vipSubscriptionId: created.id,
+        vipAutoRenew: false,
+      }).catch((e) => console.error("Stripe webhook: Nova Pro upgrade credit failed", e));
+    }
     await recordBillingInvoiceFromSubscriptionRow({
       userId,
       subscriptionId: created.id,
@@ -446,22 +512,14 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
   }
 
   if (!grantedAsTrial) {
-    try {
-      const { sendVipSubscribeOwnerAlert } = await import("@/lib/vip-subscribe-owner-alert");
-      const alert = await sendVipSubscribeOwnerAlert({
-        userId,
-        planId: plan.id,
-        amountUsd: amountUsd || plan.priceUsd,
-        paymentMethod: "card",
-        stripeSessionId: session.id,
-        subscriptionId: createdSubscriptionId,
-      });
-      if (!alert.ok) {
-        console.warn("Stripe webhook: VIP owner alert failed", alert.error);
-      }
-    } catch (e) {
-      console.warn("Stripe webhook: VIP owner alert error", e);
-    }
+    await sendPaidSubscriptionOwnerAlert({
+      userId,
+      plan,
+      amountUsd: amountUsd || plan.priceUsd,
+      founding,
+      stripeSessionId: session.id,
+      subscriptionId: createdSubscriptionId,
+    });
   }
 
   const invoiceId =
@@ -503,7 +561,7 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
 
   console.info("Stripe webhook: subscription created", {
     userId,
-    tier: "vip",
+    tier: storedTierForProduct(product),
     planId: plan.id,
     sessionId: session.id,
     autoRenew,
@@ -524,7 +582,7 @@ async function syncStripeSubscription(stripeSub: Stripe.Subscription) {
 
   let subRow = await db.subscription.findFirst({
     where: { stripeSubscriptionId: stripeSub.id },
-  }) as { id: string; userId: string; isTrial?: boolean } | null;
+  }) as { id: string; userId: string; isTrial?: boolean; expiresAt?: Date } | null;
 
   const userId = stripeSub.metadata?.userId;
   const planId = stripeSub.metadata?.planId ?? "";
@@ -539,6 +597,7 @@ async function syncStripeSubscription(stripeSub: Stripe.Subscription) {
   }
 
   const plan = resolvePlan(planId, 0, 0);
+  const product = productForPlanId(plan?.id);
 
   if (!subRow && userId && plan) {
     const isTrial =
@@ -552,20 +611,28 @@ async function syncStripeSubscription(stripeSub: Stripe.Subscription) {
       autoRenew: stripeSub.status === "active" || stripeSub.status === "trialing",
       isTrial,
       trialEndsAt: trialEndFromStripeSubscription(stripeSub),
+      product,
+      founding: product === "nova_pro" && stripeSub.metadata?.founding === "true",
     });
     subRow = (await db.subscription.findFirst({
       where: { stripeSubscriptionId: stripeSub.id },
-    })) as { id: string; userId: string; isTrial?: boolean } | null;
+    })) as { id: string; userId: string; isTrial?: boolean; expiresAt?: Date } | null;
   }
 
   if (!subRow) return;
 
   const wasTrial = !!subRow.isTrial;
   const stillTrial = stripeSub.status === "trialing";
+  const stripeAccessEnd = vipAccessEndFromStripeSubscription(stripeSub);
+  // A canceled subscription never extends access (e.g. Pro ended early on VIP upgrade or admin clear).
+  const accessEnd =
+    stripeSub.status === "canceled" && subRow.expiresAt && subRow.expiresAt < stripeAccessEnd
+      ? subRow.expiresAt
+      : stripeAccessEnd;
   await db.subscription.update({
     where: { id: subRow.id },
     data: {
-      expiresAt: vipAccessEndFromStripeSubscription(stripeSub),
+      expiresAt: accessEnd,
       autoRenew: stripeSub.status === "active" || stripeSub.status === "trialing",
       cancelAtPeriodEnd: stripeSub.cancel_at_period_end ?? false,
       isTrial: stillTrial,
@@ -583,7 +650,7 @@ async function syncStripeSubscription(stripeSub: Stripe.Subscription) {
   }
 
   // Trial → paid: notify owner once for strategy-session promo.
-  if (wasTrial && !stillTrial && stripeSub.status === "active") {
+  if (wasTrial && !stillTrial && stripeSub.status === "active" && product === "vip") {
     try {
       const { sendVipSubscribeOwnerAlert } = await import("@/lib/vip-subscribe-owner-alert");
       const alert = await sendVipSubscribeOwnerAlert({

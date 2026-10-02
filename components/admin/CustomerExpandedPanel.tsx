@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, type ReactNode } from "react";
-import { ADMIN_VIP_GRANTS, type AdminVipGrantId } from "@/lib/admin-vip-grant";
+import { ADMIN_NOVA_PRO_GRANTS, ADMIN_VIP_GRANTS, type AdminVipGrantId } from "@/lib/admin-vip-grant";
 
 export type AiAgentLimitsPatch = {
   memeDaily?: number | null;
@@ -73,9 +73,11 @@ export type AdminCustomerRecord = {
   /** "totp" | "email" | null */
   twoFactorMethod?: string | null;
   subscriptionExpiresAt: string | null;
+  subscriptionTier?: string | null;
   isActive: boolean;
   subscriptionIsTrial?: boolean;
   subscriptionDeskLimited?: boolean;
+  subscriptionFounding?: boolean;
   subscriptionAutoRenew?: boolean;
   subscriptionCancelAtPeriodEnd?: boolean;
   hasStripeSubscription?: boolean;
@@ -205,7 +207,10 @@ export type CustomerExpandedPanelProps = {
   onCoach: (value: boolean) => void;
   onCommunityRep: (value: boolean) => void;
   onAcceptRules: () => void;
-  onGrantVip: (grant: AdminVipGrantId, opts?: { limited?: boolean }) => void;
+  onGrantVip: (
+    grant: AdminVipGrantId,
+    opts?: { limited?: boolean; product?: "vip" | "nova_pro"; founding?: boolean }
+  ) => void;
   onSetVipLimited?: (limited: boolean) => void;
   onClearSubscription: () => void;
   onResetPassword: () => void;
@@ -260,6 +265,7 @@ export default function CustomerExpandedPanel({
   const [timelineLoading, setTimelineLoading] = useState(false);
   const [timelineError, setTimelineError] = useState<string | null>(null);
   const [grantLimited, setGrantLimited] = useState(false);
+  const [grantProFounding, setGrantProFounding] = useState(false);
 
   useEffect(() => {
     if (!isOwner || !c.id) return;
@@ -646,7 +652,14 @@ export default function CustomerExpandedPanel({
 
       {!readOnly && (
       <DetailSection title="Subscription & account">
-        {c.isActive && c.subscriptionExpiresAt && (
+        {c.isActive && c.subscriptionExpiresAt && c.subscriptionTier === "nova_pro" && (
+          <p className="text-xs text-violet-700 dark:text-violet-300 mb-2">
+            Active Nova Pro until {new Date(c.subscriptionExpiresAt).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })}
+            {" · Daily caps, no bots / Coach Calls"}
+            {c.subscriptionFounding ? " · ★ Founding member" : ""}
+          </p>
+        )}
+        {c.isActive && c.subscriptionExpiresAt && c.subscriptionTier !== "nova_pro" && (
           <p className="text-xs text-slate-600 dark:text-slate-400 mb-2">
             Active VIP until {new Date(c.subscriptionExpiresAt).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })}
             {c.subscriptionDeskLimited ? " · Limited (3/day per desk)" : " · Unlimited desks"}
@@ -734,6 +747,39 @@ export default function CustomerExpandedPanel({
               {g.label} {grantLimited ? "Ltd" : "VIP"}
             </button>
           ))}
+        </div>
+        <div className="mt-3 rounded-md border border-violet-200 dark:border-violet-800/60 bg-violet-50/60 dark:bg-violet-950/20 p-2.5">
+          <p className="text-xs font-semibold text-violet-800 dark:text-violet-200 mb-1">Grant Nova Pro</p>
+          <p className="text-[11px] text-muted-foreground mb-2">
+            Pro = every VIP desk with daily caps; no bots, no Coach Calls. Extends an active Pro period. Not allowed while the
+            user has VIP.
+          </p>
+          <label className="flex items-center gap-2 text-xs mb-2 cursor-pointer">
+            <input
+              type="checkbox"
+              className="rounded"
+              checked={grantProFounding}
+              onChange={(e) => setGrantProFounding(e.target.checked)}
+            />
+            <span>
+              <strong>Limited edition (Founding)</strong> — uses one founding seat (badge + launch price lock)
+            </span>
+          </label>
+          <div className="flex flex-wrap gap-2">
+            {ADMIN_NOVA_PRO_GRANTS.map((g) => (
+              <button
+                key={g.id}
+                type="button"
+                onClick={() => onGrantVip(g.id, { product: "nova_pro", founding: grantProFounding })}
+                disabled={busy.subscription}
+                className="text-xs px-2.5 py-1 rounded disabled:opacity-50 bg-violet-100 dark:bg-violet-900/40 text-violet-900 dark:text-violet-100 font-medium border border-violet-300/60 dark:border-violet-700/50"
+              >
+                {g.proLabel}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="mt-3 flex flex-wrap gap-2">
           {c.isActive && (
             <button
               type="button"

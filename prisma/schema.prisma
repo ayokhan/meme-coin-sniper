@@ -892,8 +892,8 @@ model Account {
 model Subscription {
   id                String   @id @default(cuid())
   userId            String
-  tier              String   @default("vip")  // "pro" | "vip"
-  plan              String   // e.g. "1month", "6month", "12month" (pro) or "1day", "1month", "6month", "12month" (vip)
+  tier              String   @default("vip")  // "vip" | "nova_pro" ("pro" = retired tier, treated as VIP)
+  plan              String   // VIP: "1day", "1month", "6month", "12month"; Nova Pro: "pro_1month", "pro_6month", "pro_12month"
   amountUsd         Int
   expiresAt         DateTime
   txSignature       String?  // Solana tx signature for USDC verification
@@ -914,6 +914,8 @@ model Subscription {
    * Paid Stripe/USDC VIP stays false (unlimited). Card trials use isTrial.
    */
   deskLimited               Boolean   @default(false)
+  /** Founding (limited edition) Nova Pro seat: badge + launch price locked while they keep renewing. */
+  founding                  Boolean   @default(false)
   createdAt         DateTime @default(now())
   user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   referralCommission ReferralCommission?
@@ -923,6 +925,7 @@ model Subscription {
   @@index([expiresAt])
   @@index([isTrial, trialEndsAt])
   @@index([deskLimited, expiresAt])
+  @@index([tier, expiresAt])
 }
 
 /** Owner-configurable card-required VIP trial (Stripe trial_period_days). */
@@ -957,7 +960,24 @@ model VipStrategySessionPromoConfig {
   updatedAt             DateTime @updatedAt
 }
 
-/** Per-desk daily counters for VIP trial users (UTC day). */
+/** Owner-configurable Nova Pro tier: VIP desks with daily caps, no bots, no Coach Calls. */
+model NovaProConfig {
+  id                 String   @id @default("default")
+  /** Off = hidden from pricing and new purchases blocked. Existing Pro keeps access until expiry. */
+  enabled            Boolean  @default(false)
+  /** AI analysis runs per UTC day, shared across all AI desks. */
+  sharedDailyLimit   Int      @default(7)
+  /** Nova Pulse (crypto + forex Scalp Agent) runs per UTC day. */
+  pulseDailyLimit    Int      @default(5)
+  /** 24h refund only if the subscriber used at most this many runs. */
+  refundMaxRuns      Int      @default(2)
+  /** Founding (limited edition) Pro seats for first paid subscribers / admin grants. */
+  foundingEnabled    Boolean  @default(true)
+  foundingSeats      Int      @default(100)
+  updatedAt          DateTime @updatedAt
+}
+
+/** Per-desk daily counters for VIP trial users (UTC day). Nova Pro uses buckets "pro_ai" / "pro_pulse". */
 model TrialDeskUsage {
   id        String   @id @default(cuid())
   userId    String

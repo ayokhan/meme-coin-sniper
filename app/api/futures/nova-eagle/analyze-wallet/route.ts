@@ -24,6 +24,9 @@ export async function GET(request: Request) {
         { status: access.status }
       );
     }
+    const { trialDeskLimitResponse } = await import("@/lib/trial-desk-gate");
+    const limited = await trialDeskLimitResponse(access.userId, "ai_extra");
+    if (limited) return limited;
 
     const { searchParams } = new URL(request.url);
     const address = String(searchParams.get("address") ?? "").trim().toLowerCase();

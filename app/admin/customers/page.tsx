@@ -9,7 +9,7 @@ import AdminPageHeader from "@/components/admin/AdminPageHeader";
 import CustomerExpandedPanel from "@/components/admin/CustomerExpandedPanel";
 import CoachCallsPendingRequestsCard from "@/components/admin/CoachCallsPendingRequestsCard";
 import { canViewAdminCustomersSession } from "@/lib/admin-access";
-import { ADMIN_VIP_QUICK_GRANTS, grantLabel, type AdminVipGrantId } from "@/lib/admin-vip-grant";
+import { ADMIN_NOVA_PRO_QUICK_GRANTS, ADMIN_VIP_QUICK_GRANTS, grantLabel, type AdminVipGrantId } from "@/lib/admin-vip-grant";
 
 type Payment = {
   date: string;
@@ -64,6 +64,7 @@ type Customer = {
   isActive: boolean;
   subscriptionIsTrial?: boolean;
   subscriptionDeskLimited?: boolean;
+  subscriptionFounding?: boolean;
   subscriptionAutoRenew?: boolean;
   subscriptionCancelAtPeriodEnd?: boolean;
   hasStripeSubscription?: boolean;
@@ -926,22 +927,28 @@ export default function AdminCustomersPage() {
     }
   };
 
-  const handleGrantVip = async (id: string, grant: AdminVipGrantId, opts?: { limited?: boolean }) => {
+  const handleGrantVip = async (
+    id: string,
+    grant: AdminVipGrantId,
+    opts?: { limited?: boolean; product?: "vip" | "nova_pro"; founding?: boolean }
+  ) => {
     setUpdatingId(id);
     setError("");
     const limited = !!opts?.limited;
+    const product = opts?.product ?? "vip";
     try {
       const res = await fetch(`/api/admin/customers/${id}/subscription`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "grant", grant, limited }),
+        body: JSON.stringify({ action: "grant", grant, limited, product, founding: !!opts?.founding }),
       });
       const data = await res.json();
       if (data.success) {
         loadCustomers();
         const extended = data.subscription?.extendedFromExisting ? " (extended)" : "";
-        const ltd = data.deskLimited || limited ? " Limited" : "";
-        setSuccessMessage(`Granted ${data.grantLabel ?? grantLabel(grant)}${ltd} VIP${extended}.`);
+        const ltd = product === "vip" && (data.deskLimited || limited) ? " Limited" : "";
+        const label = product === "nova_pro" ? `Nova Pro${data.founding ? " (Founding)" : ""}` : "VIP";
+        setSuccessMessage(`Granted ${data.grantLabel ?? grantLabel(grant)}${ltd} ${label}${extended}.`);
         setTimeout(() => setSuccessMessage(""), 4000);
       } else {
         setError(data.error ?? "Failed to update subscription");
@@ -1445,10 +1452,13 @@ export default function AdminCustomersPage() {
                                   className={`inline-block text-xs font-semibold px-2 py-0.5 rounded ${
                                     c.subscriptionTier === "vip"
                                       ? "bg-amber-100 dark:bg-amber-900/50 text-amber-900 dark:text-amber-200"
-                                      : "bg-cyan-100 dark:bg-cyan-900/50 text-cyan-900 dark:text-cyan-200"
+                                      : c.subscriptionTier === "nova_pro"
+                                        ? "bg-violet-100 dark:bg-violet-900/50 text-violet-900 dark:text-violet-200"
+                                        : "bg-cyan-100 dark:bg-cyan-900/50 text-cyan-900 dark:text-cyan-200"
                                   }`}
                                 >
-                                  {c.subscriptionTier.toUpperCase()}
+                                  {c.subscriptionTier === "nova_pro" ? "NOVA PRO" : c.subscriptionTier.toUpperCase()}
+                                  {c.subscriptionTier === "nova_pro" && c.subscriptionFounding ? " ★ Founding" : ""}
                                   {c.subscriptionPlan ? ` · ${c.subscriptionPlan}` : ""}
                                 </span>
                               ) : (
@@ -1524,6 +1534,18 @@ export default function AdminCustomersPage() {
                                 >
                                   +3d Ltd
                                 </button>
+                                {ADMIN_NOVA_PRO_QUICK_GRANTS.map((grantId) => (
+                                  <button
+                                    key={`pro-${grantId}`}
+                                    type="button"
+                                    onClick={() => handleGrantVip(c.id, grantId, { product: "nova_pro" })}
+                                    disabled={updatingId === c.id}
+                                    title={`Grant ${grantLabel(grantId)} Nova Pro (daily caps, no bots / Coach Calls)`}
+                                    className="text-[11px] px-2 py-1 rounded disabled:opacity-50 border border-violet-300/70 bg-violet-50 dark:bg-violet-950/40 text-violet-900 dark:text-violet-100"
+                                  >
+                                    {grantId === "3day" ? "+3d Pro trial" : "+1 mo Pro"}
+                                  </button>
+                                ))}
                                 <button
                                   type="button"
                                   onClick={() => setExpandedCustomerId(expanded ? null : c.id)}

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
-import { authOptions, isOwnerSession } from "@/lib/auth";
+import { authOptions, isNovaProSession, isOwnerSession } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { FEATURE_FLAG_KEYS, getFeatureFlag } from "@/lib/feature-flags";
 import { COACH_CALLS_FEATURE_KEY } from "@/lib/coach-calls-access";
@@ -38,9 +38,9 @@ export async function POST() {
 
     const tier = await getSubscriptionTier(session.user.id);
     const isCoach = !!(session.user as { isCoachUser?: boolean }).isCoachUser;
-    if (tier !== "vip" && !isCoach) {
+    if ((tier !== "vip" || isNovaProSession(session)) && !isCoach) {
       return NextResponse.json(
-        { success: false, error: "VIP subscription required to request Coach Calls.", locked: true },
+        { success: false, error: "VIP subscription required to request Coach Calls (not included in Nova Pro).", locked: true },
         { status: 403 }
       );
     }

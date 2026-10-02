@@ -39,6 +39,9 @@ export async function GET(request: Request) {
         { status: access.status }
       );
     }
+    const { trialDeskLimitResponse } = await import("@/lib/trial-desk-gate");
+    const blocked = await trialDeskLimitResponse(access.userId, "nova_pulse");
+    if (blocked) return blocked;
 
     const rawTf = new URL(request.url).searchParams.get("timeframe")?.trim() ?? "5m";
     const timeframeId = isValidScalpTimeframeId(rawTf) ? rawTf : "5m";

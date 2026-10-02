@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Zap, CreditCard } from "lucide-react";
 import { CARD_PAYMENT_FEE_USD, getCardPriceUsd } from "@/lib/subscription";
 import VipExpiryBanner from "@/components/VipExpiryBanner";
+import NovaProPlanSwitcher from "@/components/NovaProPlanSwitcher";
 import VipCancelSurveyDialog from "@/components/VipCancelSurveyDialog";
 import SiteInstagramFooter from "@/components/SiteInstagramFooter";
 import {
@@ -18,6 +19,21 @@ import {
 } from "@/lib/nova-store/giving";
 
 type Plan = { id: string; label: string; months: number; priceUsd: number };
+
+type Product = "vip" | "nova_pro";
+
+type NovaProInfo = {
+  enabled: boolean;
+  plans: Plan[];
+  sharedDailyLimit: number;
+  pulseDailyLimit: number;
+  refundMaxRuns: number;
+  founding: { enabled: boolean; seats: number; remaining: number };
+};
+
+type UsageMeter = { used: number; limit: number; remaining: number };
+
+type RefundStatus = { eligible: boolean; reason: string; windowEndsAt: string | null; runsUsed: number; maxRuns: number };
 
 function expiryDaysRemaining(expiresAt: string | null): number | null {
   if (!expiresAt) return null;
@@ -81,6 +97,13 @@ function SubscribeContent() {
   } | null>(null);
   const [trialLoading, setTrialLoading] = useState(false);
   const wantTrial = searchParams.get("trial") === "1";
+  const [product, setProduct] = useState<Product>(searchParams.get("plan") === "pro" ? "nova_pro" : "vip");
+  const [novaPro, setNovaPro] = useState<NovaProInfo | null>(null);
+  const [isNovaPro, setIsNovaPro] = useState(false);
+  const [isFoundingPro, setIsFoundingPro] = useState(false);
+  const [novaProUsage, setNovaProUsage] = useState<{ ai: UsageMeter; pulse: UsageMeter } | null>(null);
+  const [novaProRefund, setNovaProRefund] = useState<RefundStatus | null>(null);
+  const [upgradeMode, setUpgradeMode] = useState(searchParams.get("plan") === "vip");
 
   useEffect(() => {
     let cancelled = false;
@@ -124,7 +147,12 @@ function SubscribeContent() {
       try {
         const res = await fetch("/api/subscription");
         const data = await res.json();
+        if (data.novaPro) setNovaPro(data.novaPro as NovaProInfo);
         if (data.success) {
+          setIsNovaPro(!!data.isNovaPro);
+          setIsFoundingPro(!!data.isFoundingPro);
+          setNovaProUsage(data.novaProUsage ?? null);
+          setNovaProRefund(data.novaProRefund ?? null);
           setPaid(!!data.paid);
           setSubscriptionTier(data.subscriptionTier ?? null);
           setExpiresAt(data.expiresAt ?? null);
@@ -230,9 +258,16 @@ function SubscribeContent() {
 
   const termsAcceptedForPayment = termsCheckbox;
   const cardFee = cardPaymentFeeUsd;
-  const plans = vipPlans;
+  const novaProAvailable = !!novaPro?.enabled;
+  const activeProduct: Product = product === "nova_pro" && novaProAvailable ? "nova_pro" : "vip";
+  const isProProduct = activeProduct === "nova_pro";
+  const productName = isProProduct ? "Nova Pro" : "VIP";
+  const plans = isProProduct ? novaPro?.plans ?? [] : vipPlans;
   const plan = plans.find((p) => p.id === selectedPlan) ?? plans[0];
   const amountUsdc = plan?.priceUsd ?? 150;
+  const monthlyPlan = plans.find((p) => p.months === 1);
+  const sixMonthPlan = plans.find((p) => p.months === 6);
+  const twelveMonthPlan = plans.find((p) => p.months === 12);
   const planCardPrice = plan ? getCardPriceUsd(plan.priceUsd) : 0;
   const daysRemaining = expiryDaysRemaining(expiresAt);
   const hasActiveAutoRenew = subscriptionAutoRenew && !cancelAtPeriodEnd;
@@ -244,7 +279,7 @@ function SubscribeContent() {
     daysRemaining <= 7 &&
     !hasActiveAutoRenew &&
     !vipExpiryBannerDismissed;
-  const showActiveOnlyView = paid && !!expiresAt && !showExpiryBanner;
+  const showActiveOnlyView = paid && !!expiresAt && !showExpiryBanner && !(isNovaPro && upgradeMode);
 
   useEffect(() => {
     const inTier = plans.some((p) => p.id === selectedPlan);
@@ -423,8 +458,46 @@ function SubscribeContent() {
         <div className="rounded-xl border border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/40 px-6 py-4 text-center max-w-md w-full">
           <p className="font-semibold text-emerald-800 dark:text-emerald-200">You have an active subscription</p>
           <p className="text-sm text-emerald-700 dark:text-emerald-300 mt-1">
-            VIP access · Valid until {new Date(expiresAt).toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric", year: "numeric" })}
+            {isNovaPro ? `Nova Pro${isFoundingPro ? " · ★ Founding member" : ""}` : "VIP"} access · Valid until{" "}
+            {new Date(expiresAt).toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric", year: "numeric" })}
           </p>
+          {isNovaPro && (
+            <div className="mt-3 rounded-lg border border-violet-200 dark:border-violet-800/60 bg-white/70 dark:bg-zinc-900/60 p-3 text-left">
+              {novaProUsage && (
+                <p className="text-xs text-zinc-700 dark:text-zinc-300">
+                  Today: <strong>{novaProUsage.ai.used}</strong>/{novaProUsage.ai.limit} AI runs ·{" "}
+                  <strong>{novaProUsage.pulse.used}</strong>/{novaProUsage.pulse.limit} Nova Pulse runs (resets 00:00 UTC)
+                </p>
+              )}
+              {novaProRefund?.windowEndsAt && new Date(novaProRefund.windowEndsAt).getTime() > Date.now() && (
+                <p className="mt-1 text-[11px] text-muted-foreground">
+                  Refund window: until {new Date(novaProRefund.windowEndsAt).toLocaleString()} · runs used{" "}
+                  {novaProRefund.runsUsed}/{novaProRefund.maxRuns} ·{" "}
+                  {novaProRefund.eligible ? (
+                    <Link href="/support?subject=Nova%20Pro%20refund%20request" className="underline">
+                      request a refund
+                    </Link>
+                  ) : (
+                    novaProRefund.reason
+                  )}
+                </p>
+              )}
+              <p className="mt-2 text-xs text-zinc-600 dark:text-zinc-400">
+                VIP adds unlimited runs, every bot (NovaScalper, Forex Bots, GMGN…) and Coach Calls. Unused Pro days are credited
+                toward VIP.
+              </p>
+              <Button
+                type="button"
+                className="mt-2 w-full bg-amber-500 hover:bg-amber-600 text-white"
+                onClick={() => {
+                  setProduct("vip");
+                  setUpgradeMode(true);
+                }}
+              >
+                Upgrade to VIP
+              </Button>
+            </div>
+          )}
           {hasStripeSubscription && (
             <p className="text-sm text-emerald-700/90 dark:text-emerald-300/90 mt-2">
               {cancelAtPeriodEnd
@@ -542,9 +615,51 @@ function SubscribeContent() {
           />
         )}
         <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100 mb-2">
-          {showExpiryBanner ? "Renew VIP subscription" : "VIP subscription"}
+          {isNovaPro && upgradeMode
+            ? "Upgrade to VIP"
+            : showExpiryBanner
+              ? `Renew ${isNovaPro ? "Nova Pro" : "VIP"} subscription`
+              : novaProAvailable
+                ? "Choose your plan"
+                : "VIP subscription"}
         </h1>
-        <p className="text-zinc-600 dark:text-zinc-400 mb-4">
+        {isNovaPro && upgradeMode && (
+          <p className="mb-4 rounded-lg border border-amber-300/70 bg-amber-50/80 dark:bg-amber-950/30 dark:border-amber-700/60 px-3 py-2 text-sm text-amber-900 dark:text-amber-100">
+            Your unused Nova Pro time is credited automatically when VIP activates — as extra VIP days (one-time payments) or
+            as a credit on your next VIP renewal (auto-renew).
+          </p>
+        )}
+        {novaProAvailable && (
+          <NovaProPlanSwitcher
+            product={activeProduct}
+            onChange={(p) => setProduct(p)}
+            novaPro={novaPro!}
+            vipMonthly={vipPlans.find((p) => p.months === 1)?.priceUsd ?? 150}
+            cardFee={cardFee}
+            hidePro={isNovaPro && upgradeMode}
+          />
+        )}
+        {isProProduct ? (
+          <div className="rounded-lg border border-violet-200 dark:border-violet-800 bg-violet-50/60 dark:bg-violet-950/30 p-4 mb-4">
+            <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">What&apos;s included in Nova Pro</p>
+            <ul className="mt-2 text-xs text-zinc-600 dark:text-zinc-400 list-disc list-inside space-y-1">
+              <li>Every VIP desk: AI Agent, NovaForecast, Nova Forex Agent, NovaQ, Nova+, Wallet Tracker, Meme Intelligence, Futures Narratives, Nova Eagle and more</li>
+              <li>
+                Up to <strong>{novaPro?.sharedDailyLimit ?? 7} AI runs per day</strong> (shared across desks) and{" "}
+                <strong>{novaPro?.pulseDailyLimit ?? 5} Nova Pulse runs per day</strong>
+              </li>
+              <li>Not included (VIP only): Coach Calls and bots — NovaScalper, Forex Bots, GMGN VIP Bot, Prop Firm, Nova Ultimate, Polymarket</li>
+              <li>Upgrade to VIP anytime — unused Pro days are credited</li>
+            </ul>
+            {novaPro?.founding.enabled && novaPro.founding.remaining > 0 && (
+              <p className="mt-3 text-xs font-medium text-violet-700 dark:text-violet-300">
+                ★ Limited edition: the first {novaPro.founding.seats} subscribers become Founding members — badge + today&apos;s
+                price locked while you keep renewing. {novaPro.founding.remaining} seat{novaPro.founding.remaining === 1 ? "" : "s"} left.
+              </p>
+            )}
+          </div>
+        ) : null}
+        <p className={`text-zinc-600 dark:text-zinc-400 mb-4 ${isProProduct ? "hidden" : ""}`}>
           {isVariantB ? (
             <>
               One plan — full platform access. NovaForecast, Nova Forex Agent, Nova Polymarket, wallet intelligence,
@@ -555,24 +670,27 @@ function SubscribeContent() {
               NovaStaris is free to explore; <strong className="text-zinc-800 dark:text-zinc-200">VIP</strong> unlocks the
               full workspace — meme discovery, futures decision support, wallet tracking, prediction markets, NovaForecast,
               Nova Forex Agent, and on-demand tools such as AI Trading Bot, Nova Prop Firm Challenge, and Nova Ultimate.
-              Pay by USDC (Solana) at list price, or card (includes a ${cardFee} card payment fee).
+              Pay by card, or save ${cardFee} by paying with USDC (Solana).
               {!payByCardEnabled && payByUsdcEnabled ? " Card checkout is temporarily unavailable." : ""}
               {payByCardEnabled && !payByUsdcEnabled ? " USDC payment is temporarily unavailable." : ""}
               {!payByCardEnabled && !payByUsdcEnabled ? " New payments are temporarily unavailable." : ""}
             </>
           )}
         </p>
+        {!isProProduct && (
         <div className="rounded-lg border border-cyan-200 dark:border-cyan-800 bg-cyan-50/60 dark:bg-cyan-950/30 p-4 mb-4">
           <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">What&apos;s included in VIP</p>
           <ul className="mt-2 text-xs text-zinc-600 dark:text-zinc-400 list-disc list-inside space-y-1">
+            <li>Unlimited runs on every desk</li>
             <li>Surge, Transactions, Crypto Narratives, NovaStaris AI Agent (Solana, BSC, ETH), Crypto Futures, NovaConnect</li>
             <li>Wallet Tracker, Coach Calls + Telegram Signals (on-demand where noted)</li>
-            <li>NovaForecast, Nova Forex Agent, NovaQ, Nova Investment Agent, Nova+, NovaScalper</li>
+            <li>NovaForecast, Nova Forex Agent, NovaQ, Nova Investment Agent, Nova+, NovaScalper, Forex Bots, GMGN VIP Bot</li>
             <li>On-demand: AI Trading Bot, Nova Polymarket, Nova Prop Firm Challenge, Nova Ultimate</li>
           </ul>
         </div>
+        )}
 
-        {strategyPromo?.active && (
+        {strategyPromo?.active && !isProProduct && (
           <div className="rounded-lg border border-teal-500/40 bg-teal-500/10 p-4 mb-4">
             <p className="text-sm font-semibold text-teal-800 dark:text-teal-200">
               {strategyPromo.title}
@@ -600,7 +718,7 @@ function SubscribeContent() {
           </div>
         )}
 
-        <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50/50 dark:bg-zinc-900/40 p-3.5 mb-6">
+        <div className={`rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50/50 dark:bg-zinc-900/40 p-3.5 mb-6 ${isProProduct ? "hidden" : ""}`}>
           <p className="text-xs font-medium text-zinc-800 dark:text-zinc-200">{VIP_GIVING_HEADLINE}</p>
           <p className="mt-1 text-xs text-muted-foreground leading-relaxed">{VIP_GIVING_BODY}</p>
           <a
@@ -613,16 +731,15 @@ function SubscribeContent() {
           </a>
         </div>
 
-        <p className="text-sm text-zinc-500 dark:text-zinc-400 mb-3">
-          VIP: $150/month
-          {payByUsdcEnabled ? " USDC" : ""}
-          {payByUsdcEnabled && payByCardEnabled ? ` ($${150 + cardFee} card)` : ""}
-          {payByCardEnabled && !payByUsdcEnabled ? ` card ($${150 + cardFee} incl. fee)` : ""}
-          . 6 months $750
-          {payByUsdcEnabled ? " USDC" : ""}
-          ; 12 months $1,500
-          {payByUsdcEnabled ? " USDC" : ""}.
-        </p>
+        {monthlyPlan && (
+          <p className="text-sm text-zinc-500 dark:text-zinc-400 mb-3">
+            {productName}: ${payByCardEnabled ? monthlyPlan.priceUsd + cardFee : monthlyPlan.priceUsd}/month
+            {payByCardEnabled && payByUsdcEnabled ? ` by card, or $${monthlyPlan.priceUsd} with USDC (save $${cardFee})` : ""}
+            {!payByCardEnabled && payByUsdcEnabled ? " USDC" : ""}
+            {sixMonthPlan ? `. 6 months $${sixMonthPlan.priceUsd.toLocaleString()} USDC (1 month free)` : ""}
+            {twelveMonthPlan ? `; 12 months $${twelveMonthPlan.priceUsd.toLocaleString()} USDC (2 months free)` : ""}.
+          </p>
+        )}
 
         <div className="grid gap-4 mb-8 sm:grid-cols-3">
           {plans.map((p) => (
@@ -638,12 +755,12 @@ function SubscribeContent() {
             >
               <div className="font-semibold text-zinc-900 dark:text-zinc-100">{p.label}</div>
               <div className="mt-1 text-lg font-bold text-violet-600 dark:text-violet-400">
-                ${p.priceUsd}
-                {payByUsdcEnabled ? " USDC" : ""}
+                ${payByCardEnabled ? (p.priceUsd + cardFee).toLocaleString() : p.priceUsd.toLocaleString()}
+                {payByCardEnabled ? "" : " USDC"}
               </div>
-              {payByCardEnabled && (
-                <div className="text-xs text-zinc-500 dark:text-zinc-400">
-                  ${p.priceUsd + cardFee} with card (incl. ${cardFee} fee)
+              {payByCardEnabled && payByUsdcEnabled && (
+                <div className="text-xs text-emerald-700 dark:text-emerald-400">
+                  or ${p.priceUsd.toLocaleString()} with USDC — save ${cardFee}
                 </div>
               )}
             </button>
@@ -659,7 +776,7 @@ function SubscribeContent() {
         {verifySuccess && (
           <div className="mb-6 rounded-xl border-2 border-emerald-300 dark:border-emerald-700 bg-emerald-50 dark:bg-emerald-950/40 px-5 py-4 text-emerald-800 dark:text-emerald-200">
             <p className="font-bold text-lg">Subscription activated!</p>
-            <p className="mt-1 text-sm">You now have VIP access. Redirecting to dashboard…</p>
+            <p className="mt-1 text-sm">You now have {productName} access. Redirecting to dashboard…</p>
             <p className="mt-2 text-sm">
               <Link href="/?from=subscribe" className="underline font-medium">
                 Go to dashboard now
@@ -684,14 +801,16 @@ function SubscribeContent() {
                 <Link href="/payment-terms" className="font-medium text-cyan-600 dark:text-cyan-400 hover:underline" target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}>
                   Payment Terms and Conditions
                 </Link>{" "}
-                (no refund after 24 hours of use).
+                {isProProduct
+                  ? `(Nova Pro: refund only within 24 hours and only if ${novaPro?.refundMaxRuns ?? 2} or fewer runs were used; card fee not refundable).`
+                  : "(no refund after 24 hours of use)."}
               </span>
             </label>
           </div>
         )}
 
         <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100 mb-3">Payment method</h2>
-        {trialOffer?.enabled && trialOffer.eligible && payByCardEnabled && (
+        {trialOffer?.enabled && trialOffer.eligible && payByCardEnabled && !isProProduct && !isNovaPro && (
           <Card className="mb-6 border-amber-300/80 dark:border-amber-700/60 bg-amber-50/60 dark:bg-amber-950/20">
             <CardHeader className="pb-2">
               <CardTitle className="text-lg text-amber-900 dark:text-amber-100">
@@ -745,7 +864,8 @@ function SubscribeContent() {
                     Pay with card
                   </CardTitle>
                   <p className="text-sm text-zinc-600 dark:text-zinc-400">
-                    Includes a ${cardFee} card payment fee. Secure checkout via Stripe.
+                    {productName} · {plan?.label}: <strong>${planCardPrice.toLocaleString()}</strong> by card. Secure checkout via Stripe.
+                    {payByUsdcEnabled ? ` Pay with USDC instead to save $${cardFee}.` : ""}
                   </p>
                 </CardHeader>
                 <CardContent className="space-y-3">
@@ -760,7 +880,7 @@ function SubscribeContent() {
                     <span className="text-sm text-zinc-700 dark:text-zinc-300">
                       <strong className="text-zinc-900 dark:text-zinc-100">Enable automatic renewal</strong>
                       <span className="block mt-0.5 text-zinc-500 dark:text-zinc-400">
-                        Your card is charged each billing period until you turn this off. Manage your card anytime from Account → VIP billing after checkout.
+                        Your card is charged each billing period until you turn this off. Manage your card anytime from Account → Billing after checkout.
                       </span>
                     </span>
                   </label>
@@ -787,7 +907,8 @@ function SubscribeContent() {
                 <CardHeader>
                   <CardTitle className="text-lg">Pay with USDC (Solana)</CardTitle>
                   <p className="text-sm text-zinc-600 dark:text-zinc-400">
-                    Send <strong>{amountUsdc} USDC</strong> (list price — no card fee) to the wallet below, then paste the transaction signature.
+                    {productName} · {plan?.label}: send <strong>{amountUsdc} USDC</strong> (save ${cardFee} vs card) to the wallet below,
+                    then paste the transaction signature.
                   </p>
                 </CardHeader>
                 <CardContent className="space-y-4">

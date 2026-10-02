@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useSession } from "next-auth/react";
 import { Button } from "@/components/ui/button";
 import { normalizeForexSymbol, validateForexScalpSymbol, FOREX_SCALP_MAX_LEVERAGE, type ForexSymbolEntry } from "@/lib/forex-market";
 import {
@@ -43,6 +44,8 @@ export default function NovaForexScalpAgentPanel({
   novaForexBot = false,
   novaForexScalpBot = false,
 }: Props) {
+  const { data: session, status: sessionStatus } = useSession();
+  const isNovaPro = !!session?.user?.isNovaPro;
   const [catalog, setCatalog] = useState<ForexSymbolEntry[]>([]);
   const [symbol, setSymbol] = useState("XAUUSD");
   const [scalpTf, setScalpTf] = useState("5m");
@@ -238,10 +241,10 @@ export default function NovaForexScalpAgentPanel({
   );
 
   useEffect(() => {
-    if (!enabled || !scalpLevHydrated) return;
+    if (!enabled || !scalpLevHydrated || sessionStatus === "loading" || isNovaPro) return;
     void findQuickWins(QUICK_WIN_SCALP_TIMEFRAME_ID, Number(scalpLev) || 20);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- scan once leverage hydrated when opening
-  }, [enabled, scalpLevHydrated]);
+  }, [enabled, scalpLevHydrated, sessionStatus, isNovaPro]);
 
   if (!enabled) {
     return (

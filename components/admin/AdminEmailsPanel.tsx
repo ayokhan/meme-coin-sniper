@@ -1080,6 +1080,24 @@ export default function AdminEmailsPanel({ onNotice, onError }: Props) {
       {(
         [
           {
+            id: "nova-pro" as MarketingPostcardId,
+            cardId: "nova-pro-postcard",
+            title: "Nova Pro launch — social postcard (square)",
+            description: "1080×1080 for X, Instagram, WhatsApp, Telegram. $58 card / $50 USDC + Founding seats.",
+            accent: "blue" as const,
+            emailPresetHref: "/admin/emails?preset=nova-pro-launch",
+            previewAlt: "Nova Pro launch postcard preview",
+          },
+          {
+            id: "nova-pro-story" as MarketingPostcardId,
+            cardId: "nova-pro-story-postcard",
+            title: "Nova Pro launch — story / status (9:16)",
+            description: "1080×1920 for Instagram/TikTok stories, WhatsApp Status and Telegram stories.",
+            accent: "blue" as const,
+            emailPresetHref: "/admin/emails?preset=nova-pro-launch",
+            previewAlt: "Nova Pro launch story postcard preview",
+          },
+          {
             id: "play-store-usdc" as MarketingPostcardId,
             cardId: "play-store-usdc-postcard",
             title: "Google Play + $250 USDC — social postcard",

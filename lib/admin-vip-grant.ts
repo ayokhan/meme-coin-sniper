@@ -1,4 +1,4 @@
-import { VIP_PLANS } from "@/lib/subscription";
+import { NOVA_PRO_PLANS, VIP_PLANS } from "@/lib/subscription";
 
 export const ADMIN_VIP_GRANTS = [
   { id: "5min", label: "5 min", minutes: 5 },
@@ -51,4 +51,31 @@ export function listPriceForAdminGrantPlan(planId: string): number {
 
 export function grantLabel(grantId: AdminVipGrantId): string {
   return ADMIN_VIP_GRANTS.find((g) => g.id === grantId)?.label ?? grantId;
+}
+
+/** Owner Nova Pro grants (same durations engine as VIP grants). */
+export const ADMIN_NOVA_PRO_GRANTS: readonly { id: AdminVipGrantId; proLabel: string }[] = [
+  { id: "1day", proLabel: "1 day Pro" },
+  { id: "3day", proLabel: "3-day Pro trial" },
+  { id: "1week", proLabel: "7 days Pro" },
+  { id: "1month", proLabel: "1 month Pro" },
+  { id: "3month", proLabel: "3 months Pro" },
+  { id: "6month", proLabel: "6 months Pro" },
+  { id: "12month", proLabel: "12 months Pro" },
+];
+
+/** Quick-grant buttons for Nova Pro on the Customers table row. */
+export const ADMIN_NOVA_PRO_QUICK_GRANTS: readonly AdminVipGrantId[] = ["3day", "1month"];
+
+export function proPlanIdForAdminGrant(grantId: AdminVipGrantId): string {
+  if (grantId === "1month" || grantId === "6month" || grantId === "12month") return `pro_${grantId}`;
+  return `admin-pro-${grantId}`;
+}
+
+export function listPriceForAdminProGrantPlan(planId: string): number {
+  return NOVA_PRO_PLANS.find((p) => p.id === planId)?.priceUsd ?? 0;
+}
+
+export function proGrantLabel(grantId: AdminVipGrantId): string {
+  return ADMIN_NOVA_PRO_GRANTS.find((g) => g.id === grantId)?.proLabel ?? `${grantLabel(grantId)} Pro`;
 }

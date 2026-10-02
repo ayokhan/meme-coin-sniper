@@ -37,6 +37,9 @@ export async function POST(request: Request) {
         { status: access.status }
       );
     }
+    const { trialDeskLimitResponse } = await import("@/lib/trial-desk-gate");
+    const limited = await trialDeskLimitResponse(access.userId, "ai_extra");
+    if (limited) return limited;
 
     const body = await request.json().catch(() => ({}));
     const symbol = normalizeSymbol(String(body.symbol ?? "BTC"));

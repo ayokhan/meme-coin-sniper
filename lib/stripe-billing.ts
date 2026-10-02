@@ -1,9 +1,9 @@
 import type Stripe from "stripe";
 import { prisma } from "@/lib/db";
-import type { SubscriptionPlan } from "@/lib/subscription";
+import { storedTierForProduct, type SubscriptionProduct } from "@/lib/subscription";
 import { recordReferralCommissionForSubscription } from "@/lib/referral-commission";
 
-export function planToStripeRecurring(plan: SubscriptionPlan): {
+export function planToStripeRecurring(plan: { months: number }): {
   interval: "month" | "year";
   interval_count: number;
 } {
@@ -21,7 +21,9 @@ export async function upsertSubscriptionFromStripePeriod(input: {
   autoRenew?: boolean;
   isTrial?: boolean;
   trialEndsAt?: Date | null;
-}): Promise<void> {
+  product?: SubscriptionProduct;
+  founding?: boolean;
+}): Promise<string | null> {
   const db = prisma as unknown as {
     subscription: {
       findFirst: (args: unknown) => Promise<{ id: string } | null>;
@@ -58,7 +60,7 @@ export async function upsertSubscriptionFromStripePeriod(input: {
           ...trialData,
         },
       });
-      return;
+      return existing.id;
     }
   }
 
@@ -66,13 +68,14 @@ export async function upsertSubscriptionFromStripePeriod(input: {
     const bySession = await db.subscription.findFirst({
       where: { stripeSessionId: input.stripeSessionId },
     });
-    if (bySession) return;
+    if (bySession) return bySession.id;
   }
 
   const created = (await db.subscription.create({
     data: {
       userId: input.userId,
-      tier: "vip",
+      tier: storedTierForProduct(input.product ?? "vip"),
+      founding: input.founding ?? false,
       plan: input.planId,
       amountUsd: input.amountUsd,
       expiresAt: input.periodEnd,
@@ -89,6 +92,7 @@ export async function upsertSubscriptionFromStripePeriod(input: {
   if (!input.isTrial) {
     await recordReferralCommissionForSubscription(created.id);
   }
+  return created.id;
 }
 
 export function trialEndFromStripeSubscription(sub: Stripe.Subscription): Date | null {

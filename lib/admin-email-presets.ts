@@ -17,6 +17,7 @@ import {
 } from "@/lib/vip-strategy-session-promo-email";
 import { ROBINHOOD_HYPEREVM_LAUNCH_EMAIL } from "@/lib/robinhood-hyperevm-launch-email";
 import { GMGN_VIP_BOT_LAUNCH_EMAIL } from "@/lib/gmgn-vip-bot-launch-email";
+import { NOVA_PRO_LAUNCH_EMAIL } from "@/lib/nova-pro-launch-email";
 import { AFFILIATE_PROGRAM_EMAIL } from "@/lib/referral-program";
 import { WELCOME_EMAIL } from "@/lib/welcome-email";
 import { WHY_TRADERS_EMAIL } from "@/lib/why-traders-email";
@@ -71,6 +72,7 @@ export type AdminEmailPresetId =
   | "vip-strategy-session-booking"
   | "robinhood-hyperevm-launch"
   | "gmgn-vip-bot-launch"
+  | "nova-pro-launch"
   | "play-store-launch"
   | "tio-partnership"
   | "vantage-partnership"
@@ -114,6 +116,19 @@ const VIP_TRIAL_INVITE = buildVipTrialInviteEmail({
 });
 
 export const ADMIN_EMAIL_PRESETS: AdminEmailPreset[] = [
+  {
+    id: "nova-pro-launch",
+    label: "Nova Pro launch + Founding seats",
+    blurb: "Announce Nova Pro ($50 USDC / $58 card) — turn Nova Pro ON in Admin → Nova Pro before sending",
+    subject: NOVA_PRO_LAUNCH_EMAIL.subject,
+    body: NOVA_PRO_LAUNCH_EMAIL.body,
+    template: "nova-branded",
+    includePartnerLogos: false,
+    partnerBrand: "blofin",
+    ctaLabel: NOVA_PRO_LAUNCH_EMAIL.ctaLabel,
+    ctaUrl: NOVA_PRO_LAUNCH_EMAIL.ctaUrl,
+    defaultAudience: "all",
+  },
   {
     id: "play-store-launch",
     label: "Google Play launch + $250 USDC",

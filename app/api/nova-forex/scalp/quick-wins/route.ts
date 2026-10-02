@@ -31,7 +31,7 @@ export async function GET(request: Request) {
       );
     }
     const { trialDeskLimitResponse } = await import("@/lib/trial-desk-gate");
-    const blocked = await trialDeskLimitResponse(session?.user?.id, "nova_forex");
+    const blocked = await trialDeskLimitResponse(session?.user?.id, "nova_pulse");
     if (blocked) return blocked;
 
     const url = new URL(request.url);

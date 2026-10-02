@@ -1,6 +1,6 @@
 import type Stripe from "stripe";
 import { prisma } from "@/lib/db";
-import { VIP_PLANS } from "@/lib/subscription";
+import { NOVA_PRO_PLANS, VIP_PLANS } from "@/lib/subscription";
 
 export type BillingInvoiceRow = {
   id: string;
@@ -22,6 +22,8 @@ function planLabel(planId: string | null | undefined): string {
   if (planId === "donation_once") return "Trading University donation (one-time)";
   if (planId === "donation_monthly") return "Trading University donation (monthly)";
   if (planId === "strategy_call") return "Strategy call (1 hour)";
+  const pro = NOVA_PRO_PLANS.find((p) => p.id === planId);
+  if (pro) return `Nova Pro — ${pro.label}`;
   return VIP_PLANS.find((p) => p.id === planId)?.label ?? `VIP (${planId})`;
 }
 

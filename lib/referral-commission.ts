@@ -91,7 +91,7 @@ function isQualifyingPaidSubscription(
   },
   opts?: { allowAdminGrants?: boolean }
 ): boolean {
-  if (sub.tier !== "vip" || sub.amountUsd <= 0) return false;
+  if ((sub.tier !== "vip" && sub.tier !== "nova_pro") || sub.amountUsd <= 0) return false;
   if (sub.stripeSessionId || sub.stripeSubscriptionId) return true;
   const tx = sub.txSignature?.trim() ?? "";
   if (!tx) return false;
@@ -182,7 +182,7 @@ export async function syncReferralCommissionForReferee(
   if (!referee?.referredByUserId || referee.referredByUserId === referee.id) return null;
 
   const subs = (await prisma.subscription.findMany({
-    where: { userId: refereeUserId, tier: "vip", amountUsd: { gt: 0 } },
+    where: { userId: refereeUserId, tier: { in: ["vip", "nova_pro"] }, amountUsd: { gt: 0 } },
     orderBy: { createdAt: "asc" },
   })) as Array<{
     id: string;
@@ -250,7 +250,8 @@ export async function recordReferralCommissionForSubscription(subscriptionId: st
     where: {
       userId: sub.userId,
       id: { not: subscriptionId },
-      tier: "vip",
+      // First paid VIP and first paid Nova Pro each earn one commission.
+      tier: sub.tier,
       amountUsd: { gt: 0 },
     },
     select: {

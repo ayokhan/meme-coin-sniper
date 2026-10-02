@@ -86,3 +86,47 @@ Next steps
 
   return { ok: true, sent };
 }
+
+/** Email owner(s) when a paid Nova Pro subscription is activated. */
+export async function sendNovaProSubscribeOwnerAlert(args: {
+  userId: string;
+  planId: string;
+  amountUsd: number;
+  paymentMethod: "card" | "usdc";
+  founding: boolean;
+  subscriptionId?: string | null;
+}): Promise<{ ok: true; sent: number } | { ok: false; error: string }> {
+  const recipients = getStoreOwnerAlertEmails();
+  if (recipients.length === 0) return { ok: false, error: "OWNER_EMAIL is not configured." };
+
+  const user = await prisma.user.findUnique({ where: { id: args.userId }, select: { email: true, name: true } });
+  const email = user?.email ?? "(no email)";
+  const name = (user?.name ?? "").trim() || "—";
+
+  const body = `New paid Nova Pro${args.founding ? " (Founding member)" : ""}
+
+Name: ${name}
+Email: ${email}
+Plan: ${args.planId}
+Amount: $${args.amountUsd} USD
+Payment: ${args.paymentMethod}
+${args.subscriptionId ? `Subscription: ${args.subscriptionId}` : ""}
+
+Refund policy: full refund only within 24h and only if they used no more than the configured runs (Admin → Nova Pro).`;
+
+  const html = buildNovaBrandedEmailHtml({
+    body,
+    eyebrow: "Nova Pro sale",
+    ctaLabel: "Open Nova Pro admin",
+    ctaUrl: "https://novastaris.ai/admin/nova-pro",
+  });
+
+  let sent = 0;
+  let lastError = "";
+  for (const to of recipients) {
+    const result = await sendEmailDetailed(to, `New Nova Pro — ${email}`, html);
+    if (result.ok) sent += 1;
+    else lastError = result.error;
+  }
+  return sent === 0 ? { ok: false, error: lastError || "Failed to send owner alert." } : { ok: true, sent };
+}

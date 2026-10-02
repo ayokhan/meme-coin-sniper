@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { useSession } from "next-auth/react";
 import { Send, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { NovaScalpPlanCard } from "@/components/NovaScalpPlanCard";
@@ -74,6 +75,8 @@ function LockedMessage({
 
 
 export default function NovaScalpAgentPanel({ enabled, isVip, canShareCoach = false }: Props) {
+  const { data: session, status: sessionStatus } = useSession();
+  const isNovaPro = !!session?.user?.isNovaPro;
   const [symbol, setSymbol] = useState("BTC");
   const [amount, setAmount] = useState("100");
   const [leverage, setLeverage] = useState("50");
@@ -273,11 +276,12 @@ export default function NovaScalpAgentPanel({ enabled, isVip, canShareCoach = fa
   }, [qwTimeframeId, leverage, amount]);
 
   useEffect(() => {
-    if (!enabled || !isVip) return;
+    // Nova Pro: every scan counts toward the daily Pulse limit, so no automatic scan on open.
+    if (!enabled || !isVip || sessionStatus === "loading" || isNovaPro) return;
     void findQuickWins(QUICK_WIN_SCALP_TIMEFRAME_ID, Number(leverage) || 10);
     // Initial scan only — user clicks "Find me quick wins" after changing leverage/timeframe.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [enabled, isVip]);
+  }, [enabled, isVip, sessionStatus, isNovaPro]);
 
   if (!enabled) {
     return (

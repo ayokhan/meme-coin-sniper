@@ -10,7 +10,20 @@ export type MarketingPostcardId =
   | "nova-pulse"
   | "investor-onepager"
   | "vip-strategy-session"
-  | "play-store-usdc";
+  | "play-store-usdc"
+  | "nova-pro"
+  | "nova-pro-story";
+
+const NOVA_PRO_CAPTION = [
+  "Introducing Nova Pro — VIP-level AI desks for focused traders.",
+  "Every VIP AI desk with 7 AI runs + 5 Nova Pulse runs per day.",
+  "$58/month by card, or $50 with USDC (save $8). 6 months: 1 free · 12 months: 2 free.",
+  "",
+  "Limited edition: the first 100 subscribers become Founding members and lock today's price.",
+  "",
+  "Claim your seat: https://novastaris.ai/subscribe?plan=pro",
+  "Educational only — not financial advice.",
+].join("\n");
 
 type Spec = {
   assetPath: string;
@@ -20,6 +33,18 @@ type Spec = {
 };
 
 const SPECS: Record<MarketingPostcardId, Spec> = {
+  "nova-pro": {
+    assetPath: "/marketing/novastaris-nova-pro-postcard-premium.png",
+    filePrefix: "NovaStaris_Nova_Pro",
+    joinUrl: "https://novastaris.ai/subscribe?plan=pro",
+    caption: NOVA_PRO_CAPTION,
+  },
+  "nova-pro-story": {
+    assetPath: "/marketing/novastaris-nova-pro-story-premium.png",
+    filePrefix: "NovaStaris_Nova_Pro_Story",
+    joinUrl: "https://novastaris.ai/subscribe?plan=pro",
+    caption: NOVA_PRO_CAPTION,
+  },
   "vip-upgrade": {
     assetPath: "/marketing/novastaris-vip-upgrade-postcard-premium.png",
     filePrefix: "NovaStaris_VIP_Upgrade",

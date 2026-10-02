@@ -197,6 +197,9 @@ export async function POST(request: Request) {
     if (!access.ok) {
       return NextResponse.json({ success: false, error: access.error, locked: access.status === 403 }, { status: access.status });
     }
+    const { trialDeskLimitResponse } = await import("@/lib/trial-desk-gate");
+    const limited = await trialDeskLimitResponse(access.userId, "ai_extra");
+    if (limited) return limited;
 
     const body = await request.json().catch(() => ({}));
     const symbolsInput = Array.isArray(body.symbols) ? body.symbols : String(body.symbols ?? body.symbol ?? "PEPE").split(/[\s,]+/);

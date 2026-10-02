@@ -8,11 +8,15 @@ import {
   grantLabel,
   isAdminVipGrantId,
   listPriceForAdminGrantPlan,
+  listPriceForAdminProGrantPlan,
   planIdForAdminGrant,
+  proGrantLabel,
+  proPlanIdForAdminGrant,
   type AdminVipGrantId,
 } from "@/lib/admin-vip-grant";
 import { prisma } from "@/lib/db";
-import { VIP_PLANS } from "@/lib/subscription";
+import { NOVA_PRO_TIER, VIP_PLANS } from "@/lib/subscription";
+import { resolveFoundingForNewPro } from "@/lib/nova-pro";
 import { recordBillingInvoiceFromAdminGrant } from "@/lib/billing-invoices";
 
 const stripe = process.env.STRIPE_SECRET_KEY ? new Stripe(process.env.STRIPE_SECRET_KEY) : null;
@@ -49,6 +53,85 @@ async function cancelStripeSubscriptionsForUser(userId: string): Promise<void> {
       console.error("Admin clear: Stripe cancel failed", row.stripeSubscriptionId, e);
     }
   }
+}
+
+/** Complimentary Nova Pro: extends an active Pro period, refuses while VIP is active. */
+async function grantNovaPro(userId: string, grantId: AdminVipGrantId, wantFounding: boolean) {
+  const db = prisma as unknown as {
+    subscription: {
+      findFirst: (args: unknown) => Promise<{ id: string; expiresAt: Date; founding: boolean } | null>;
+      update: (args: unknown) => Promise<unknown>;
+      create: (args: unknown) => Promise<unknown>;
+    };
+  };
+  const now = new Date();
+  const activeVip = await db.subscription.findFirst({
+    where: { userId, expiresAt: { gt: now }, tier: { not: NOVA_PRO_TIER } },
+    select: { id: true },
+  });
+  if (activeVip) {
+    return NextResponse.json(
+      { success: false, error: "User has active VIP (includes everything in Pro). Cancel / reset VIP first to grant Nova Pro." },
+      { status: 400 }
+    );
+  }
+
+  let founding = false;
+  if (wantFounding) {
+    founding = await resolveFoundingForNewPro(userId, { forceRequest: true });
+    if (!founding) {
+      return NextResponse.json(
+        { success: false, error: "No founding (limited edition) seats left. Raise the seat count in Admin → Nova Pro or grant regular Pro." },
+        { status: 400 }
+      );
+    }
+  }
+
+  const activePro = await db.subscription.findFirst({
+    where: { userId, expiresAt: { gt: now }, tier: NOVA_PRO_TIER },
+    orderBy: { expiresAt: "desc" },
+    select: { id: true, expiresAt: true, founding: true },
+  });
+  const base = activePro ? activePro.expiresAt : now;
+  const expiresAt = addAdminVipGrantDuration(base, grantId);
+  const planId = proPlanIdForAdminGrant(grantId);
+  const amountUsd = listPriceForAdminProGrantPlan(planId);
+  const adminTag = `admin-grant-pro-${grantId}${founding ? "-founding" : ""}-${Date.now()}`;
+  const keepFounding = founding || !!activePro?.founding;
+
+  if (activePro) {
+    await db.subscription.update({
+      where: { id: activePro.id },
+      data: { plan: planId, amountUsd, expiresAt, txSignature: adminTag, autoRenew: false, cancelAtPeriodEnd: false, founding: keepFounding },
+    });
+  } else {
+    await db.subscription.create({
+      data: { userId, tier: NOVA_PRO_TIER, plan: planId, amountUsd, expiresAt, txSignature: adminTag, autoRenew: false, founding: keepFounding },
+    });
+  }
+
+  await recordBillingInvoiceFromAdminGrant({
+    userId,
+    planId,
+    grantLabel: proGrantLabel(grantId),
+    adminTag,
+    periodEnd: expiresAt,
+  }).catch((e) => console.error("billing invoice after admin Pro grant:", e));
+
+  return NextResponse.json({
+    success: true,
+    grant: grantId,
+    grantLabel: proGrantLabel(grantId),
+    product: "nova_pro",
+    founding: keepFounding,
+    subscription: {
+      tier: NOVA_PRO_TIER,
+      plan: planId,
+      expiresAt: expiresAt.toISOString(),
+      extendedFromExisting: !!activePro,
+    },
+    complimentary: true,
+  });
 }
 
 /** POST - Owner-only. Grant, extend, or cancel a user's VIP subscription. */
@@ -144,6 +227,9 @@ export async function POST(
     }
 
     const now = new Date();
+    if ((rawBody as { product?: string }).product === "nova_pro") {
+      return grantNovaPro(userId, grantId, (rawBody as { founding?: boolean }).founding === true);
+    }
     const deskLimited = rawBody.limited === true;
     const active = (await prisma.subscription.findFirst({
       where: { userId, expiresAt: { gt: now } },

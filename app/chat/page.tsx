@@ -32,7 +32,7 @@ const SUBSCRIPTION_KEYWORDS = [
   "pro", "vip", "pay", "payment", "fee", "fees", "trial", "monthly", "yearly",
 ];
 const NJA_SUBSCRIPTION_REPLY =
-  "NovaStaris has a free tier and VIP subscription. VIP: 1 month $150 USDC ($158 card), 6 months $750 USDC ($758 card), 12 months $1,500 USDC ($1,508 card). USDC pays list price; card adds $8. Use the Subscribe page in the app to sign up. Anything else?";
+  "NovaStaris has a free tier and VIP subscription. VIP: 1 month $150 USDC ($158 card), 6 months $750 USDC ($758 card), 12 months $1,500 USDC ($1,508 card). USDC pays list price; card adds $8. Nova Pro (when shown on Subscribe): $50 USDC ($58 card) per month — the VIP AI desks with daily run limits, no bots or Coach Calls. Use the Subscribe page in the app to sign up. Anything else?";
 const NJA_PRODUCT_OVERVIEW =
   "NovaStaris is an AI-powered platform that helps you discover and evaluate new crypto tokens. Key features include: Surge (volume and momentum), NovaStaris AI Agent, Crypto Futures tools, and—on VIP—CT Scan, Profitable Traders Wallet Tracker, and Coach Calls + Telegram Signals. You can explore plans on the Subscribe page. Would you like details on subscriptions or something else?";
 

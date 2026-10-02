@@ -1,5 +1,5 @@
 import type { Session } from "next-auth";
-import { isOwnerSession } from "@/lib/auth";
+import { isNovaProSession, isOwnerSession } from "@/lib/auth";
 import { FEATURE_FLAG_KEYS, getFeatureFlag } from "@/lib/feature-flags";
 import { prisma } from "@/lib/db";
 
@@ -57,6 +57,15 @@ export async function getCoachCallsAccess(session: Session | null): Promise<Coac
       status: 403,
       error: "Coach Calls is in owner testing mode. Ask an admin to enable it for your account.",
       disabled: true,
+    };
+  }
+
+  if (isNovaProSession(session)) {
+    return {
+      ok: false,
+      status: 403,
+      error: "Coach Calls is a VIP feature and is not included in Nova Pro. Upgrade to VIP — your unused Pro days count toward VIP.",
+      locked: true,
     };
   }
 
