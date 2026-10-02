@@ -166,7 +166,7 @@ export function pathHintCopy(path: DashboardPath | null): string {
     case "polymarket":
       return "Your path: Prediction markets — open Nova Polymarket under Bots (on-demand access may apply).";
     case "all":
-      return "Showing all tools. Use Core / Markets / VIP / Bots filters above to focus.";
+      return "Showing all tools. Use the groups above (Memes, Perps, Forex & Metals, Bots) to focus.";
     default:
       return "New here? Pick a focus path (Meme, Futures, Forex, Wallets, or Polymarket) to reduce tab clutter.";
   }
@@ -212,6 +212,8 @@ export const URL_TAB_IDS = new Set([
   "trading-university",
   "nova-job-agent",
   "nova-store",
+  "gmgn-vip-bot",
+  "realtor-os",
 ]);
 
 export const URL_FUTURES_VIEWS = new Set([
