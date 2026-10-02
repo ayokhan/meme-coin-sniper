@@ -62,14 +62,36 @@ async function cappedEmails(emails: string[]): Promise<Set<string>> {
   return new Set(rows.filter((r) => r._count._all >= STUDIO_WEEKLY_CAP).map((r) => r.email));
 }
 
-/** Who would receive a send right now, after suppressions and the weekly cap. */
-export async function previewStudioAudience(segment: StudioSegment) {
-  const base = await segmentEmails(segment);
-  const afterSuppression = filterSuppressedEmails(base, await getSuppressedEmailSet());
+const EMAIL_RE = /^[^\s@,;<>]+@[^\s@,;<>]+\.[^\s@,;<>]+$/;
+
+/** Hand-picked addresses from the admin UI: normalized, valid, deduped. */
+export function parsePickedEmails(raw: unknown): string[] | null {
+  if (!Array.isArray(raw)) return null;
+  return [
+    ...new Set(
+      raw
+        .filter((e): e is string => typeof e === "string")
+        .map(normalizeEmailAddress)
+        .filter((e) => EMAIL_RE.test(e))
+    ),
+  ].slice(0, 20_000);
+}
+
+/**
+ * Who would receive a send right now, after suppressions and the weekly cap.
+ * With `picked`, only those addresses are considered (they still pass the same filters).
+ */
+export async function previewStudioAudience(segment: StudioSegment, picked?: string[] | null) {
+  const base = picked ?? (await segmentEmails(segment));
+  const suppressedSet = await getSuppressedEmailSet();
+  const afterSuppression = filterSuppressedEmails(base, suppressedSet);
+  const afterSet = new Set(afterSuppression);
   const capped = await cappedEmails(afterSuppression);
   const recipients = afterSuppression.filter((e) => !capped.has(e));
   return {
     recipients,
+    suppressed: base.filter((e) => !afterSet.has(e)),
+    capped: afterSuppression.filter((e) => capped.has(e)),
     segmentCount: base.length,
     suppressedCount: base.length - afterSuppression.length,
     cappedCount: afterSuppression.length - recipients.length,
@@ -106,14 +128,19 @@ export async function sendStudioTest(draft: StudioDraft, to: string) {
   return sendEmailDetailed(to, `[Test] ${draft.subject}`, html, { headers });
 }
 
-export async function sendStudioCampaign(input: { draft: StudioDraft; segment: StudioSegment; createdByUserId: string | null }) {
-  const { draft, segment } = input;
-  const audience = await previewStudioAudience(segment);
+export async function sendStudioCampaign(input: {
+  draft: StudioDraft;
+  segment: StudioSegment;
+  picked?: string[] | null;
+  createdByUserId: string | null;
+}) {
+  const { draft, segment, picked } = input;
+  const audience = await previewStudioAudience(segment, picked);
   if (!audience.recipients.length) {
     throw new Error(
       audience.cappedCount
-        ? "Everyone in this segment already got 2 Studio emails in the last 7 days."
-        : "No one to send to in this segment."
+        ? "Everyone selected already got 2 Studio emails in the last 7 days."
+        : "No one to send to. Select at least one recipient."
     );
   }
 
@@ -121,7 +148,7 @@ export async function sendStudioCampaign(input: { draft: StudioDraft; segment: S
     data: {
       angle: draft.angle,
       subject: draft.subject,
-      segment,
+      segment: picked ? `${segment}:picked` : segment,
       html: renderStudioEmail(draft),
       recipientCount: audience.recipients.length,
       cappedCount: audience.cappedCount,

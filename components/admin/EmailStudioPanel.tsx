@@ -29,7 +29,9 @@ type CampaignRow = {
   createdAt: string;
 };
 
-type Audience = { recipients: number; segmentCount: number; suppressedCount: number; cappedCount: number };
+type Audience = { emails: string[]; suppressed: string[]; capped: string[]; segmentCount: number };
+
+const EMAIL_RE = /^[^\s@,;<>]+@[^\s@,;<>]+\.[^\s@,;<>]+$/;
 
 const inputClass =
   "w-full rounded-md border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/40";
@@ -46,6 +48,11 @@ export default function EmailStudioPanel() {
   const [segmentCounts, setSegmentCounts] = useState<Record<string, number>>({});
   const [audience, setAudience] = useState<Audience | null>(null);
   const [audienceRefresh, setAudienceRefresh] = useState(0);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [extras, setExtras] = useState<string[]>([]);
+  const [extraInput, setExtraInput] = useState("");
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [search, setSearch] = useState("");
   const [campaigns, setCampaigns] = useState<CampaignRow[]>([]);
   const [busy, setBusy] = useState<"test" | "send" | null>(null);
   const [notice, setNotice] = useState("");
@@ -78,7 +85,11 @@ export default function EmailStudioPanel() {
     })
       .then((r) => r.json())
       .then((d) => {
-        if (!cancelled && d.success) setAudience(d as Audience);
+        if (cancelled || !d.success) return;
+        const a = d as Audience;
+        setAudience(a);
+        setSelected(new Set(a.emails));
+        setExtras([]);
       })
       .catch(() => null);
     return () => {
@@ -126,17 +137,56 @@ export default function EmailStudioPanel() {
     }
   };
 
+  const customized = !!audience && (extras.length > 0 || selected.size !== audience.emails.length);
+
+  const addExtras = () => {
+    const found = extraInput
+      .split(/[\s,;]+/)
+      .map((e) => e.trim().toLowerCase())
+      .filter((e) => EMAIL_RE.test(e));
+    if (!found.length) {
+      setError("Enter at least one valid email address.");
+      return;
+    }
+    const known = new Set([...(audience?.emails ?? []), ...extras]);
+    const fresh = found.filter((e) => !known.has(e));
+    setExtras((x) => [...x, ...fresh]);
+    setSelected((s) => new Set([...s, ...found]));
+    setExtraInput("");
+    setError("");
+  };
+
+  const toggle = (email: string) =>
+    setSelected((s) => {
+      const next = new Set(s);
+      if (next.has(email)) next.delete(email);
+      else next.add(email);
+      return next;
+    });
+
+  const visibleEmails = useMemo(() => {
+    const all = [...extras, ...(audience?.emails ?? [])];
+    const q = search.trim().toLowerCase();
+    return q ? all.filter((e) => e.includes(q)) : all;
+  }, [audience, extras, search]);
+
   const sendCampaign = async () => {
-    if (!draft || !audience) return;
-    const segLabel = STUDIO_SEGMENTS.find((s) => s.id === segment)?.label ?? segment;
-    if (!window.confirm(`Send "${draft.subject}" to ${audience.recipients} people (${segLabel})? This can't be undone.`)) return;
+    if (!draft || !audience || selected.size === 0) return;
+    const segLabel = customized ? "hand-picked" : STUDIO_SEGMENTS.find((s) => s.id === segment)?.label ?? segment;
+    if (!window.confirm(`Send "${draft.subject}" to ${selected.size} people (${segLabel})? This can't be undone.`)) return;
     setBusy("send");
     setError("");
     setNotice("");
     try {
-      const data = await post({ action: "send", draft, segment, confirm: true });
+      const data = await post({
+        action: "send",
+        draft,
+        segment,
+        confirm: true,
+        ...(customized ? { recipients: [...selected] } : {}),
+      });
       setNotice(
-        `Sent to ${data.sent} people${data.failed ? `, ${data.failed} failed` : ""}${data.cappedCount ? `, ${data.cappedCount} skipped by the weekly cap` : ""}.`
+        `Sent to ${data.sent} people${data.failed ? `, ${data.failed} failed` : ""}${data.suppressedCount ? `, ${data.suppressedCount} skipped (unsubscribed)` : ""}${data.cappedCount ? `, ${data.cappedCount} skipped by the weekly cap` : ""}.`
       );
       setDraft(null);
       void load();
@@ -276,16 +326,124 @@ export default function EmailStudioPanel() {
                   </select>
                   <p className="text-xs text-muted-foreground mt-1">
                     {audience
-                      ? `${audience.recipients} will get it${audience.suppressedCount ? ` · ${audience.suppressedCount} unsubscribed or blocked` : ""}${audience.cappedCount ? ` · ${audience.cappedCount} skipped (already got ${STUDIO_WEEKLY_CAP} this week)` : ""}`
+                      ? `${selected.size} selected${customized ? " (hand-picked)" : ""}${audience.suppressed.length ? ` · ${audience.suppressed.length} unsubscribed or blocked` : ""}${audience.capped.length ? ` · ${audience.capped.length} skipped (already got ${STUDIO_WEEKLY_CAP} this week)` : ""}`
                       : "Counting recipients…"}
                   </p>
                 </div>
+
+                {audience && (
+                  <div className="rounded-md border border-zinc-200 dark:border-zinc-800">
+                    <button
+                      type="button"
+                      onClick={() => setPickerOpen((o) => !o)}
+                      className="w-full flex items-center justify-between px-3 py-2 text-sm font-medium"
+                    >
+                      <span>Choose recipients</span>
+                      <span className="text-xs text-muted-foreground">
+                        {selected.size} of {audience.emails.length + extras.length} {pickerOpen ? "▲" : "▼"}
+                      </span>
+                    </button>
+                    {pickerOpen && (
+                      <div className="border-t border-zinc-200 dark:border-zinc-800 p-3 space-y-2">
+                        <div className="flex flex-wrap gap-2">
+                          <input
+                            className={`${inputClass} flex-1 min-w-[160px]`}
+                            placeholder="Search emails"
+                            value={search}
+                            onChange={(e) => setSearch(e.target.value)}
+                          />
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setSelected((s) => new Set([...s, ...visibleEmails]))}
+                          >
+                            Select {search ? "shown" : "all"}
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() =>
+                              setSelected((s) => {
+                                const next = new Set(s);
+                                for (const e of visibleEmails) next.delete(e);
+                                return next;
+                              })
+                            }
+                          >
+                            Clear {search ? "shown" : "all"}
+                          </Button>
+                        </div>
+                        <div className="max-h-72 overflow-y-auto rounded border border-zinc-100 dark:border-zinc-800/60 divide-y divide-zinc-100 dark:divide-zinc-800/60">
+                          {visibleEmails.map((e) => (
+                            <label key={e} className="flex items-center gap-2 px-2 py-1.5 text-sm cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800/40">
+                              <input type="checkbox" checked={selected.has(e)} onChange={() => toggle(e)} />
+                              <span className="truncate flex-1">{e}</span>
+                              {extras.includes(e) && (
+                                <>
+                                  <span className="text-[10px] uppercase tracking-wide text-teal-600 dark:text-teal-400">added</span>
+                                  <button
+                                    type="button"
+                                    className="text-xs text-muted-foreground hover:text-rose-600"
+                                    onClick={(ev) => {
+                                      ev.preventDefault();
+                                      setExtras((x) => x.filter((v) => v !== e));
+                                      setSelected((s) => {
+                                        const next = new Set(s);
+                                        next.delete(e);
+                                        return next;
+                                      });
+                                    }}
+                                  >
+                                    Remove
+                                  </button>
+                                </>
+                              )}
+                            </label>
+                          ))}
+                          {[...audience.suppressed, ...audience.capped]
+                            .filter((e) => !search.trim() || e.includes(search.trim().toLowerCase()))
+                            .map((e) => (
+                              <div key={`x-${e}`} className="flex items-center gap-2 px-2 py-1.5 text-sm text-muted-foreground opacity-60">
+                                <input type="checkbox" disabled checked={false} readOnly />
+                                <span className="truncate flex-1">{e}</span>
+                                <span className="text-[10px] uppercase tracking-wide">
+                                  {audience.suppressed.includes(e) ? "unsubscribed" : "weekly cap"}
+                                </span>
+                              </div>
+                            ))}
+                          {visibleEmails.length === 0 && <p className="px-2 py-3 text-xs text-muted-foreground">No matches.</p>}
+                        </div>
+                        <div className="flex gap-2">
+                          <input
+                            className={`${inputClass} flex-1`}
+                            placeholder="Add emails not in this list (comma or space separated)"
+                            value={extraInput}
+                            onChange={(e) => setExtraInput(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") {
+                                e.preventDefault();
+                                addExtras();
+                              }
+                            }}
+                          />
+                          <Button variant="outline" size="sm" onClick={addExtras}>
+                            Add
+                          </Button>
+                        </div>
+                        <p className="text-[11px] text-muted-foreground">
+                          Unsubscribed people and anyone over the weekly cap are always skipped, even if added here.
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 <div className="flex flex-wrap gap-2">
                   <Button variant="outline" size="sm" onClick={sendTest} disabled={!!busy || blocked}>
                     {busy === "test" ? "Sending…" : "Send test to me"}
                   </Button>
-                  <Button size="sm" onClick={sendCampaign} disabled={!!busy || blocked || !audience || audience.recipients === 0}>
-                    {busy === "send" ? "Sending… keep this tab open" : `Send to ${audience?.recipients ?? "…"} people`}
+                  <Button size="sm" onClick={sendCampaign} disabled={!!busy || blocked || !audience || selected.size === 0}>
+                    {busy === "send" ? "Sending… keep this tab open" : `Send to ${audience ? selected.size : "…"} people`}
                   </Button>
                 </div>
               </div>
@@ -325,7 +483,11 @@ export default function EmailStudioPanel() {
                       <td className="py-2 pr-3 whitespace-nowrap">{new Date(c.createdAt).toLocaleString()}</td>
                       <td className="py-2 pr-3 whitespace-nowrap">{STUDIO_ANGLES.find((a) => a.id === c.angle)?.label ?? c.angle}</td>
                       <td className="py-2 pr-3">{c.subject}</td>
-                      <td className="py-2 pr-3 whitespace-nowrap">{STUDIO_SEGMENTS.find((s) => s.id === c.segment)?.label ?? c.segment}</td>
+                      <td className="py-2 pr-3 whitespace-nowrap">
+                        {c.segment.endsWith(":picked")
+                          ? "Hand-picked"
+                          : STUDIO_SEGMENTS.find((s) => s.id === c.segment)?.label ?? c.segment}
+                      </td>
                       <td className="py-2 pr-3 text-right whitespace-nowrap">
                         {c.sentCount}/{c.recipientCount}
                         {c.failedCount ? <span className="text-rose-600"> ({c.failedCount} failed)</span> : null}

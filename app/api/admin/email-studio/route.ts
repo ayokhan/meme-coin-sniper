@@ -5,6 +5,7 @@ import { generateStudioDraft } from "@/lib/email-studio-ai";
 import {
   getStudioSegmentCounts,
   listStudioCampaigns,
+  parsePickedEmails,
   parseStudioSegment,
   previewStudioAudience,
   sendStudioCampaign,
@@ -82,7 +83,7 @@ export async function POST(request: Request) {
   if (!isOwnerSession(session)) {
     return NextResponse.json({ success: false, error: "Owner only." }, { status: 403 });
   }
-  let body: { action?: string; angle?: unknown; draft?: unknown; segment?: unknown; confirm?: boolean };
+  let body: { action?: string; angle?: unknown; draft?: unknown; segment?: unknown; recipients?: unknown; confirm?: boolean };
   try {
     body = await request.json();
   } catch {
@@ -101,10 +102,10 @@ export async function POST(request: Request) {
       const a = await previewStudioAudience(parseStudioSegment(body.segment));
       return NextResponse.json({
         success: true,
-        recipients: a.recipients.length,
+        emails: a.recipients,
+        suppressed: a.suppressed,
+        capped: a.capped,
         segmentCount: a.segmentCount,
-        suppressedCount: a.suppressedCount,
-        cappedCount: a.cappedCount,
       });
     }
 
@@ -128,9 +129,14 @@ export async function POST(request: Request) {
       if (body.confirm !== true) {
         return NextResponse.json({ success: false, error: "Confirm the send first." }, { status: 400 });
       }
+      const picked = parsePickedEmails(body.recipients);
+      if (picked && picked.length === 0) {
+        return NextResponse.json({ success: false, error: "Select at least one recipient." }, { status: 400 });
+      }
       const result = await sendStudioCampaign({
         draft,
         segment: parseStudioSegment(body.segment),
+        picked,
         createdByUserId: session?.user?.id ?? null,
       });
       return NextResponse.json({ success: true, ...result });
