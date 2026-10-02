@@ -35,6 +35,8 @@ const YAHOO_1M_MAX_HOURS = 7 * 24;
 /** Max chart span per timeframe, so the SVG stays readable (~430–720 candles). */
 const CHART_MAX_HOURS: Record<SweepTimeframe, number> = { "1m": 12, "5m": 36, "15m": 120, "30m": 240, "1h": 480 };
 const CHART_MIN_HOURS = 24;
+/** Candles sent beyond each side of the default view, in multiples of its span (zoom-out room). */
+const CHART_ZOOM_OUT_SPANS = 1;
 
 export function parseSweepMode(raw: unknown): SweepMode {
   return raw === "scalp" ? "scalp" : "standard";
@@ -203,10 +205,13 @@ export async function analyzeSessionSweep(input: {
   let fromTs = toTs - spanMs;
   if (fromTs < firstTs) fromTs = firstTs;
 
+  // Extra candles either side of the default view so the chart can zoom out / pan without refetching.
+  const dataFromTs = Math.max(firstTs, fromTs - spanMs * CHART_ZOOM_OUT_SPANS);
+  const dataToTs = Math.min(lastTs + 1, toTs + spanMs * CHART_ZOOM_OUT_SPANS);
   const chartBars: SweepChartBar[] = bars
-    .filter((b) => b.t >= fromTs && b.t <= toTs)
+    .filter((b) => b.t >= dataFromTs && b.t <= dataToTs)
     .map((b) => [b.t, b.o, b.h, b.l, b.c]);
-  const overlaps = (start: number, end: number) => end >= fromTs && start <= toTs;
+  const overlaps = (start: number, end: number) => end >= dataFromTs && start <= dataToTs;
   const chartRanges = [...run.ranges, ...run.building].filter((r) => overlaps(r.startTs, r.endTs));
   const chartTrades = run.trades.filter((tr) => overlaps(tr.sweepTs, tr.exitTs ?? lastTs));
 

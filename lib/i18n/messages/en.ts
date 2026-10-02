@@ -161,6 +161,7 @@ export const en = {
     futures: "Crypto Futures",
     "nova-futures-narratives": "Nova Futures Narratives",
     "nova-eagle": "Nova Eagle",
+    "session-sweep": "Session Sweep",
     "crypto-buddie": "Crypto Buddie",
     "meme-intelligence": "Nova Meme Intelligence",
     "trending-perps": "Trending perps",

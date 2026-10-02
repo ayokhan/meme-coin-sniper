@@ -204,6 +204,7 @@ export const URL_TAB_IDS = new Set([
   "watchlist",
   "nova-futures-narratives",
   "nova-eagle",
+  "session-sweep",
   "crypto-buddie",
   "meme-intelligence",
   "nova-connect",

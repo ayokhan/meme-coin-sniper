@@ -37,6 +37,7 @@ export const OWNER_ONLY_MANAGED_TABS = [
   "watchlist",
   "nova-futures-narratives",
   "nova-eagle",
+  "session-sweep",
   "crypto-buddie",
   "meme-intelligence",
   "nova-connect",

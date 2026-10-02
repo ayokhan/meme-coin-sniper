@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
 import { Check, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -20,6 +20,7 @@ import {
   type SessionSweepResult,
   type SessionSweepScanRow,
   type SweepChart,
+  type SweepChartBar,
   type SweepLiveState,
   type SweepLookbackId,
   type SweepMode,
@@ -359,6 +360,8 @@ function SessionNowBanner({ market }: { market: "forex" | "metal" | "crypto" }) 
   );
 }
 
+const MIN_VISIBLE_BARS = 20;
+
 type ChartLabel = {
   key: string;
   x: number;
@@ -426,8 +429,173 @@ function SweepChartView({
   const padR = 72;
   const padT = 16;
   const padB = 28;
-  const bars = chart.bars;
+  const clipId = useId();
+  const allBars = chart.bars;
   const tfMs = tfMinutes * 60_000;
+  const total = allBars.length;
+
+  const defaultView = useMemo(() => {
+    if (!total) return { start: 0, end: -1 };
+    let start = allBars.findIndex((b) => b[0] >= chart.fromTs);
+    if (start < 0) start = 0;
+    let end = total - 1;
+    while (end > start && allBars[end]![0] > chart.toTs) end--;
+    return { start, end };
+  }, [allBars, total, chart.fromTs, chart.toTs]);
+  const [viewState, setView] = useState(defaultView);
+  const lastRender = useRef<{
+    bars: SweepChartBar[];
+    view: { start: number; end: number };
+    zoomed: boolean;
+    tf: number;
+    hl: string | null;
+  } | null>(null);
+  useEffect(() => {
+    // On a data refresh keep the user's zoom (same span; follow the newest candle if they were at the end).
+    const prev = lastRender.current;
+    if (prev && prev.zoomed && prev.tf === tfMinutes && prev.hl === highlightId && prev.bars.length && total) {
+      const len = Math.min(prev.view.end - prev.view.start, total - 1);
+      let end = total - 1;
+      if (prev.view.end < prev.bars.length - 1) {
+        const ts = prev.bars[prev.view.end]![0];
+        const after = allBars.findIndex((b) => b[0] > ts);
+        if (after > 0) end = after - 1;
+      }
+      end = Math.max(end, len);
+      setView({ start: end - len, end });
+    } else {
+      setView(defaultView);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [defaultView]);
+  const view = useMemo(() => {
+    const end = Math.min(Math.max(viewState.end, 0), total - 1);
+    const start = Math.min(Math.max(viewState.start, 0), end);
+    return { start, end };
+  }, [viewState, total]);
+  const zoomed = view.start !== defaultView.start || view.end !== defaultView.end;
+  useEffect(() => {
+    lastRender.current = { bars: allBars, view, zoomed, tf: tfMinutes, hl: highlightId };
+  });
+  const bars = useMemo(() => allBars.slice(view.start, view.end + 1), [allBars, view]);
+  const visFromTs = bars[0]?.[0] ?? 0;
+  const visToTs = (bars[bars.length - 1]?.[0] ?? 0) + tfMs;
+  const visRanges = useMemo(
+    () => chart.ranges.filter((r) => r.endTs >= visFromTs && r.startTs <= visToTs),
+    [chart.ranges, visFromTs, visToTs]
+  );
+  const visTrades = useMemo(
+    () => chart.trades.filter((tr) => (tr.exitTs ?? Infinity) >= visFromTs && tr.sweepTs <= visToTs),
+    [chart.trades, visFromTs, visToTs]
+  );
+
+  const zoomAt = useCallback(
+    (factor: number, anchorFrac = 0.5) =>
+      setView((v) => {
+        if (!total) return v;
+        const cur = v.end - v.start + 1;
+        const next = Math.min(total, Math.max(Math.min(MIN_VISIBLE_BARS, total), Math.round(cur * factor)));
+        const anchor = v.start + anchorFrac * (cur - 1);
+        const start = Math.min(Math.max(0, Math.round(anchor - anchorFrac * (next - 1))), total - next);
+        return { start, end: start + next - 1 };
+      }),
+    [total]
+  );
+  const shiftView = useCallback(
+    (from: { start: number; end: number }, delta: number) => {
+      const len = from.end - from.start;
+      const start = Math.min(Math.max(0, from.start + delta), Math.max(0, total - 1 - len));
+      return { start, end: start + len };
+    },
+    [total]
+  );
+
+  const plotWRef = useRef(1);
+  const stepRef = useRef(1);
+  plotWRef.current = Math.max(1, width - padL - padR);
+  stepRef.current = plotWRef.current / Math.max(1, bars.length);
+
+  useEffect(() => {
+    const el = wrapRef.current;
+    if (!el) return;
+    const onWheel = (e: WheelEvent) => {
+      if (e.ctrlKey || e.metaKey) {
+        e.preventDefault();
+        const rect = el.getBoundingClientRect();
+        const frac = Math.min(1, Math.max(0, (e.clientX - rect.left - padL) / plotWRef.current));
+        zoomAt(e.deltaY > 0 ? 1.15 : 1 / 1.15, frac);
+      } else if (Math.abs(e.deltaX) > Math.abs(e.deltaY) && Math.abs(e.deltaX) > 2) {
+        e.preventDefault();
+        const delta = Math.round(e.deltaX / Math.max(2, stepRef.current));
+        if (delta) setView((v) => shiftView(v, delta));
+      }
+    };
+    el.addEventListener("wheel", onWheel, { passive: false });
+    return () => el.removeEventListener("wheel", onWheel);
+  }, [wrapRef, zoomAt, shiftView]);
+
+  const pointers = useRef(new Map<number, number>());
+  const gesture = useRef<
+    | { kind: "pan"; x0: number; from: { start: number; end: number } }
+    | { kind: "pinch"; d0: number; from: { start: number; end: number }; frac: number }
+    | null
+  >(null);
+  const [dragging, setDragging] = useState(false);
+
+  const onPointerDown = (e: React.PointerEvent<SVGSVGElement>) => {
+    if (e.pointerType === "mouse" && e.button !== 0) return;
+    (e.currentTarget as Element).setPointerCapture(e.pointerId);
+    pointers.current.set(e.pointerId, e.clientX);
+    if (pointers.current.size === 1) {
+      gesture.current = { kind: "pan", x0: e.clientX, from: view };
+      setDragging(true);
+      setHover(null);
+    } else if (pointers.current.size === 2) {
+      const [a, b] = [...pointers.current.values()];
+      const rect = (e.currentTarget as SVGSVGElement).getBoundingClientRect();
+      const mid = (a! + b!) / 2;
+      gesture.current = {
+        kind: "pinch",
+        d0: Math.max(10, Math.abs(a! - b!)),
+        from: view,
+        frac: Math.min(1, Math.max(0, (mid - rect.left - padL) / plotWRef.current)),
+      };
+    }
+  };
+  const onPointerMove = (e: React.PointerEvent<SVGSVGElement>) => {
+    const g = gesture.current;
+    if (!g || !pointers.current.has(e.pointerId)) {
+      if (e.pointerType === "mouse" && geom) {
+        const rect = (e.currentTarget as SVGSVGElement).getBoundingClientRect();
+        const i = Math.floor((e.clientX - rect.left - padL) / geom.step);
+        setHover(i >= 0 && i < bars.length ? i : null);
+      }
+      return;
+    }
+    pointers.current.set(e.pointerId, e.clientX);
+    if (g.kind === "pan") {
+      const delta = -Math.round((e.clientX - g.x0) / Math.max(1, stepRef.current));
+      setView(shiftView(g.from, delta));
+    } else if (pointers.current.size >= 2) {
+      const [a, b] = [...pointers.current.values()];
+      const d = Math.max(10, Math.abs(a! - b!));
+      const cur = g.from.end - g.from.start + 1;
+      const next = Math.min(total, Math.max(Math.min(MIN_VISIBLE_BARS, total), Math.round(cur * (g.d0 / d))));
+      const anchor = g.from.start + g.frac * (cur - 1);
+      const start = Math.min(Math.max(0, Math.round(anchor - g.frac * (next - 1))), total - next);
+      setView({ start, end: start + next - 1 });
+    }
+  };
+  const onPointerUp = (e: React.PointerEvent<SVGSVGElement>) => {
+    pointers.current.delete(e.pointerId);
+    if (pointers.current.size === 0) {
+      gesture.current = null;
+      setDragging(false);
+    } else if (pointers.current.size === 1) {
+      const [x] = [...pointers.current.values()];
+      gesture.current = { kind: "pan", x0: x!, from: view };
+    }
+  };
 
   const geom = useMemo(() => {
     if (bars.length === 0 || width < 100) return null;
@@ -439,7 +607,7 @@ function SweepChartView({
       lo = Math.min(lo, b[3]);
       hi = Math.max(hi, b[2]);
     }
-    for (const tr of chart.trades) {
+    for (const tr of visTrades) {
       for (const p of [tr.stop, tr.target, tr.entry, tr.sweepExtreme]) {
         lo = Math.min(lo, p);
         hi = Math.max(hi, p);
@@ -464,7 +632,7 @@ function SweepChartView({
     const x = (i: number) => padL + i * step + step / 2;
     const xTs = (ts: number) => x(idxAt(ts));
     return { plotW, step, lo, hi, y, x, xTs, idxAt };
-  }, [bars, chart.trades, width]);
+  }, [bars, visTrades, width]);
 
   const priceTicks = useMemo(() => {
     if (!geom) return [];
@@ -509,13 +677,13 @@ function SweepChartView({
         priority: 40,
       });
     }
-    for (const r of chart.ranges) {
+    for (const r of visRanges) {
       const c = SESSION_COLORS[r.session];
       const x1 = geom.xTs(r.startTs) - geom.step / 2;
       labels.push({ key: `${r.key}-h`, x: x1 + 3, y: geom.y(r.high) - 4, text: `${r.session} H ${formatSweepPrice(r.high)}`, color: c.text, weight: 600, priority: 60 });
       labels.push({ key: `${r.key}-l`, x: x1 + 3, y: geom.y(r.low) + 12, text: `L ${formatSweepPrice(r.low)}`, color: c.text, weight: 600, priority: 60 });
     }
-    for (const tr of chart.trades) {
+    for (const tr of visTrades) {
       const isShort = tr.direction === "short";
       const focus = !highlightId || highlightId === tr.id;
       const base = focus ? 80 : 30;
@@ -558,14 +726,22 @@ function SweepChartView({
         <svg
           width={width}
           height={height}
-          className="block"
-          onMouseMove={(e) => {
-            const rect = (e.currentTarget as SVGSVGElement).getBoundingClientRect();
-            const i = Math.floor((e.clientX - rect.left - padL) / geom.step);
-            setHover(i >= 0 && i < bars.length ? i : null);
+          className={`block ${dragging ? "cursor-grabbing" : "cursor-grab"}`}
+          style={{ touchAction: "pan-y" }}
+          onPointerDown={onPointerDown}
+          onPointerMove={onPointerMove}
+          onPointerUp={onPointerUp}
+          onPointerCancel={onPointerUp}
+          onPointerLeave={(e) => {
+            if (e.pointerType === "mouse" && !gesture.current) setHover(null);
           }}
-          onMouseLeave={() => setHover(null)}
+          onDoubleClick={() => setView(defaultView)}
         >
+          <defs>
+            <clipPath id={clipId}>
+              <rect x={padL} y={0} width={Math.max(0, width - padL - padR)} height={height - padB} />
+            </clipPath>
+          </defs>
           {priceTicks.map((p) => (
             <g key={p}>
               <line x1={padL} x2={width - padR} y1={geom.y(p)} y2={geom.y(p)} stroke="currentColor" strokeOpacity={0.07} />
@@ -615,6 +791,7 @@ function SweepChartView({
             </text>
           </g>
 
+          <g clipPath={`url(#${clipId})`}>
           {showWindowStart && (
             <g>
               <rect
@@ -637,7 +814,7 @@ function SweepChartView({
             </g>
           )}
 
-          {chart.ranges.map((r) => {
+          {visRanges.map((r) => {
             const c = SESSION_COLORS[r.session];
             const x1 = geom.xTs(r.startTs) - geom.step / 2;
             const x2 = geom.xTs(r.endTs - tfMs) + geom.step / 2;
@@ -672,7 +849,7 @@ function SweepChartView({
             );
           })}
 
-          {chart.trades.map((tr) => {
+          {visTrades.map((tr) => {
             const isShort = tr.direction === "short";
             const xs = geom.xTs(tr.sweepTs);
             const xc = geom.xTs(tr.chochTs);
@@ -708,6 +885,7 @@ function SweepChartView({
               </g>
             );
           })}
+          </g>
 
           {placedLabels.map((l) => (
             <text
@@ -742,6 +920,38 @@ function SweepChartView({
           {formatSweepPrice(hovered[4])}
         </div>
       )}
+      {geom && (
+        <div className="absolute top-1 flex items-center gap-1" style={{ right: padR + 4 }}>
+          {[
+            { label: "−", title: "Zoom out", onClick: () => zoomAt(1.5), disabled: view.end - view.start + 1 >= total },
+            { label: "+", title: "Zoom in", onClick: () => zoomAt(1 / 1.5), disabled: view.end - view.start + 1 <= Math.min(MIN_VISIBLE_BARS, total) },
+          ].map((b) => (
+            <button
+              key={b.title}
+              type="button"
+              title={b.title}
+              aria-label={b.title}
+              onClick={b.onClick}
+              disabled={b.disabled}
+              className="h-6 w-6 rounded border border-zinc-300 dark:border-zinc-600 bg-white/90 dark:bg-zinc-900/90 text-sm leading-none text-zinc-700 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 disabled:opacity-40"
+            >
+              {b.label}
+            </button>
+          ))}
+          {zoomed && (
+            <button
+              type="button"
+              onClick={() => setView(defaultView)}
+              className="h-6 rounded border border-zinc-300 dark:border-zinc-600 bg-white/90 dark:bg-zinc-900/90 px-2 text-[11px] text-zinc-700 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+            >
+              Reset
+            </button>
+          )}
+        </div>
+      )}
+      <p className="mt-1 px-1 text-[10px] text-muted-foreground">
+        Drag to scroll back in time · Pinch or Ctrl + scroll to zoom · Double-click to reset
+      </p>
     </div>
   );
 }

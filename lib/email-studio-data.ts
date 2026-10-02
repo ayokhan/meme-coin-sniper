@@ -161,7 +161,7 @@ async function levelsFacts(): Promise<StudioFacts> {
         body: "A level being touched is not a signal. Wait for price to sweep it, reject, and break structure the other way. That sequence is what the Session Sweep scanner tracks for you.",
       },
     },
-    cta: { label: "Open the live levels", url: `${APP_ORIGIN}/?tab=nova-forecast&forecast=nova-session-sweep` },
+    cta: { label: "Open the live levels", url: `${APP_ORIGIN}/?tab=session-sweep` },
   };
 }
 
@@ -288,7 +288,7 @@ async function scannerFacts(): Promise<StudioFacts> {
         body: "With a target three times the risk, one winner pays for three losers. That is why a strategy can be right less than half the time and still grow, and why one week tells you very little.",
       },
     },
-    cta: { label: "See this week's signals", url: `${APP_ORIGIN}/?tab=nova-forecast&forecast=nova-session-sweep` },
+    cta: { label: "See this week's signals", url: `${APP_ORIGIN}/?tab=session-sweep` },
   };
 }
 

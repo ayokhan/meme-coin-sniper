@@ -44,6 +44,7 @@ const TAB_LABELS: Record<string, string> = {
   futures: 'Crypto Futures',
   'nova-futures-narratives': 'Nova Futures Narratives',
   'nova-eagle': 'Nova Eagle',
+  'session-sweep': 'Session Sweep',
   'crypto-buddie': 'Crypto Buddie',
   'meme-intelligence': 'Meme Intelligence',
   'trending-perps': 'Trending perps',

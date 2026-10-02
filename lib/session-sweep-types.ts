@@ -216,6 +216,7 @@ export type SweepChart = {
   bars: SweepChartBar[];
   ranges: SessionRange[];
   trades: SweepTrade[];
+  /** Default visible window; `bars` also include extra candles either side for zooming out. */
   fromTs: number;
   toTs: number;
   /** Hours shown: the backtest window, at least 24h so the source sessions are visible, capped per timeframe. */
