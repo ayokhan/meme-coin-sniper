@@ -14,7 +14,8 @@ import {
 } from "@/lib/admin-email-presets";
 import { buildStrategyCallEmail } from "@/lib/strategy-call";
 import { buildVipTrialInviteEmail } from "@/lib/vip-trial";
-import { applyEmailSuppression, type AnnouncementEmailTemplate } from "@/lib/announcement-email";
+import type { AnnouncementEmailTemplate } from "@/lib/announcement-email";
+import { applyEmailSuppression } from "@/lib/email-suppression-client";
 import type { PartnerBrandEmail } from "@/lib/partner-logos-email";
 import { ADMIN_EMAIL_DRAFT_STORAGE_KEY } from "@/lib/paid-strategy-call";
 import {

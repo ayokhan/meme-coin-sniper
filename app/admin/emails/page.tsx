@@ -6,6 +6,7 @@ import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
 import AdminPageHeader from "@/components/admin/AdminPageHeader";
 import AdminEmailsPanel from "@/components/admin/AdminEmailsPanel";
+import EmailStudioPanel from "@/components/admin/EmailStudioPanel";
 
 export default function AdminEmailsPage() {
   const { data: session, status } = useSession();
@@ -46,6 +47,7 @@ export default function AdminEmailsPage() {
       />
       {notice && <p className="mb-3 text-sm text-emerald-700 dark:text-emerald-300">{notice}</p>}
       {error && <p className="mb-3 text-sm text-rose-600">{error}</p>}
+      <EmailStudioPanel />
       <Suspense fallback={<p className="text-sm text-muted-foreground">Loading…</p>}>
         <AdminEmailsPanel
           onNotice={(m) => {

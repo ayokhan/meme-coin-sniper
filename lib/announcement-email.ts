@@ -19,6 +19,7 @@ import {
   shouldUseCustomGmgnVipBotIntro,
 } from "@/lib/gmgn-vip-bot-launch-email";
 import { filterSuppressedEmails, getSuppressedEmailSet } from "@/lib/email-suppression";
+import { marketingHeaders, withUnsubscribeFooter } from "@/lib/email-links";
 import type { FuturesWrapItem } from "@/lib/futures-daily-wrap";
 import {
   NOVASTARIS_SOCIAL,
@@ -1324,10 +1325,7 @@ export async function getAnnouncementEmailStats(): Promise<AnnouncementEmailStat
   };
 }
 
-export function applyEmailSuppression(emails: string[], suppressed: Set<string> | string[]): string[] {
-  const set = suppressed instanceof Set ? suppressed : new Set(suppressed);
-  return filterSuppressedEmails(emails, set);
-}
+export { applyEmailSuppression } from "@/lib/email-suppression-client";
 
 export function getRecipientsForAudience(
   stats: AnnouncementEmailStats,
@@ -1453,7 +1451,9 @@ export async function sendAnnouncementEmails(args: {
   const errors: string[] = [];
 
   for (const to of recipients) {
-    const result = await sendEmailDetailed(to, subject, html);
+    const result = await sendEmailDetailed(to, subject, await withUnsubscribeFooter(html, to), {
+      headers: await marketingHeaders(to),
+    });
     if (result.ok) {
       sent += 1;
     } else {

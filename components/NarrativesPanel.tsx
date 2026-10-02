@@ -341,6 +341,11 @@ export default function NarrativesPanel({ isPaid }: { isPaid?: boolean }) {
   }, []);
 
   useEffect(() => {
+    const sub = new URLSearchParams(window.location.search).get("narratives");
+    if (sub === "strong-runners" || sub === "diy") setSubTab(sub);
+  }, []);
+
+  useEffect(() => {
     if (subTab === "early-catch" && !showEarlyCatch) setSubTab("scanner");
   }, [subTab, showEarlyCatch]);
 

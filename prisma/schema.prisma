@@ -809,6 +809,45 @@ model AnnouncementEmailCampaign {
   @@index([template, createdAt(sort: Desc)])
 }
 
+/** Admin → Emails → Email Studio: data-driven campaigns with per-recipient open/click tracking. */
+model EmailStudioCampaign {
+  id              String   @id @default(cuid())
+  angle           String
+  subject         String
+  segment         String
+  /** Rendered HTML without per-recipient links (for the archive / resend preview). */
+  html            String   @db.Text
+  status          String   @default("sending") // sending | sent | failed
+  recipientCount  Int      @default(0)
+  sentCount       Int      @default(0)
+  failedCount     Int      @default(0)
+  /** Skipped because the person already got 2 Studio emails in the last 7 days. */
+  cappedCount     Int      @default(0)
+  createdByUserId String?
+  createdAt       DateTime @default(now())
+  sentAt          DateTime?
+  recipients      EmailStudioRecipient[]
+
+  @@index([createdAt(sort: Desc)])
+}
+
+model EmailStudioRecipient {
+  id         String    @id @default(cuid())
+  campaignId String
+  campaign   EmailStudioCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  email      String
+  status     String    @default("pending") // pending | sent | failed
+  error      String?
+  sentAt     DateTime?
+  openedAt   DateTime?
+  clickedAt  DateTime?
+  clicks     Int       @default(0)
+  createdAt  DateTime  @default(now())
+
+  @@index([campaignId])
+  @@index([email, sentAt])
+}
+
 /** Saved / archived admin email templates (custom drafts + hidden built-in presets). */
 model AdminEmailTemplate {
   id                  String    @id @default(cuid())
