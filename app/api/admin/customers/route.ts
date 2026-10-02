@@ -67,6 +67,7 @@ export async function GET() {
       const intel = loginIntel.get(u.id) as
         | {
             multiLocationSuspect: boolean;
+            multiLocationSeenAt?: string | null;
             distinctCountries: number;
             usedAndroidApp?: boolean;
             recentLogins: unknown[];
@@ -124,6 +125,7 @@ export async function GET() {
         stripeSubscriptionActive: !!activeSub?.stripeSubscriptionId,
         payments,
         loginMultiLocation: !!intel?.multiLocationSuspect,
+        loginMultiLocationSeenAt: intel?.multiLocationSeenAt ?? null,
         loginDistinctCountries: intel?.distinctCountries ?? 0,
         usedAndroidApp: !!intel?.usedAndroidApp,
         recentLogins: intel?.recentLogins ?? [],

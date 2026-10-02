@@ -71,6 +71,8 @@ type Customer = {
   stripeSubscriptionActive?: boolean;
   payments: Payment[];
   loginMultiLocation?: boolean;
+  /** Set when the owner marked the flag as seen and nothing new has happened since. */
+  loginMultiLocationSeenAt?: string | null;
   loginDistinctCountries?: number;
   usedAndroidApp?: boolean;
   recentLogins?: import("@/components/admin/CustomerExpandedPanel").AdminCustomerLoginEvent[];
@@ -354,6 +356,10 @@ export default function AdminCustomersPage() {
     [customers]
   );
 
+  useEffect(() => {
+    if (multiLocationOnly && customers.length > 0 && multiLocationCustomers.length === 0) setMultiLocationOnly(false);
+  }, [multiLocationOnly, customers.length, multiLocationCustomers.length]);
+
   const registrationPeriodActive = !!(registrationMonth || registrationDate);
 
   const registrationCohort = useMemo(() => {
@@ -383,6 +389,41 @@ export default function AdminCustomersPage() {
       label: registrationPeriodLabel(registrationMonth, registrationDate),
     };
   }, [registrationCohort, registrationMonth, registrationDate, showLegacyOnDemand]);
+
+  const handleLoginFlagSeen = async (ids: string[], seen: boolean) => {
+    if (ids.length === 0) return;
+    setError("");
+    const idSet = new Set(ids);
+    const nowIso = new Date().toISOString();
+    const prev = customers;
+    setCustomers((list) =>
+      list.map((c) =>
+        idSet.has(c.id)
+          ? seen
+            ? { ...c, loginMultiLocation: false, loginMultiLocationSeenAt: nowIso }
+            : { ...c, loginMultiLocation: true, loginMultiLocationSeenAt: null }
+          : c
+      )
+    );
+    try {
+      const res = await fetch("/api/admin/customers/login-flags", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userIds: ids, seen }),
+      });
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error ?? "Failed to update");
+      setSuccessMessage(
+        seen
+          ? `Marked ${ids.length === 1 ? "flag" : `${ids.length} flags`} as seen. It re-flags if they sign in from a new country.`
+          : "Flag restored."
+      );
+      setTimeout(() => setSuccessMessage(""), 4000);
+    } catch (e) {
+      setCustomers(prev);
+      setError(e instanceof Error ? e.message : "Failed to update");
+    }
+  };
 
   const handleDelete = async (id: string) => {
     if (!confirm("Delete this customer? This cannot be undone.")) return;
@@ -1084,7 +1125,7 @@ export default function AdminCustomersPage() {
             <Card
               className={
                 metrics.multiLocation > 0
-                  ? "border-amber-400 dark:border-amber-600 bg-amber-50/80 dark:bg-amber-950/30"
+                  ? "border-zinc-200 dark:border-zinc-800 border-l-4 border-l-rose-500 dark:border-l-rose-500"
                   : "border-zinc-200 dark:border-zinc-800"
               }
             >
@@ -1093,7 +1134,7 @@ export default function AdminCustomersPage() {
                 <p
                   className={`text-2xl font-semibold ${
                     metrics.multiLocation > 0
-                      ? "text-amber-700 dark:text-amber-300"
+                      ? "text-rose-600 dark:text-rose-400"
                       : "text-zinc-900 dark:text-zinc-100"
                   }`}
                 >
@@ -1107,20 +1148,22 @@ export default function AdminCustomersPage() {
         {isOwner && metrics.multiLocation > 0 && (
           <div
             role="status"
-            className="mb-4 rounded-lg border border-amber-400/80 dark:border-amber-600 bg-amber-50 dark:bg-amber-950/40 px-4 py-3"
+            className="mb-4 rounded-lg border border-zinc-200 dark:border-zinc-800 border-l-4 border-l-rose-500 dark:border-l-rose-500 bg-white dark:bg-zinc-900 px-4 py-3"
           >
             <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
               <div className="min-w-0">
-                <p className="text-sm font-semibold text-amber-950 dark:text-amber-100">
+                <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
                   {metrics.multiLocation} customer{metrics.multiLocation === 1 ? "" : "s"} signed in from different
                   locations
                 </p>
-                <p className="text-xs text-amber-900/80 dark:text-amber-200/80 mt-0.5">
-                  Possible credential sharing (or travel/VPN). Review highlighted rows — expand for recent sign-ins.
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Possible credential sharing (or travel/VPN). Expand a row for recent sign-ins. Mark seen once reviewed —
+                  it re-flags if they sign in from a new country.
                 </p>
-                <ul className="mt-2 space-y-0.5 text-xs text-amber-950 dark:text-amber-100">
+                <ul className="mt-2 space-y-1 text-xs text-zinc-800 dark:text-zinc-200">
                   {multiLocationCustomers.slice(0, 8).map((c) => (
-                    <li key={c.id} className="truncate">
+                    <li key={c.id} className="flex items-center gap-2 min-w-0">
+                      <span className="truncate">
                       <button
                         type="button"
                         className="underline font-medium hover:no-underline text-left"
@@ -1133,17 +1176,25 @@ export default function AdminCustomersPage() {
                         {c.name || c.email || c.id}
                       </button>
                       {c.email && c.name ? (
-                        <span className="text-amber-800/70 dark:text-amber-200/60"> · {c.email}</span>
+                        <span className="text-muted-foreground"> · {c.email}</span>
                       ) : null}
                       {c.isActive ? (
-                        <span className="ml-1 text-[10px] font-semibold uppercase tracking-wide text-amber-800 dark:text-amber-200">
+                        <span className="ml-1 text-[10px] font-semibold uppercase tracking-wide text-rose-600 dark:text-rose-400">
                           VIP/active
                         </span>
                       ) : null}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => void handleLoginFlagSeen([c.id], true)}
+                        className="shrink-0 text-[11px] px-2 py-0.5 rounded border border-zinc-300 dark:border-zinc-700 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                      >
+                        Mark seen
+                      </button>
                     </li>
                   ))}
                   {multiLocationCustomers.length > 8 && (
-                    <li className="text-amber-800/70 dark:text-amber-200/60">
+                    <li className="text-muted-foreground">
                       +{multiLocationCustomers.length - 8} more
                     </li>
                   )}
@@ -1153,15 +1204,26 @@ export default function AdminCustomersPage() {
                 <button
                   type="button"
                   onClick={() => setMultiLocationOnly(true)}
-                  className="text-xs font-medium px-3 py-1.5 rounded-md bg-amber-600 hover:bg-amber-700 text-white"
+                  className="text-xs font-medium px-3 py-1.5 rounded-md bg-zinc-900 hover:bg-zinc-700 text-white dark:bg-zinc-100 dark:hover:bg-zinc-300 dark:text-zinc-900"
                 >
                   Show flagged only
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const ids = multiLocationCustomers.map((c) => c.id);
+                    if (ids.length > 1 && !confirm(`Mark all ${ids.length} flags as seen?`)) return;
+                    void handleLoginFlagSeen(ids, true);
+                  }}
+                  className="text-xs font-medium px-3 py-1.5 rounded-md border border-zinc-300 dark:border-zinc-700 text-zinc-800 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                >
+                  {multiLocationCustomers.length === 1 ? "Mark seen" : "Mark all seen"}
                 </button>
                 {multiLocationOnly && (
                   <button
                     type="button"
                     onClick={() => setMultiLocationOnly(false)}
-                    className="text-xs font-medium px-3 py-1.5 rounded-md border border-amber-400 dark:border-amber-600 text-amber-950 dark:text-amber-100"
+                    className="text-xs font-medium px-3 py-1.5 rounded-md border border-zinc-300 dark:border-zinc-700 text-zinc-800 dark:text-zinc-200"
                   >
                     Clear filter
                   </button>
@@ -1210,7 +1272,7 @@ export default function AdminCustomersPage() {
                   onClick={() => setMultiLocationOnly((v) => !v)}
                   className={`text-xs font-medium px-3 py-2 rounded border ${
                     multiLocationOnly
-                      ? "bg-amber-100 dark:bg-amber-900/50 text-amber-900 dark:text-amber-100 border-amber-300 dark:border-amber-700"
+                      ? "bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 border-rose-300 dark:border-rose-800"
                       : "bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 border-zinc-300 dark:border-zinc-700"
                   }`}
                   title="Different countries within 48h, or 3+ countries in 30 days"
@@ -1398,14 +1460,12 @@ export default function AdminCustomersPage() {
                         c.novaConnectEnabled || c.novaConnectAllowedByAdmin || c.coachUser || c.novaConnectCommunityRep;
                       return (
                         <Fragment key={c.id}>
-                          <tr
-                            className={
-                              c.loginMultiLocation
-                                ? "border-b border-amber-200 dark:border-amber-800/60 bg-amber-50/90 dark:bg-amber-950/35 hover:bg-amber-100/90 dark:hover:bg-amber-950/50"
-                                : "border-b border-zinc-100 dark:border-zinc-800/60 hover:bg-zinc-50/80 dark:hover:bg-zinc-900/40"
-                            }
-                          >
-                            <td className="py-2 pr-2 align-top">
+                          <tr className="border-b border-zinc-100 dark:border-zinc-800/60 hover:bg-zinc-50/80 dark:hover:bg-zinc-900/40">
+                            <td
+                              className={`py-2 pr-2 align-top ${
+                                c.loginMultiLocation ? "shadow-[inset_3px_0_0_0_#f43f5e]" : ""
+                              }`}
+                            >
                               <button
                                 type="button"
                                 onClick={() => setExpandedCustomerId(expanded ? null : c.id)}
@@ -1434,10 +1494,36 @@ export default function AdminCustomersPage() {
                                     </p>
                                   )}
                                   {c.loginMultiLocation && (
-                                    <p className="mt-1">
-                                      <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-amber-100 dark:bg-amber-900/50 text-amber-900 dark:text-amber-100">
+                                    <p className="mt-1 flex flex-wrap items-center gap-1.5">
+                                      <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded border border-rose-300 dark:border-rose-800 text-rose-700 dark:text-rose-300">
                                         Multi-location · {c.loginDistinctCountries} countries
                                       </span>
+                                      {isOwner && (
+                                      <button
+                                        type="button"
+                                        onClick={() => void handleLoginFlagSeen([c.id], true)}
+                                        className="text-[10px] px-1.5 py-0.5 rounded border border-zinc-300 dark:border-zinc-700 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                                      >
+                                        Mark seen
+                                      </button>
+                                      )}
+                                    </p>
+                                  )}
+                                  {isOwner && !c.loginMultiLocation && c.loginMultiLocationSeenAt && (
+                                    <p className="mt-1 flex flex-wrap items-center gap-1.5">
+                                      <span
+                                        className="text-[10px] px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400"
+                                        title={`Marked seen ${new Date(c.loginMultiLocationSeenAt).toLocaleString()}`}
+                                      >
+                                        Multi-location · seen
+                                      </span>
+                                      <button
+                                        type="button"
+                                        onClick={() => void handleLoginFlagSeen([c.id], false)}
+                                        className="text-[10px] text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200 underline-offset-2 hover:underline"
+                                      >
+                                        Undo
+                                      </button>
                                     </p>
                                   )}
                                 </>
@@ -1611,6 +1697,7 @@ export default function AdminCustomersPage() {
                                   onCoach={(v) => handleCoachUserToggle(c.id, v)}
                                   onCommunityRep={(v) => handleCommunityRepToggle(c.id, v)}
                                   onAcceptRules={() => handleAcceptRules(c.id, true)}
+                                  onLoginFlagSeen={(seen) => handleLoginFlagSeen([c.id], seen)}
                                   onGrantVip={(grant, opts) => handleGrantVip(c.id, grant, opts)}
                                   onSetVipLimited={(limited) => handleSetVipLimited(c.id, limited)}
                                   onClearSubscription={() => handleClearSubscription(c.id)}

@@ -245,12 +245,60 @@ export async function getRecentLoginEventsForUser(userId: string, limit = KEEP_P
   }));
 }
 
+type LoginFlagReviewRow = { userId: string; seenAt: Date; seenCountries: string };
+
+function loginFlagReviewDb() {
+  return (prisma as unknown as {
+    loginFlagReview: {
+      findMany: (args: { where: Record<string, unknown> }) => Promise<LoginFlagReviewRow[]>;
+      upsert: (args: { where: { userId: string }; create: Record<string, unknown>; update: Record<string, unknown> }) => Promise<unknown>;
+      deleteMany: (args: { where: Record<string, unknown> }) => Promise<unknown>;
+    };
+  }).loginFlagReview;
+}
+
+function normCountry(c: string | null | undefined): string {
+  return (c ?? "").trim().toUpperCase();
+}
+
+/** Still suspicious after review: a new country since seenAt, or the post-review sign-ins alone look shared. */
+function flaggedAfterReview(
+  events: Array<{ country: string | null; createdAt: Date }>,
+  review: LoginFlagReviewRow
+): boolean {
+  const seen = new Set(review.seenCountries.split(",").map(normCountry).filter(Boolean));
+  const after = events.filter((e) => e.createdAt.getTime() > review.seenAt.getTime());
+  if (after.some((e) => normCountry(e.country) && !seen.has(normCountry(e.country)))) return true;
+  return isMultiLocationSuspect(after);
+}
+
+/** Owner marks one or more customers' multi-location flags as seen (or clears that mark). */
+export async function setLoginFlagSeen(userIds: string[], seen: boolean, seenByEmail: string | null): Promise<void> {
+  const reviews = loginFlagReviewDb();
+  if (!seen) {
+    await reviews.deleteMany({ where: { userId: { in: userIds } } });
+    return;
+  }
+  const since = new Date(Date.now() - MULTI_LOCATION_LOOKBACK_MS);
+  const rows = await loginEventDb().findMany({
+    where: { userId: { in: userIds }, createdAt: { gte: since } },
+    select: { userId: true, country: true },
+  });
+  const now = new Date();
+  for (const userId of userIds) {
+    const countries = [...new Set(rows.filter((r) => r.userId === userId).map((r) => normCountry(r.country)).filter(Boolean))];
+    const data = { seenAt: now, seenCountries: countries.join(","), seenByEmail };
+    await reviews.upsert({ where: { userId }, create: { userId, ...data }, update: data });
+  }
+}
+
 /** Batch flags + recent samples for admin customers list. */
 export async function getLoginIntelByUserIds(userIds: string[]): Promise<
   Map<
     string,
     {
       multiLocationSuspect: boolean;
+      multiLocationSeenAt: string | null;
       distinctCountries: number;
       usedAndroidApp: boolean;
       recentLogins: LoginEventRow[];
@@ -261,6 +309,7 @@ export async function getLoginIntelByUserIds(userIds: string[]): Promise<
     string,
     {
       multiLocationSuspect: boolean;
+      multiLocationSeenAt: string | null;
       distinctCountries: number;
       usedAndroidApp: boolean;
       recentLogins: LoginEventRow[];
@@ -269,6 +318,7 @@ export async function getLoginIntelByUserIds(userIds: string[]): Promise<
   for (const id of userIds) {
     map.set(id, {
       multiLocationSuspect: false,
+      multiLocationSeenAt: null,
       distinctCountries: 0,
       usedAndroidApp: false,
       recentLogins: [],
@@ -286,6 +336,11 @@ export async function getLoginIntelByUserIds(userIds: string[]): Promise<
     orderBy: { createdAt: "desc" },
     take: Math.min(userIds.length * KEEP_PER_USER, 8000),
   });
+
+  const reviewRows = await loginFlagReviewDb()
+    .findMany({ where: { userId: { in: userIds } } })
+    .catch(() => [] as LoginFlagReviewRow[]);
+  const reviewByUser = new Map(reviewRows.map((r) => [r.userId, r]));
 
   const byUser = new Map<string, typeof rows>();
   for (const r of rows) {
@@ -316,8 +371,12 @@ export async function getLoginIntelByUserIds(userIds: string[]): Promise<
         r.provider === "biometric" ||
         (r.os ?? "").toLowerCase() === "android"
     );
+    const review = reviewByUser.get(userId);
+    const suspect = isMultiLocationSuspect(list);
+    const stillFlagged = suspect && (!review || flaggedAfterReview(list, review));
     map.set(userId, {
-      multiLocationSuspect: isMultiLocationSuspect(list),
+      multiLocationSuspect: stillFlagged,
+      multiLocationSeenAt: suspect && review && !stillFlagged ? review.seenAt.toISOString() : null,
       distinctCountries: countries.size,
       usedAndroidApp,
       recentLogins,

@@ -1554,6 +1554,15 @@ model LoginEvent {
   @@index([country])
 }
 
+/** Owner marked a multi-location flag as seen. Re-flags when the user signs in from a country not in seenCountries. */
+model LoginFlagReview {
+  userId        String   @id
+  seenAt        DateTime @default(now())
+  /** Comma-separated ISO country codes in the login window when marked seen. */
+  seenCountries String   @default("")
+  seenByEmail   String?
+}
+
 /** Per-device fingerprint sign-in credential (Android app). The raw secret lives only in the device Keystore. */
 model BiometricCredential {
   id          String    @id @default(cuid())

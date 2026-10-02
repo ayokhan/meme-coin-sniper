@@ -84,6 +84,7 @@ export type AdminCustomerRecord = {
   stripeSubscriptionActive?: boolean;
   payments: AdminCustomerPayment[];
   loginMultiLocation?: boolean;
+  loginMultiLocationSeenAt?: string | null;
   loginDistinctCountries?: number;
   /** Signed in via Capacitor app or Android UA in last 30 days. */
   usedAndroidApp?: boolean;
@@ -212,6 +213,7 @@ export type CustomerExpandedPanelProps = {
     opts?: { limited?: boolean; product?: "vip" | "nova_pro"; founding?: boolean }
   ) => void;
   onSetVipLimited?: (limited: boolean) => void;
+  onLoginFlagSeen?: (seen: boolean) => void;
   onClearSubscription: () => void;
   onResetPassword: () => void;
   onDisable2fa: () => void;
@@ -251,6 +253,7 @@ export default function CustomerExpandedPanel({
   onAcceptRules,
   onGrantVip,
   onSetVipLimited,
+  onLoginFlagSeen,
   onClearSubscription,
   onResetPassword,
   onDisable2fa,
@@ -401,11 +404,35 @@ export default function CustomerExpandedPanel({
         {isOwner && (
           <DetailRow
             label="Sign-in locations"
-            hint="Amber = different countries within 48h (or 3+ countries in 30 days). Travel/VPN can false-positive."
+            hint="Flagged = different countries within 48h (or 3+ countries in 30 days). Travel/VPN can false-positive. Marked seen re-flags on a new country."
           >
             {c.loginMultiLocation ? (
-              <span className="text-xs font-medium px-2 py-0.5 rounded bg-amber-100 dark:bg-amber-900/50 text-amber-900 dark:text-amber-100">
-                Multi-location · {c.loginDistinctCountries ?? "?"} countries
+              <span className="inline-flex flex-wrap items-center gap-2">
+                <span className="text-xs font-medium px-2 py-0.5 rounded border border-rose-300 dark:border-rose-800 text-rose-700 dark:text-rose-300">
+                  Multi-location · {c.loginDistinctCountries ?? "?"} countries
+                </span>
+                {onLoginFlagSeen && (
+                  <button
+                    type="button"
+                    onClick={() => onLoginFlagSeen(true)}
+                    className="text-xs px-2 py-0.5 rounded border border-zinc-300 dark:border-zinc-700 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                  >
+                    Mark seen
+                  </button>
+                )}
+              </span>
+            ) : c.loginMultiLocationSeenAt ? (
+              <span className="inline-flex flex-wrap items-center gap-2 text-xs text-zinc-500">
+                Multi-location · seen {new Date(c.loginMultiLocationSeenAt).toLocaleDateString()}
+                {onLoginFlagSeen && (
+                  <button
+                    type="button"
+                    onClick={() => onLoginFlagSeen(false)}
+                    className="underline-offset-2 hover:underline hover:text-zinc-800 dark:hover:text-zinc-200"
+                  >
+                    Undo
+                  </button>
+                )}
               </span>
             ) : (
               <span className="text-xs text-zinc-500">
