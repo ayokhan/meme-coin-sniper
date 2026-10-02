@@ -73,6 +73,7 @@ import DeepMemeAgentPanel from "@/components/DeepMemeAgentPanel";
 import AiAgentMonitorPanel from "@/components/AiAgentMonitorPanel";
 import AiAgentScorecard from "@/components/AiAgentScorecard";
 import NarrativesPanel from "@/components/NarrativesPanel";
+import { LeverageTradersBoard, formatLeveragePrice, formatLeverageUsd, type LeverageTrader } from "@/components/LeverageTradersBoard";
 import SmartMoneyAlertsPanel from "@/components/SmartMoneyAlertsPanel";
 import FindWalletPanel from "@/components/FindWalletPanel";
 import CoachCallsPanel from "@/components/CoachCallsPanel";
@@ -1664,13 +1665,13 @@ function Dashboard() {
   type PerpAiSignal = { signal: "long" | "short" | "no_buy"; score: number; reason: string };
   const [perpAiSignals, setPerpAiSignals] = useState<Record<string, PerpAiSignal | "loading">>({});
   // ApexLiquid / Hyperliquid top traders (under Trading Bot tab, owner only)
-  type TopTraderRow = { address: string; label?: string; nickname?: string | null; accountValue?: string; lastTradeTimeMs?: number | null; apexLiquidUrl?: string; isGlobal?: boolean; positions: { coin: string; side: "long" | "short"; szi: string; entryPx: string; positionValue: string; marginUsed?: string; unrealizedPnl: string; leverage?: number }[] };
+  type TopTraderRow = LeverageTrader;
   const [topTradersData, setTopTradersData] = useState<TopTraderRow[]>([]);
   const [topTradersLoading, setTopTradersLoading] = useState(false);
   const [topTradersError, setTopTradersError] = useState<string | null>(null);
+  const [topTradersUpdatedAt, setTopTradersUpdatedAt] = useState<number | null>(null);
   const [hidingGlobalTrader, setHidingGlobalTrader] = useState<string | null>(null);
   const [leverageGlobalHideError, setLeverageGlobalHideError] = useState<string | null>(null);
-  const [leverageTradersDateFilter, setLeverageTradersDateFilter] = useState<"all" | "today">("all");
   const [leverageTraderFavoriteAddresses, setLeverageTraderFavoriteAddresses] = useState<Set<string>>(() => new Set());
   useEffect(() => {
     try {
@@ -1697,23 +1698,6 @@ function Dashboard() {
       return next;
     });
   }, []);
-  const leverageFilteredTraders = useMemo(() => {
-    if (leverageTradersDateFilter !== "today") return topTradersData;
-    const now = new Date();
-    return topTradersData.filter((t) => {
-      if (t.lastTradeTimeMs == null) return false;
-      const d = new Date(t.lastTradeTimeMs);
-      return d.getDate() === now.getDate() && d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
-    });
-  }, [leverageTradersDateFilter, topTradersData]);
-  const leverageDisplayTraders = useMemo(() => {
-    const fav = leverageTraderFavoriteAddresses;
-    return [...leverageFilteredTraders].sort((a, b) => {
-      const af = fav.has(a.address.toLowerCase()) ? 1 : 0;
-      const bf = fav.has(b.address.toLowerCase()) ? 1 : 0;
-      return bf - af;
-    });
-  }, [leverageFilteredTraders, leverageTraderFavoriteAddresses]);
   type TrendingPerpRow = {
     coin: string;
     markPx: string;
@@ -2876,23 +2860,25 @@ function Dashboard() {
     }
   };
 
-  const fetchTopTraders = async () => {
+  /** Failures keep the last good table; `silent` (auto-refresh) also suppresses the error banner. */
+  const fetchTopTraders = async (opts?: { silent?: boolean }) => {
+    const silent = opts?.silent === true;
     setTopTradersLoading(true);
-    setTopTradersError(null);
+    if (!silent) setTopTradersError(null);
     try {
       const res = await fetch("/api/hyperliquid/top-traders", { cache: "no-store" });
       const data = await res.json();
       if (data.success) {
         setTopTradersData(data.traders ?? []);
+        setTopTradersUpdatedAt(Date.now());
+        setTopTradersError(null);
         fetchLeverageAlerts();
-      } else {
-        setTopTradersData([]);
+      } else if (!silent) {
         const err = data.error ?? "Failed to load Top Leverage Traders.";
         setTopTradersError(typeof err === "string" && (err.includes("429") || err.includes("Rate limited")) ? "Rate limited—please try again in a minute." : err);
       }
     } catch {
-      setTopTradersData([]);
-      setTopTradersError("Failed to load top traders.");
+      if (!silent) setTopTradersError("Failed to load top traders.");
     } finally {
       setTopTradersLoading(false);
     }
@@ -10060,102 +10046,11 @@ function Dashboard() {
                   <TabsContent value="leverage" className="mt-0 space-y-4">
                   <div className="space-y-4">
                     <p className="text-sm text-muted-foreground">
-                      <strong>Global Top Traders (NovaStaris)</strong> — Curated list from NovaStaris. You can also add your own traders below.
+                      <strong>Global Top Traders (NovaStaris)</strong> — live Hyperliquid positions from our curated top leverage traders, plus any wallets you add under <em>Manage traders</em>.
                     </p>
-                    <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 p-3">
-                      <h3 className="text-sm font-semibold text-zinc-700 dark:text-zinc-300 mb-2">My traders</h3>
-                      <p className="text-xs text-muted-foreground mb-2">Add your own 0x addresses to track alongside NovaStaris Global Top Traders.</p>
-                      <details className="mb-2">
-                        <summary className="cursor-pointer text-sm font-medium text-cyan-600 dark:text-cyan-400 hover:underline">Add my own traders</summary>
-                        <form
-                          className="flex flex-wrap gap-2 mt-2"
-                          onSubmit={async (e) => {
-                            e.preventDefault();
-                            const form = e.currentTarget;
-                            const addr = (form.querySelector('input[name="leverage-address"]') as HTMLInputElement)?.value?.trim();
-                            const nickname = (form.querySelector('input[name="leverage-nickname"]') as HTMLInputElement)?.value?.trim() || undefined;
-                            if (!addr) return;
-                            try {
-                              const res = await fetch("/api/user/leverage-wallets", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ address: addr, nickname }) });
-                              const data = await res.json();
-                              if (data.success) {
-                                setUserLeverageWallets(data.wallets ?? []);
-                                (form.querySelector('input[name="leverage-address"]') as HTMLInputElement).value = "";
-                                (form.querySelector('input[name="leverage-nickname"]') as HTMLInputElement).value = "";
-                                fetchTopTraders();
-                              }
-                            } catch {}
-                          }}
-                        >
-                          <input name="leverage-address" placeholder="0x… address" className="font-mono text-sm border border-zinc-300 dark:border-zinc-600 rounded px-2 py-1.5 bg-white dark:bg-zinc-800 w-52" />
-                          <input name="leverage-nickname" placeholder="Nickname (optional)" className="text-sm border border-zinc-300 dark:border-zinc-600 rounded px-2 py-1.5 bg-white dark:bg-zinc-800 w-28" />
-                          <Button type="submit" size="sm">Add</Button>
-                        </form>
-                      </details>
-                      {userLeverageWallets.length > 0 && (
-                        <ul className="text-xs space-y-1 mt-2">
-                          {userLeverageWallets.map((w) => (
-                            <li key={w.id} className="flex items-center gap-2">
-                              <span className="font-mono text-muted-foreground">{w.nickname ?? `${w.address.slice(0, 6)}…${w.address.slice(-4)}`}</span>
-                              <button type="button" onClick={async () => { await fetch("/api/user/leverage-wallets?address=" + encodeURIComponent(w.address), { method: "DELETE" }); fetchUserLeverageWallets(); fetchTopTraders(); }} className="text-rose-600 dark:text-rose-400 hover:underline">Remove</button>
-                            </li>
-                          ))}
-                        </ul>
-                      )}
-                    </div>
-                    {topTradersData.length > 0 && (
-                      <details className="rounded-lg border border-zinc-200/80 dark:border-zinc-700/80 bg-zinc-50/80 dark:bg-zinc-800/50">
-                        <summary className="cursor-pointer px-4 py-2 text-sm font-medium text-zinc-700 dark:text-zinc-300">
-                          Wallets we track — Top Leverage Traders ({topTradersData.length})
-                        </summary>
-                        <div className="px-4 pb-3 pt-1 flex flex-wrap gap-2">
-                          {topTradersData.map((t) => (
-                            <a
-                              key={t.address}
-                              href={t.apexLiquidUrl ?? "#"}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-xs px-2 py-1 rounded bg-zinc-200/80 dark:bg-zinc-700/80 hover:bg-cyan-100 dark:hover:bg-cyan-900/50 text-zinc-700 dark:text-zinc-300 hover:text-cyan-700 dark:hover:text-cyan-300 transition-colors font-mono"
-                            >
-                              {t.nickname ?? t.label ?? `${t.address.slice(0, 6)}…${t.address.slice(-4)}`}
-                            </a>
-                          ))}
-                        </div>
-                      </details>
-                    )}
-                    <Button variant="outline" size="sm" onClick={fetchTopTraders} disabled={topTradersLoading}>
-                      {topTradersLoading ? t("common.loading") : t("nav.refresh")}
-                    </Button>
-                    {topTradersError && <p className="text-sm text-rose-600 dark:text-rose-400">{topTradersError}</p>}
                     {leverageGlobalHideError && <p className="text-sm text-rose-600 dark:text-rose-400">{leverageGlobalHideError}</p>}
-                    <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 p-3">
-                      <h4 className="text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">Recent activity (in-app alerts)</h4>
-                      <p className="text-xs text-muted-foreground mb-2">
-                        <strong>Upcoming feature.</strong> When we run periodic checks, new trades from tracked Top Leverage Traders or your added wallets will appear here. Telegram alerts use the same checks when the feature flag is on.
-                      </p>
-                      {leverageAlertsLoading ? (
-                        <p className="text-xs text-muted-foreground">Loading…</p>
-                      ) : leverageAlerts.length === 0 ? (
-                        <p className="text-xs text-muted-foreground">No recent activity yet.</p>
-                      ) : (
-                        <ul className="space-y-1.5 max-h-40 overflow-y-auto">
-                          {leverageAlerts.map((a) => {
-                            const at = new Date(a.createdAt).toLocaleString(undefined, { timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone, dateStyle: "short", timeStyle: "short" });
-                            const label = a.nickname ?? `${a.walletAddress.slice(0, 6)}…${a.walletAddress.slice(-4)}`;
-                            const apexUrl = `https://apexliquid.bot/trade/detail?address=${encodeURIComponent(a.walletAddress)}`;
-                            return (
-                              <li key={a.id} className="text-xs flex flex-wrap gap-x-2 gap-y-0.5 items-baseline">
-                                <span className="text-muted-foreground shrink-0">{at}</span>
-                                <a href={apexUrl} target="_blank" rel="noopener noreferrer" className="text-cyan-600 dark:text-cyan-400 hover:underline font-mono">{label}</a>
-                                <span className="text-zinc-600 dark:text-zinc-400">{a.positionsSummary}</span>
-                              </li>
-                            );
-                          })}
-                        </ul>
-                      )}
-                    </div>
                     {historyAddress && (
-                      <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 p-3">
+                      <div id="leverage-trade-history" className="scroll-mt-20 rounded-lg border border-zinc-200 dark:border-zinc-700 p-3">
                         <div className="flex items-center justify-between gap-2 mb-2">
                           <h4 className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
                             Trade history: {historyNickname ?? `${historyAddress.slice(0, 6)}…${historyAddress.slice(-4)}`}
@@ -10200,10 +10095,10 @@ function Dashboard() {
                                       <TableCell className="text-xs font-mono">{f.coin}</TableCell>
                                       <TableCell className="text-xs">{f.dir}</TableCell>
                                       <TableCell className="text-right font-mono text-xs">{f.sz}</TableCell>
-                                      <TableCell className="text-right font-mono text-xs">${Number(f.px).toLocaleString(undefined, { maximumFractionDigits: 2 })}</TableCell>
+                                      <TableCell className="text-right font-mono text-xs">{formatLeveragePrice(Number(f.px))}</TableCell>
                                       <TableCell className="text-right font-mono text-xs text-muted-foreground">{durationStr}</TableCell>
                                       <TableCell className={`text-right font-mono text-xs ${showClosedPnl && closedPnlNum >= 0 ? "text-emerald-600 dark:text-emerald-400" : showClosedPnl ? "text-rose-600 dark:text-rose-400" : ""}`}>
-                                        {showClosedPnl ? `$${closedPnlNum.toLocaleString(undefined, { maximumFractionDigits: 2 })}` : "—"}
+                                        {showClosedPnl ? formatLeverageUsd(closedPnlNum) : "—"}
                                       </TableCell>
                                     </TableRow>
                                   );
@@ -10214,146 +10109,107 @@ function Dashboard() {
                         )}
                       </div>
                     )}
-                    <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 w-full max-w-full overflow-x-auto">
-                      <div className="flex flex-wrap items-center gap-2 px-3 py-2 border-b border-zinc-200 dark:border-zinc-700">
-                        <span className="text-xs text-muted-foreground">Active (date):</span>
-                        <button
-                          type="button"
-                          onClick={() => setLeverageTradersDateFilter("all")}
-                          className={`text-xs px-2 py-1 rounded ${leverageTradersDateFilter === "all" ? "bg-cyan-500 text-white dark:bg-cyan-600" : "bg-zinc-200/80 dark:bg-zinc-700/80 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-300/80 dark:hover:bg-zinc-600/80"}`}
-                        >
-                          All dates
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setLeverageTradersDateFilter("today")}
-                          className={`text-xs px-2 py-1 rounded ${leverageTradersDateFilter === "today" ? "bg-cyan-500 text-white dark:bg-cyan-600" : "bg-zinc-200/80 dark:bg-zinc-700/80 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-300/80 dark:hover:bg-zinc-600/80"}`}
-                        >
-                          Today
-                        </button>
-                        <span className="text-xs text-muted-foreground ml-auto">
-                          Note: Some Apex symbols (like <span className="font-mono">xyz:*</span>) are synthetic markets. Their live PnL may show as unavailable.
-                        </span>
-                      </div>
-                      <Table className="table-fixed w-full min-w-0 text-xs" style={{ tableLayout: "fixed" }}>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead className="w-[16%] py-1.5 px-1.5 text-xs">Trader</TableHead>
-                            <TableHead className="w-[8%] py-1.5 px-1.5 text-xs">Account</TableHead>
-                            <TableHead className="w-[11%] py-1.5 px-1.5 text-xs" title="Last fill (open/add/reduce/close) in last 7 days">Active</TableHead>
-                            <TableHead className="w-[6%] py-1.5 px-1.5 text-xs">Symbol</TableHead>
-                            <TableHead className="w-[6%] py-1.5 px-1.5 text-xs">Side</TableHead>
-                            <TableHead className="w-[7%] py-1.5 px-1.5 text-right text-xs" title="Quantity of the asset (contracts). Negative = short, positive = long.">Size</TableHead>
-                            <TableHead className="w-[8%] py-1.5 px-1.5 text-right text-xs">Entry</TableHead>
-                            <TableHead className="w-[8%] py-1.5 px-1.5 text-right text-xs">Margin</TableHead>
-                            <TableHead className="w-[9%] py-1.5 px-1.5 text-right text-xs">Notional</TableHead>
-                            <TableHead className="w-[6%] py-1.5 px-1.5 text-right text-xs">Lev</TableHead>
-                            <TableHead className="w-[8%] py-1.5 px-1.5 text-right text-xs">PnL</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {leverageDisplayTraders.flatMap((t) => {
-                            const displayName = t.nickname ?? t.label ?? `${t.address.slice(0, 6)}…${t.address.slice(-4)}`;
-                            const lastTradeStr = t.lastTradeTimeMs
-                              ? new Date(t.lastTradeTimeMs).toLocaleString(undefined, { timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone, dateStyle: "short", timeStyle: "short" })
-                              : "—";
-                            const isTraderFavorite = leverageTraderFavoriteAddresses.has(t.address.toLowerCase());
-                            const traderCell = (
-                              <span className="inline-flex items-center gap-1 flex-wrap min-w-0">
-                                <button
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.preventDefault();
-                                    e.stopPropagation();
-                                    toggleLeverageTraderFavorite(t.address);
-                                  }}
-                                  className="shrink-0 p-0.5 rounded text-muted-foreground hover:text-amber-500 dark:hover:text-amber-400 hover:bg-zinc-200/80 dark:hover:bg-zinc-700/80 -ml-0.5"
-                                  aria-label={isTraderFavorite ? "Remove trader from favorites" : "Favorite trader (pin to top)"}
-                                  aria-pressed={isTraderFavorite}
-                                  title={isTraderFavorite ? "Remove favorite" : "Favorite — pinned to top of list"}
-                                >
-                                  <Star className={`h-3.5 w-3.5 ${isTraderFavorite ? "fill-amber-400 text-amber-400" : ""}`} />
-                                </button>
-                                {t.apexLiquidUrl ? (
-                                  <a href={t.apexLiquidUrl} target="_blank" rel="noopener noreferrer" className="text-cyan-600 dark:text-cyan-400 hover:underline font-mono truncate max-w-full">{displayName}</a>
-                                ) : (
-                                  <span className="font-mono truncate max-w-full">{displayName}</span>
-                                )}
-                                <button type="button" onClick={() => openTraderHistory(t.address, t.nickname ?? null)} className="text-muted-foreground hover:text-cyan-600 dark:hover:text-cyan-400 underline shrink-0">History</button>
-                                {isOwner && t.isGlobal !== false && (
-                                  <button
-                                    type="button"
-                                    onClick={(e) => {
-                                      e.preventDefault();
-                                      e.stopPropagation();
-                                      void hideLeverageTraderFromGlobal(t.address, displayName);
-                                    }}
-                                    disabled={hidingGlobalTrader?.toLowerCase() === t.address.toLowerCase()}
-                                    className="text-rose-600 dark:text-rose-400 hover:underline shrink-0 disabled:opacity-50"
-                                    aria-label={`Hide ${displayName} from global list`}
-                                    title="Hide from global list for all users"
-                                  >
-                                    {hidingGlobalTrader?.toLowerCase() === t.address.toLowerCase() ? "Hiding…" : "Remove"}
-                                  </button>
-                                )}
-                              </span>
+                    <LeverageTradersBoard
+                      traders={topTradersData}
+                      loading={topTradersLoading}
+                      error={topTradersError}
+                      updatedAt={topTradersUpdatedAt}
+                      onRefresh={fetchTopTraders}
+                      favorites={leverageTraderFavoriteAddresses}
+                      onToggleFavorite={toggleLeverageTraderFavorite}
+                      onOpenHistory={(address, nickname) => {
+                        openTraderHistory(address, nickname);
+                        window.setTimeout(() => document.getElementById("leverage-trade-history")?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
+                      }}
+                      isOwner={isOwner}
+                      hidingAddress={hidingGlobalTrader}
+                      onHideGlobal={(address, displayName) => void hideLeverageTraderFromGlobal(address, displayName)}
+                    />
+                    {leverageAlerts.length > 0 && (
+                      <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 p-3">
+                        <h4 className="text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">Recent activity</h4>
+                        <ul className="space-y-1.5 max-h-40 overflow-y-auto">
+                          {leverageAlerts.map((a) => {
+                            const at = new Date(a.createdAt).toLocaleString(undefined, { timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone, dateStyle: "short", timeStyle: "short" });
+                            const label = a.nickname ?? `${a.walletAddress.slice(0, 6)}…${a.walletAddress.slice(-4)}`;
+                            const apexUrl = `https://apexliquid.bot/trade/detail?address=${encodeURIComponent(a.walletAddress)}`;
+                            return (
+                              <li key={a.id} className="text-xs flex flex-wrap gap-x-2 gap-y-0.5 items-baseline">
+                                <span className="text-muted-foreground shrink-0">{at}</span>
+                                <a href={apexUrl} target="_blank" rel="noopener noreferrer" className="text-cyan-600 dark:text-cyan-400 hover:underline font-mono">{label}</a>
+                                <span className="text-zinc-600 dark:text-zinc-400">{a.positionsSummary}</span>
+                              </li>
                             );
-                            return t.positions.length === 0
-                              ? [<TableRow key={t.address}><TableCell className="font-mono py-1.5 px-1.5 align-top overflow-visible whitespace-normal">{traderCell}</TableCell><TableCell className="font-mono py-1.5 px-1.5">{t.accountValue != null ? `$${Number(t.accountValue).toLocaleString(undefined, { maximumFractionDigits: 0 })}` : "—"}</TableCell><TableCell className="text-muted-foreground py-1.5 px-1.5 truncate" title="Last fill in last 7d">{lastTradeStr}</TableCell><TableCell colSpan={8} className="text-muted-foreground py-1.5 px-1.5">No open positions</TableCell></TableRow>]
-                              : t.positions.map((pos, i) => (
-                                  <TableRow key={`${t.address}-${pos.coin}-${i}`}>
-                                    {(() => {
-                                      const isXyzSynthetic = pos.coin.toLowerCase().startsWith("xyz:");
-                                      const pnlNum = Number(pos.unrealizedPnl);
-                                      const showPnlUnavailable = isXyzSynthetic && (!Number.isFinite(pnlNum) || pnlNum === 0);
-                                      return (
-                                        <>
-                                    {i === 0 ? (
-                                      <>
-                                        <TableCell className="align-top py-1.5 px-1.5 overflow-visible whitespace-normal" rowSpan={t.positions.length}>{traderCell}</TableCell>
-                                        <TableCell className="font-mono align-top py-1.5 px-1.5" rowSpan={t.positions.length}>{t.accountValue != null ? `$${Number(t.accountValue).toLocaleString(undefined, { maximumFractionDigits: 0 })}` : "—"}</TableCell>
-                                      </>
-                                    ) : null}
-                                    <TableCell className="text-muted-foreground py-1.5 px-1.5 truncate" title="Last fill (open/add/reduce/close) in last 7d">{lastTradeStr}</TableCell>
-                                    <TableCell className="py-1.5 px-1.5 font-mono">{pos.coin}</TableCell>
-                                    <TableCell className="py-1.5 px-1.5">
-                                      <Badge variant={pos.side === "long" ? "default" : "secondary"} className={pos.side === "long" ? "bg-emerald-600 text-[10px] px-1" : "bg-rose-600 text-[10px] px-1"}>
-                                        {pos.side === "long" ? "Long" : "Short"}
-                                      </Badge>
-                                    </TableCell>
-                                    <TableCell className="text-right font-mono py-1.5 px-1.5 truncate">{pos.szi}</TableCell>
-                                    <TableCell className="text-right font-mono py-1.5 px-1.5">${Number(pos.entryPx).toLocaleString(undefined, { maximumFractionDigits: 2 })}</TableCell>
-                                    <TableCell className="text-right font-mono py-1.5 px-1.5">{pos.marginUsed != null && pos.marginUsed !== "" ? `$${Number(pos.marginUsed).toLocaleString(undefined, { maximumFractionDigits: 0 })}` : "—"}</TableCell>
-                                    <TableCell className="text-right font-mono py-1.5 px-1.5">${Number(pos.positionValue).toLocaleString(undefined, { maximumFractionDigits: 0 })}</TableCell>
-                                    <TableCell className="text-right font-mono py-1.5 px-1.5">{pos.leverage != null ? `${pos.leverage}x` : "—"}</TableCell>
-                                    <TableCell
-                                      className={`text-right font-mono py-1.5 px-1.5 ${
-                                        showPnlUnavailable
-                                          ? "text-muted-foreground"
-                                          : Number(pos.unrealizedPnl) >= 0
-                                          ? "text-emerald-600 dark:text-emerald-400"
-                                          : "text-rose-600 dark:text-rose-400"
-                                      }`}
-                                      title={showPnlUnavailable ? "Live PnL is not available for this symbol yet." : undefined}
-                                    >
-                                      {showPnlUnavailable
-                                        ? "Not available yet"
-                                        : `$${Number(pos.unrealizedPnl).toLocaleString(undefined, { maximumFractionDigits: 2 })}`}
-                                    </TableCell>
-                                        </>
-                                      );
-                                    })()}
-                                  </TableRow>
-                                ));
                           })}
-                          {topTradersData.length === 0 && !topTradersLoading && !topTradersError ? (
-                            <TableRow><TableCell colSpan={11} className="text-muted-foreground text-center py-8">Click Refresh to load Top Leverage Traders.</TableCell></TableRow>
-                          ) : topTradersData.length > 0 && leverageTradersDateFilter === "today" && leverageFilteredTraders.length === 0 ? (
-                            <TableRow><TableCell colSpan={11} className="text-muted-foreground text-center py-8">No trades with activity today. Try &quot;All dates&quot; or refresh later.</TableCell></TableRow>
-                          ) : null}
-                        </TableBody>
-                      </Table>
-                    </div>
+                        </ul>
+                      </div>
+                    )}
+                    <details className="rounded-lg border border-zinc-200 dark:border-zinc-700">
+                      <summary className="cursor-pointer px-3 py-2 text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                        Manage traders
+                        <span className="ml-2 text-xs font-normal text-muted-foreground">
+                          {topTradersData.length} tracked{userLeverageWallets.length > 0 ? ` · ${userLeverageWallets.length} added by you` : ""}
+                        </span>
+                      </summary>
+                      <div className="px-3 pb-3 space-y-4">
+                        <div>
+                          <h3 className="text-sm font-semibold text-zinc-700 dark:text-zinc-300 mb-1">My traders</h3>
+                          <p className="text-xs text-muted-foreground mb-2">Add any Hyperliquid 0x address to track it alongside the NovaStaris Global Top Traders.</p>
+                          <form
+                            className="flex flex-wrap gap-2"
+                            onSubmit={async (e) => {
+                              e.preventDefault();
+                              const form = e.currentTarget;
+                              const addr = (form.querySelector('input[name="leverage-address"]') as HTMLInputElement)?.value?.trim();
+                              const nickname = (form.querySelector('input[name="leverage-nickname"]') as HTMLInputElement)?.value?.trim() || undefined;
+                              if (!addr) return;
+                              try {
+                                const res = await fetch("/api/user/leverage-wallets", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ address: addr, nickname }) });
+                                const data = await res.json();
+                                if (data.success) {
+                                  setUserLeverageWallets(data.wallets ?? []);
+                                  (form.querySelector('input[name="leverage-address"]') as HTMLInputElement).value = "";
+                                  (form.querySelector('input[name="leverage-nickname"]') as HTMLInputElement).value = "";
+                                  fetchTopTraders();
+                                }
+                              } catch {}
+                            }}
+                          >
+                            <input name="leverage-address" placeholder="0x… address" className="font-mono text-sm border border-zinc-300 dark:border-zinc-600 rounded px-2 py-1.5 bg-white dark:bg-zinc-800 w-52" />
+                            <input name="leverage-nickname" placeholder="Nickname (optional)" className="text-sm border border-zinc-300 dark:border-zinc-600 rounded px-2 py-1.5 bg-white dark:bg-zinc-800 w-36" />
+                            <Button type="submit" size="sm">Add</Button>
+                          </form>
+                          {userLeverageWallets.length > 0 && (
+                            <ul className="text-xs space-y-1 mt-2">
+                              {userLeverageWallets.map((w) => (
+                                <li key={w.id} className="flex items-center gap-2">
+                                  <span className="font-mono text-muted-foreground">{w.nickname ?? `${w.address.slice(0, 6)}…${w.address.slice(-4)}`}</span>
+                                  <button type="button" onClick={async () => { await fetch("/api/user/leverage-wallets?address=" + encodeURIComponent(w.address), { method: "DELETE" }); fetchUserLeverageWallets(); fetchTopTraders(); }} className="text-rose-600 dark:text-rose-400 hover:underline">Remove</button>
+                                </li>
+                              ))}
+                            </ul>
+                          )}
+                        </div>
+                        {topTradersData.length > 0 && (
+                          <div>
+                            <h3 className="text-sm font-semibold text-zinc-700 dark:text-zinc-300 mb-2">Wallets we track ({topTradersData.length})</h3>
+                            <div className="flex flex-wrap gap-2">
+                              {topTradersData.map((t) => (
+                                <a
+                                  key={t.address}
+                                  href={t.apexLiquidUrl ?? "#"}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-xs px-2 py-1 rounded bg-zinc-200/80 dark:bg-zinc-700/80 hover:bg-cyan-100 dark:hover:bg-cyan-900/50 text-zinc-700 dark:text-zinc-300 hover:text-cyan-700 dark:hover:text-cyan-300 transition-colors font-mono"
+                                >
+                                  {t.nickname ?? t.label ?? `${t.address.slice(0, 6)}…${t.address.slice(-4)}`}
+                                </a>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </details>
                   </div>
                   </TabsContent>
                   <TabsContent value="nova-perp-wallet-analyst" className="mt-0 space-y-4">
