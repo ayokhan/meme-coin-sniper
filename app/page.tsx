@@ -340,9 +340,9 @@ type PerpRadarPreset =
 /** Presets that need a funding rate; only the ApexLiquid view has one. */
 const PERP_RADAR_FUNDING_PRESETS: PerpRadarPreset[] = ["short_positive_funding", "long_negative_funding"];
 const PERP_RADAR_VIEW_LS_KEY = "novastaris-perp-radar-view";
-/** Chip order: ApexLiquid first (works in every region; Binance is blocked in some). */
+/** Chip order: Trending Perps (ApexLiquid data) first — works in every region; Binance is blocked in some. */
 const PERP_RADAR_VIEWS: { id: PerpRadarView; label: string }[] = [
-  { id: "hyperliquid", label: "ApexLiquid" },
+  { id: "hyperliquid", label: "Trending Perps" },
   { id: "all", label: "Binance movers" },
   { id: "macro", label: "Macro" },
   { id: "metals", label: "Metals" },
@@ -402,6 +402,8 @@ const NAV_TAB_ADDON: Partial<Record<TabId, "novaFuturesNarratives" | "novaEagle"
 const NOVA_PRO_EXCLUDED_TABS = new Set<TabId>(["coach-calls", "trading-bot", "prop-firm-bot", "nova-ultimate", "polymarket-bot", "nova-forex-bot", "gmgn-vip-bot"]);
 /** Flame icon is reserved for the two headline tools so it keeps meaning something. */
 const NAV_HOT_TABS = new Set<TabId>(["ai-analysis", "futures"]);
+/** Only these tabs render the shared meme `tokens` list; every other tab loads its own data. */
+const TOKEN_FETCH_TABS = new Set<TabId>(["new", "trending", "surge", "transactions", "bsc", "robinhood", "hyperevm", "ct", "wallets"]);
 const PAID_TABS: TabId[] = ["surge", "transactions", "futures", "trending-perps", "perp-radar", "narratives", "ct", "wallets", "coach-calls", "nova-forecast", "nova-pulse", "nova-forex", "nova-forex-bot", "nova-plus", "nova-connect"];
 /** Platform: surge, transactions, ai-analysis, futures. VIP-only: ct, wallets, coach-calls, nova-forecast. BSC + Watchlist are free for all. */
 const VIP_ONLY_TABS: TabId[] = ["ct", "wallets", "coach-calls", "nova-forecast", "nova-pulse", "nova-forex", "nova-forex-bot", "gmgn-vip-bot", "nova-plus", "nova-investment", "nova-futures-narratives", "nova-eagle", "crypto-buddie", "meme-intelligence"];
@@ -2758,16 +2760,31 @@ function Dashboard() {
   };
 
   const tokenFetchSeqRef = useRef(0);
+  /** Last token list per view, so switching back to a meme tab shows it instantly while it refreshes. */
+  const tokenCacheRef = useRef(new Map<string, Token[]>());
+  const tokenViewKey = (tab: TabId) => {
+    if (tab === "new") return `new|${goHuntingView}|${goHuntingChain}|${surgeWindow}`;
+    if (tab === "bsc") return `bsc|${bscGoHuntingView}`;
+    if (tab === "robinhood") return `robinhood|${robinhoodGoHuntingView}`;
+    if (tab === "hyperevm") return `hyperevm|${hyperevmGoHuntingView}`;
+    if (tab === "surge") return `surge|${surgeWindow}`;
+    return tab;
+  };
   const fetchTokens = async (tab: TabId = activeTab, showLoading = true, countTowardLimit = false) => {
     const marketFetchInit = countTowardLimit
       ? { headers: { "X-Nova-Count-Refresh": "1" } as HeadersInit }
       : undefined;
+    const viewKey = tokenViewKey(tab);
+    const applyTokens = (list: Token[]) => {
+      tokenCacheRef.current.set(viewKey, list);
+      setTokens(list);
+    };
     if (tab === "ai-analysis") {
       if (showLoading) setLoading(false);
       if (status === "authenticated") fetchPinnedTokens();
       return;
     }
-    if (tab === "futures" || tab === "daily-wrap" || tab === "trading-bot" || tab === "polymarket-bot" || tab === "prop-firm-bot" || tab === "nova-forex-bot" || tab === "nova-ultimate" || tab === "gmgn-vip-bot" || tab === "watchlist" || tab === "trading-university" || tab === "nova-job-agent" || tab === "realtor-os" || tab === "nova-store" || tab === "nova-investment" || tab === "coach-calls" || tab === "nova-forecast" || tab === "nova-pulse" || tab === "nova-forex" || tab === "nova-plus" || tab === "nova-futures-narratives" || tab === "nova-eagle" || tab === "session-sweep" || tab === "crypto-buddie" || tab === "meme-intelligence" || tab === "chris-clayton" || tab === "nova-connect") {
+    if (!TOKEN_FETCH_TABS.has(tab)) {
       if (showLoading) setLoading(false);
       return;
     }
@@ -2818,7 +2835,7 @@ function Dashboard() {
           return;
         }
         if (data.success) {
-          setTokens(data.tokens ?? []);
+          applyTokens(data.tokens ?? []);
           setLastFetched(new Date());
         } else {
           setError(data.error ?? "Failed to load watchlist");
@@ -2839,7 +2856,7 @@ function Dashboard() {
           return;
         }
         if (data.success) {
-          setTokens(data.tokens ?? []);
+          applyTokens(data.tokens ?? []);
           setGoHuntingChainCounts({ ...(data.chainCounts ?? {}), all: data.allCount ?? null });
           setLastFetched(new Date());
         } else if (res.status === 403 && data.locked) {
@@ -2860,7 +2877,7 @@ function Dashboard() {
           return;
         }
         if (data.success) {
-          setTokens(data.tokens ?? []);
+          applyTokens(data.tokens ?? []);
           setLastFetched(new Date());
         } else {
           setError(data.error ?? "Failed to load BSC tokens");
@@ -2879,7 +2896,7 @@ function Dashboard() {
           return;
         }
         if (data.success) {
-          setTokens(data.tokens ?? []);
+          applyTokens(data.tokens ?? []);
           setLastFetched(new Date());
         } else {
           setError(data.error ?? `Failed to load ${tab === "robinhood" ? "Robinhood" : "HyperEVM"} tokens`);
@@ -2929,7 +2946,7 @@ function Dashboard() {
         return;
       }
       if (data.success) {
-        setTokens(data.tokens);
+        applyTokens(data.tokens ?? []);
         setLastFetched(new Date());
       } else {
         if (res.status === 403 && data.locked) setError(data.error || "Subscribe to access this feature.");
@@ -3155,7 +3172,9 @@ function Dashboard() {
       setError(null);
       return;
     }
-    fetchTokens(activeTab);
+    const cachedTokens = TOKEN_FETCH_TABS.has(activeTab) ? tokenCacheRef.current.get(tokenViewKey(activeTab)) : undefined;
+    if (cachedTokens) setTokens(cachedTokens);
+    fetchTokens(activeTab, !cachedTokens);
     if (activeTab === "ct") {
       if (canAccessCtScanEffective) {
         fetchCtAccounts();
@@ -5816,7 +5835,7 @@ function Dashboard() {
                   variant={activeTab === "new" ? "memeDesk" : "default"}
                 />
               )}
-            {loading && activeTab !== "ai-analysis" && activeTab !== "futures" && activeTab !== "trading-bot" && activeTab !== "polymarket-bot" && activeTab !== "prop-firm-bot" && activeTab !== "nova-forex-bot" && activeTab !== "nova-ultimate" && activeTab !== "gmgn-vip-bot" && tokensForDisplay.length === 0 ? (
+            {loading && TOKEN_FETCH_TABS.has(activeTab) && activeTab !== "wallets" && tokensForDisplay.length === 0 ? (
               <div className="mx-3 sm:mx-6 overflow-x-auto px-2 py-8 sm:py-10">
                 <Table>
                   <TableHeader>
@@ -6701,10 +6720,10 @@ function Dashboard() {
                       <p className="text-sm text-rose-600 dark:text-rose-400">{perpRadarError.includes("451") || perpRadarError.includes("restricts") ? "Binance blocks API access from our server's region." : perpRadarError}</p>
                       {(perpRadarError.includes("451") || perpRadarError.includes("restricts")) && (
                         <>
-                          <p className="text-xs text-muted-foreground mt-1">In some regions Binance blocks access. Switch to the <strong>ApexLiquid</strong> view for similar movers, or try «Load from my browser».</p>
+                          <p className="text-xs text-muted-foreground mt-1">In some regions Binance blocks access. Switch to the <strong>Trending Perps</strong> view for similar movers, or try «Load from my browser».</p>
                           <div className="mt-2 flex flex-wrap gap-2">
                             <Button variant="outline" size="sm" onClick={() => selectPerpRadarView("hyperliquid")}>
-                              Switch to ApexLiquid
+                              Switch to Trending Perps
                             </Button>
                             <Button variant="outline" size="sm" onClick={fetchPerpRadarFromBrowser} disabled={perpRadarLoading}>
                               {perpRadarLoading ? "Loading…" : "Load from my browser"}
@@ -7186,7 +7205,7 @@ function Dashboard() {
                         </Button>
                       </div>
                     </div>
-                    <p className="text-xs text-muted-foreground mb-3">BTC, ETH, SOL, DOGE and other major perps—same data as Perp Radar&apos;s ApexLiquid view (5m to 4h, 24h %, Trend, Direction, Funding). Star a contract to pin it to the top (saved in this browser). Trend uses a close-regression proxy + structure blend (not hand-drawn lines). Use NovaStaris AI Agent → Chart Analysis or Institutional Workflow to analyze and trade.</p>
+                    <p className="text-xs text-muted-foreground mb-3">BTC, ETH, SOL, DOGE and other major perps—same data as Perp Radar&apos;s Trending Perps view (5m to 4h, 24h %, Trend, Direction, Funding). Star a contract to pin it to the top (saved in this browser). Trend uses a close-regression proxy + structure blend (not hand-drawn lines). Use NovaStaris AI Agent → Chart Analysis or Institutional Workflow to analyze and trade.</p>
                     {topAltcoinsLoading && topAltcoins.length === 0 ? (
                       <p className="text-xs text-muted-foreground">Loading…</p>
                     ) : topAltcoins.length === 0 ? (

@@ -63,7 +63,7 @@ export const NAV_GROUP_TABS: Record<Exclude<DashboardNavGroup, "home" | "all">, 
     "wallets",
     "ai-analysis",
   ],
-  forex: ["nova-forex", "nova-forex-bot", "prop-firm-bot", "nova-pulse"],
+  forex: ["nova-forex", "session-sweep", "nova-forex-bot", "prop-firm-bot", "nova-pulse"],
   bots: ["trading-bot", "polymarket-bot", "prop-firm-bot", "nova-forex-bot", "nova-ultimate", "gmgn-vip-bot"],
   learn: [
     "daily-wrap",
