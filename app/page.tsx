@@ -1926,7 +1926,6 @@ function Dashboard() {
   };
   const visibleNavTabs = (group: DashboardNavGroup) =>
     (tabsForNavGroup(group, homePins) as TabId[]).filter(navTabVisible);
-  const currentNavTabsKey = visibleNavTabs(navGroup).join(",");
 
   /** Opening a shared tool from a market group lands on that market's view (e.g. Wallets from Perps → Leverage). */
   const openTopTab = (tab: TabId, group: DashboardNavGroup = navGroup) => {
@@ -1952,28 +1951,6 @@ function Dashboard() {
       return next;
     });
   };
-
-  /** Keep the group row in sync when a tab is opened from a deep link, in-page link, or path picker. */
-  const navInitDoneRef = useRef(false);
-  useEffect(() => {
-    if (!dashboardUrlReady) return;
-    if (NAV_TAB_ADDON[activeTab] && vipFuturesAddons === null) return;
-    const tabs = currentNavTabsKey ? currentNavTabsKey.split(",") : [];
-    if (tabs.includes(activeTab)) {
-      navInitDoneRef.current = true;
-      return;
-    }
-    if (!navInitDoneRef.current) {
-      navInitDoneRef.current = true;
-      if (!new URLSearchParams(window.location.search).has("tab") && tabs[0]) {
-        setActiveTab(tabs[0] as TabId);
-        return;
-      }
-    }
-    const fallback = primaryNavGroupForTab(activeTab);
-    setNavGroup(visibleNavTabs(fallback).includes(activeTab) ? fallback : "all");
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- visibleNavTabs is derived from state captured in currentNavTabsKey
-  }, [dashboardUrlReady, activeTab, currentNavTabsKey, vipFuturesAddons]);
 
   const topTabLock = (tab: TabId): DashboardNavTool["lock"] => {
     if (isOwner) return null;
@@ -2580,6 +2557,30 @@ function Dashboard() {
   >([]);
   const [novaConnectDmUnreadUserIds, setNovaConnectDmUnreadUserIds] = useState<string[]>([]);
   const [novaConnectHasUnreadDm, setNovaConnectHasUnreadDm] = useState(false);
+
+  // Must sit below every state isTabVisibleInGui reads (e.g. novaConnectEnabled) — it runs during render.
+  const currentNavTabsKey = visibleNavTabs(navGroup).join(",");
+  /** Keep the group row in sync when a tab is opened from a deep link, in-page link, or path picker. */
+  const navInitDoneRef = useRef(false);
+  useEffect(() => {
+    if (!dashboardUrlReady) return;
+    if (NAV_TAB_ADDON[activeTab] && vipFuturesAddons === null) return;
+    const tabs = currentNavTabsKey ? currentNavTabsKey.split(",") : [];
+    if (tabs.includes(activeTab)) {
+      navInitDoneRef.current = true;
+      return;
+    }
+    if (!navInitDoneRef.current) {
+      navInitDoneRef.current = true;
+      if (!new URLSearchParams(window.location.search).has("tab") && tabs[0]) {
+        setActiveTab(tabs[0] as TabId);
+        return;
+      }
+    }
+    const fallback = primaryNavGroupForTab(activeTab);
+    setNavGroup(visibleNavTabs(fallback).includes(activeTab) ? fallback : "all");
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- visibleNavTabs is derived from state captured in currentNavTabsKey
+  }, [dashboardUrlReady, activeTab, currentNavTabsKey, vipFuturesAddons]);
   const [novaConnectEditingId, setNovaConnectEditingId] = useState<string | null>(null);
   const [novaConnectEditingContent, setNovaConnectEditingContent] = useState("");
   const [novaConnectEditSaving, setNovaConnectEditSaving] = useState(false);
