@@ -1,7 +1,7 @@
 /** Client-safe types and constants for Nova Session Sweep (no server imports). */
 
 export type SweepMarket = "forex" | "metal" | "crypto";
-export type SweepTimeframe = "5m" | "15m";
+export type SweepTimeframe = "5m" | "15m" | "30m" | "1h";
 export type SweepStopMode = "structure" | "sweep";
 export type SessionName = "Asia" | "London" | "New York";
 export type SweepDirection = "long" | "short";
@@ -29,13 +29,39 @@ export const SESSION_SWEEP_SYMBOLS: SweepSymbol[] = [
 export const SESSION_SWEEP_TIMEFRAMES: { id: SweepTimeframe; label: string; minutes: number }[] = [
   { id: "5m", label: "5 minutes", minutes: 5 },
   { id: "15m", label: "15 minutes", minutes: 15 },
+  { id: "30m", label: "30 minutes", minutes: 30 },
+  { id: "1h", label: "1 hour", minutes: 60 },
 ];
 
-export const SESSION_SWEEP_LOOKBACK_DAYS = [7, 14, 30, 60] as const;
+export type SweepLookbackId = "4h" | "12h" | "24h" | "3d" | "7d" | "14d" | "30d" | "60d";
+
+export const SESSION_SWEEP_LOOKBACKS: { id: SweepLookbackId; label: string; hours: number }[] = [
+  { id: "4h", label: "Last 4 hours", hours: 4 },
+  { id: "12h", label: "Last 12 hours", hours: 12 },
+  { id: "24h", label: "Last 24 hours", hours: 24 },
+  { id: "3d", label: "Last 3 days", hours: 72 },
+  { id: "7d", label: "Last 7 days", hours: 7 * 24 },
+  { id: "14d", label: "Last 14 days", hours: 14 * 24 },
+  { id: "30d", label: "Last 30 days", hours: 30 * 24 },
+  { id: "60d", label: "Last 60 days", hours: 60 * 24 },
+];
+
+export function sweepLookbackLabel(hours: number): string {
+  if (hours < 48) return `last ${hours} hours`;
+  return `last ${Math.round(hours / 24)} days`;
+}
 
 export const SESSION_SWEEP_STOP_MODES: { id: SweepStopMode; label: string; hint: string }[] = [
-  { id: "structure", label: "Structure stop", hint: "Beyond the lower high / higher low that confirmed the break" },
-  { id: "sweep", label: "Sweep stop", hint: "Beyond the sweep wick (wider stop, smaller size)" },
+  {
+    id: "structure",
+    label: "Tight stop (structure)",
+    hint: "Stop just beyond the pullback swing that set up the break. Smaller risk, stopped out more often.",
+  },
+  {
+    id: "sweep",
+    label: "Wide stop (sweep wick)",
+    hint: "Stop just beyond the tip of the sweep wick. Bigger risk, so the 3R target is further away.",
+  },
 ];
 
 export const SESSION_SWEEP_NAMES: SessionName[] = ["Asia", "London", "New York"];
@@ -111,6 +137,12 @@ export type SweepLiveState = {
   /** Close beyond this = break of structure (BOS) → entry. */
   bosLevel: number | null;
   trade: SweepTrade | null;
+  /** When the BOS level is known: the order that would be placed if it breaks. */
+  plannedEntry: number | null;
+  plannedStop: number | null;
+  plannedTarget: number | null;
+  /** In a trade: price is still within 0.3R of the entry, so joining late keeps roughly the same risk/reward. */
+  entryStillValid: boolean;
   currentHunt: SessionName | null;
   lastPrice: number | null;
   lastBarTs: number | null;
@@ -151,7 +183,9 @@ export type SessionSweepResult = {
   label: string;
   market: SweepMarket;
   timeframe: SweepTimeframe;
-  lookbackDays: number;
+  lookbackHours: number;
+  /** Trades and stats only count entries at or after this time. */
+  windowStartTs: number;
   stopMode: SweepStopMode;
   rr: number;
   barsAnalyzed: number;
@@ -160,6 +194,8 @@ export type SessionSweepResult = {
   dataNote: string;
   live: SweepLiveState;
   levels: WatchedLevel[];
+  /** Session ranges still in progress (their high/low can still move). */
+  forming: SessionRange[];
   trades: SweepTrade[];
   stats: SweepStats;
   chart: SweepChart;

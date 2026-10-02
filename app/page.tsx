@@ -9170,7 +9170,7 @@ function Dashboard() {
                   {vipFuturesAddons?.novaSessionSweep && (
                     <TabsContent value="nova-session-sweep" className="mt-0">
                       <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 p-4">
-                        <NovaSessionSweepPanel enabled={!!vipFuturesAddons.novaSessionSweep} isVip={isVip || isOwner} isOwner={isOwner} />
+                        <NovaSessionSweepPanel enabled={!!vipFuturesAddons.novaSessionSweep} />
                       </div>
                     </TabsContent>
                   )}

@@ -2,9 +2,10 @@
 import { getForexCandles } from "@/lib/forex-market";
 import { computeSweepStats, runSessionSweep, type SweepBar } from "@/lib/session-sweep";
 import {
-  SESSION_SWEEP_LOOKBACK_DAYS,
+  SESSION_SWEEP_LOOKBACKS,
   SESSION_SWEEP_SYMBOLS,
   SESSION_SWEEP_TIMEFRAMES,
+  sweepLookbackLabel,
   type SessionSweepResult,
   type SessionSweepScanRow,
   type SweepChartBar,
@@ -15,9 +16,13 @@ import {
 
 const HL_INFO = "https://api.hyperliquid.xyz/info";
 const HL_MAX_CANDLES = 5000;
-const DAY_MS = 86_400_000;
+const HOUR_MS = 3_600_000;
 const CACHE_TTL_MS = 60_000;
-const CHART_SPAN_MS = 36 * 3_600_000;
+/** Extra history before the backtest window so session levels, swings and ATR exist from its first candle. */
+const WARMUP_HOURS = 48;
+const YAHOO_MAX_HOURS = 60 * 24;
+
+const CHART_SPAN_HOURS: Record<SweepTimeframe, number> = { "5m": 36, "15m": 72, "30m": 120, "1h": 168 };
 
 export const SESSION_SWEEP_RR = 3;
 
@@ -32,9 +37,13 @@ export function parseSweepTimeframe(raw: unknown): SweepTimeframe {
   return SESSION_SWEEP_TIMEFRAMES.some((t) => t.id === raw) ? (raw as SweepTimeframe) : "5m";
 }
 
-export function parseSweepLookback(raw: unknown): number {
-  const n = Number(raw);
-  return (SESSION_SWEEP_LOOKBACK_DAYS as readonly number[]).includes(n) ? n : 14;
+/** Accepts a lookback id ("24h", "7d") or a legacy day count. Returns hours. */
+export function parseSweepLookbackHours(raw: unknown): number {
+  const byId = SESSION_SWEEP_LOOKBACKS.find((l) => l.id === raw);
+  if (byId) return byId.hours;
+  const days = Number(raw);
+  const byDays = SESSION_SWEEP_LOOKBACKS.find((l) => l.hours === days * 24);
+  return byDays?.hours ?? 14 * 24;
 }
 
 export function parseSweepStopMode(raw: unknown): SweepStopMode {
@@ -45,16 +54,16 @@ function tfMinutes(tf: SweepTimeframe): number {
   return SESSION_SWEEP_TIMEFRAMES.find((t) => t.id === tf)?.minutes ?? 5;
 }
 
-/** Hyperliquid only serves its latest 5,000 candles per interval. */
-export function maxSweepDays(market: SweepSymbol["market"], tf: SweepTimeframe): number {
-  if (market === "crypto") return Math.floor((HL_MAX_CANDLES * tfMinutes(tf)) / (24 * 60));
-  return 60;
+/** Hours of history the source can serve (Hyperliquid keeps only its latest 5,000 candles per interval). */
+function maxSourceHours(market: SweepSymbol["market"], tf: SweepTimeframe): number {
+  if (market === "crypto") return Math.floor((HL_MAX_CANDLES * tfMinutes(tf)) / 60);
+  return YAHOO_MAX_HOURS;
 }
 
-async function fetchHyperliquidBars(coin: string, tf: SweepTimeframe, days: number): Promise<SweepBar[]> {
+async function fetchHyperliquidBars(coin: string, tf: SweepTimeframe, hours: number): Promise<SweepBar[]> {
   const tfMs = tfMinutes(tf) * 60_000;
   const end = Date.now();
-  let cursor = end - days * DAY_MS;
+  let cursor = end - hours * HOUR_MS;
   const byTs = new Map<number, SweepBar>();
   for (let page = 0; page < 6 && cursor < end; page++) {
     const res = await fetch(HL_INFO, {
@@ -78,7 +87,8 @@ async function fetchHyperliquidBars(coin: string, tf: SweepTimeframe, days: numb
   return Array.from(byTs.values()).sort((a, b) => a.t - b.t);
 }
 
-async function fetchYahooBars(symbol: string, tf: SweepTimeframe, days: number): Promise<SweepBar[]> {
+async function fetchYahooBars(symbol: string, tf: SweepTimeframe, hours: number): Promise<SweepBar[]> {
+  const days = hours / 24;
   const range = days <= 5 ? "5d" : days <= 30 ? "1mo" : "60d";
   const candles = await getForexCandles(symbol, tf, 100_000, range);
   const bars: SweepBar[] = [];
@@ -95,19 +105,20 @@ async function fetchYahooBars(symbol: string, tf: SweepTimeframe, days: number):
   return deduped;
 }
 
-async function loadBarsUncached(sym: SweepSymbol, tf: SweepTimeframe, days: number): Promise<SweepBar[]> {
+async function loadBarsUncached(sym: SweepSymbol, tf: SweepTimeframe, hours: number): Promise<SweepBar[]> {
   const tfMs = tfMinutes(tf) * 60_000;
-  const raw = sym.market === "crypto" ? await fetchHyperliquidBars(sym.symbol, tf, days) : await fetchYahooBars(sym.symbol, tf, days);
+  const raw =
+    sym.market === "crypto" ? await fetchHyperliquidBars(sym.symbol, tf, hours) : await fetchYahooBars(sym.symbol, tf, hours);
   const now = Date.now();
-  const from = now - days * DAY_MS;
+  const from = now - hours * HOUR_MS;
   return raw.filter((b) => b.t >= from && b.t + tfMs <= now);
 }
 
-export function loadSweepBars(sym: SweepSymbol, tf: SweepTimeframe, days: number): Promise<SweepBar[]> {
-  const key = `${sym.symbol}|${tf}|${days}`;
+function loadSweepBars(sym: SweepSymbol, tf: SweepTimeframe, hours: number): Promise<SweepBar[]> {
+  const key = `${sym.symbol}|${tf}|${hours}`;
   const hit = barCache.get(key);
   if (hit && Date.now() - hit.at < CACHE_TTL_MS) return hit.bars;
-  const bars = loadBarsUncached(sym, tf, days);
+  const bars = loadBarsUncached(sym, tf, hours);
   barCache.set(key, { at: Date.now(), bars });
   bars.catch(() => barCache.delete(key));
   if (barCache.size > 200) {
@@ -116,7 +127,7 @@ export function loadSweepBars(sym: SweepSymbol, tf: SweepTimeframe, days: number
   return bars;
 }
 
-function dataNoteFor(sym: SweepSymbol, tf: SweepTimeframe, requestedDays: number, usedDays: number): string {
+function dataNoteFor(sym: SweepSymbol, tf: SweepTimeframe, requestedHours: number, usedHours: number): string {
   const source =
     sym.market === "crypto"
       ? `Hyperliquid ${sym.symbol}-USDC perpetual candles.`
@@ -124,35 +135,41 @@ function dataNoteFor(sym: SweepSymbol, tf: SweepTimeframe, requestedDays: number
         ? "Yahoo futures candles, shifted to Swissquote spot so levels line up with broker charts."
         : "Yahoo Finance FX candles (reference feed; your broker's prices can differ by a few pips).";
   const capped =
-    usedDays < requestedDays
-      ? ` Hyperliquid keeps only its latest 5,000 ${tf} candles, so history is capped at ${usedDays} days. Use 15m for a longer backtest.`
-      : "";
+    usedHours >= requestedHours
+      ? ""
+      : sym.market === "crypto"
+        ? ` Hyperliquid keeps only its latest 5,000 ${tf} candles, so this backtest covers the ${sweepLookbackLabel(usedHours)}. Use bigger candles for a longer backtest.`
+        : ` Yahoo serves about 60 days of intraday candles and 2 days are used to warm up, so this backtest covers the ${sweepLookbackLabel(usedHours)}.`;
   return `${source}${capped}`;
 }
 
 export async function analyzeSessionSweep(input: {
   symbol: SweepSymbol;
   timeframe: SweepTimeframe;
-  lookbackDays: number;
+  lookbackHours: number;
   stopMode: SweepStopMode;
   focusTs?: number | null;
 }): Promise<SessionSweepResult> {
   const { symbol: sym, timeframe, stopMode } = input;
-  const usedDays = Math.min(input.lookbackDays, maxSweepDays(sym.market, timeframe));
-  const bars = await loadSweepBars(sym, timeframe, usedDays);
-  if (bars.length < 50) throw new Error(`Not enough ${timeframe} candles for ${sym.symbol} right now. Try again shortly.`);
+  const sourceHours = maxSourceHours(sym.market, timeframe);
+  const usedHours = Math.max(1, Math.min(input.lookbackHours, sourceHours - WARMUP_HOURS));
+  const fetchHours = Math.ceil((usedHours + WARMUP_HOURS) / 24) * 24;
+  const bars = await loadSweepBars(sym, timeframe, Math.min(fetchHours, sourceHours));
+  if (bars.length < 30) throw new Error(`Not enough ${timeframe} candles for ${sym.symbol} right now. Try again shortly.`);
 
   const run = runSessionSweep(bars, { tfMinutes: tfMinutes(timeframe), stopMode, rr: SESSION_SWEEP_RR });
   const lastTs = bars[bars.length - 1]!.t;
-  const firstTs = bars[0]!.t;
+  const tfMs = tfMinutes(timeframe) * 60_000;
+  const windowStartTs = lastTs + tfMs - usedHours * HOUR_MS;
+  const windowTrades = run.trades.filter((tr) => tr.entryTs >= windowStartTs);
+  const barsInWindow = bars.filter((b) => b.t >= windowStartTs);
 
+  const spanMs = CHART_SPAN_HOURS[timeframe] * HOUR_MS;
+  const firstTs = bars[0]!.t;
   const focus = input.focusTs && Number.isFinite(input.focusTs) ? input.focusTs : null;
-  let toTs = focus ? focus + CHART_SPAN_MS / 2 : lastTs + 1;
-  let fromTs = toTs - CHART_SPAN_MS;
-  if (toTs > lastTs + 1) {
-    toTs = lastTs + 1;
-    fromTs = toTs - CHART_SPAN_MS;
-  }
+  let toTs = focus ? focus + spanMs / 2 : lastTs + 1;
+  if (toTs > lastTs + 1) toTs = lastTs + 1;
+  let fromTs = toTs - spanMs;
   if (fromTs < firstTs) fromTs = firstTs;
 
   const chartBars: SweepChartBar[] = bars
@@ -167,24 +184,26 @@ export async function analyzeSessionSweep(input: {
     label: sym.label,
     market: sym.market,
     timeframe,
-    lookbackDays: usedDays,
+    lookbackHours: usedHours,
+    windowStartTs,
     stopMode,
     rr: SESSION_SWEEP_RR,
-    barsAnalyzed: bars.length,
-    firstBarTs: firstTs,
+    barsAnalyzed: barsInWindow.length,
+    firstBarTs: barsInWindow[0]?.t ?? null,
     lastBarTs: lastTs,
-    dataNote: dataNoteFor(sym, timeframe, input.lookbackDays, usedDays),
+    dataNote: dataNoteFor(sym, timeframe, input.lookbackHours, usedHours),
     live: run.live,
     levels: run.levels,
-    trades: [...run.trades].reverse(),
-    stats: computeSweepStats(run.trades),
+    forming: run.building,
+    trades: [...windowTrades].reverse(),
+    stats: computeSweepStats(windowTrades),
     chart: { bars: chartBars, ranges: chartRanges, trades: chartTrades, fromTs, toTs },
   };
 }
 
 export async function scanSessionSweep(input: {
   timeframe: SweepTimeframe;
-  lookbackDays: number;
+  lookbackHours: number;
   stopMode: SweepStopMode;
 }): Promise<SessionSweepScanRow[]> {
   const rows: SessionSweepScanRow[] = new Array(SESSION_SWEEP_SYMBOLS.length);

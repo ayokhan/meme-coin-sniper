@@ -85,6 +85,7 @@ export async function GET() {
         propFirmBotOnDemand: !!(u as { propFirmBotOnDemand?: boolean }).propFirmBotOnDemand,
         novaUltimateOnDemand: !!(u as { novaUltimateOnDemand?: boolean }).novaUltimateOnDemand,
         novaJobAgentOnDemand: !!(u as { novaJobAgentOnDemand?: boolean }).novaJobAgentOnDemand,
+        novaSessionSweepOnDemand: !!(u as { novaSessionSweepOnDemand?: boolean }).novaSessionSweepOnDemand,
         coachCallsOnDemand: !!(u as { coachCallsOnDemand?: boolean }).coachCallsOnDemand,
         ctScanOnDemand: !!(u as { ctScanOnDemand?: boolean }).ctScanOnDemand,
         ctScanOnDemandExpiresAt: (u as { ctScanOnDemandExpiresAt?: Date | null }).ctScanOnDemandExpiresAt ?? null,

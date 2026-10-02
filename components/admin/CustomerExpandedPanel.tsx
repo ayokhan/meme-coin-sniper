@@ -47,6 +47,7 @@ export type AdminCustomerRecord = {
   propFirmBotOnDemand: boolean;
   novaUltimateOnDemand: boolean;
   novaJobAgentOnDemand: boolean;
+  novaSessionSweepOnDemand?: boolean;
   coachCallsOnDemand: boolean;
   ctScanOnDemand: boolean;
   ctScanOnDemandExpiresAt: string | null;
@@ -169,6 +170,7 @@ export type CustomerExpandedPanelProps = {
     propFirm: boolean;
     ultimate: boolean;
     jobsAgent: boolean;
+    sessionSweep?: boolean;
     coachCalls: boolean;
     ctScan: boolean;
     memeTrader: boolean;
@@ -193,6 +195,7 @@ export type CustomerExpandedPanelProps = {
   onPropFirm: (value: boolean) => void;
   onUltimate: (value: boolean) => void;
   onJobsAgent: (value: boolean) => void;
+  onSessionSweep?: (value: boolean) => void;
   onCoachCalls: (value: boolean) => void;
   onCtScan: (value: boolean) => void;
   onMemeTrader: (value: boolean) => void;
@@ -231,6 +234,7 @@ export default function CustomerExpandedPanel({
   onPropFirm,
   onUltimate,
   onJobsAgent,
+  onSessionSweep,
   onCoachCalls,
   onCtScan,
   onMemeTrader,
@@ -310,6 +314,9 @@ export default function CustomerExpandedPanel({
           </DetailRow>
           <DetailRow label="Nova Jobs Agent">
             <OnOffButton readOnly on={c.novaJobAgentOnDemand} busy={false} onClick={() => {}} active="cyan" />
+          </DetailRow>
+          <DetailRow label="Nova Session Sweep">
+            <OnOffButton readOnly on={!!c.novaSessionSweepOnDemand} busy={false} onClick={() => {}} active="violet" />
           </DetailRow>
           <DetailRow label="Coach Calls" hint="View when Owner-only">
             <OnOffButton readOnly on={c.coachCallsOnDemand} busy={false} onClick={() => {}} active="cyan" />
@@ -546,6 +553,15 @@ export default function CustomerExpandedPanel({
         </DetailRow>
         <DetailRow label="Nova Jobs Agent">
           <OnOffButton readOnly={readOnly} on={c.novaJobAgentOnDemand} busy={busy.jobsAgent} onClick={() => onJobsAgent(!c.novaJobAgentOnDemand)} active="cyan" />
+        </DetailRow>
+        <DetailRow label="Nova Session Sweep" hint="Works while Owner-only, no VIP needed">
+          <OnOffButton
+            readOnly={readOnly || !onSessionSweep}
+            on={!!c.novaSessionSweepOnDemand}
+            busy={!!busy.sessionSweep}
+            onClick={() => onSessionSweep?.(!c.novaSessionSweepOnDemand)}
+            active="violet"
+          />
         </DetailRow>
         <DetailRow label="Coach Calls" hint="Grant after VIP requests">
           <OnOffButton readOnly={readOnly} on={c.coachCallsOnDemand} busy={busy.coachCalls} onClick={() => onCoachCalls(!c.coachCallsOnDemand)} active="cyan" />

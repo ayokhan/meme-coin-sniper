@@ -3,6 +3,7 @@ import { isOwnerSession } from "@/lib/auth";
 import { getSubscriptionTier } from "@/lib/subscription";
 import { getFeatureFlag, FEATURE_FLAG_KEYS } from "@/lib/feature-flags";
 import { getOwnerOnlyTabIds } from "@/lib/tab-owner-only";
+import { prisma } from "@/lib/db";
 export type VipFuturesAddonAccess =
   | { ok: true; userId: string }
   | { ok: false; status: number; error: string; disabled?: boolean };
@@ -181,12 +182,30 @@ export async function getNovaPatternDetectorAccess(session: Session | null): Pro
   return base;
 }
 
+/**
+ * Master OFF → nobody. Owner and admin-granted users (novaSessionSweepOnDemand) always pass,
+ * even while Owner-only or without VIP. Everyone else follows Owner only / All VIP.
+ */
 export async function getNovaSessionSweepAccess(session: Session | null): Promise<VipFuturesAddonAccess> {
+  if (!session?.user?.id) {
+    return { ok: false, status: 401, error: "Sign in required." };
+  }
+  const disabledMsg = "Nova Session Sweep is not available on your account yet. Contact support if you need access.";
+  if (!(await getFeatureFlag(FEATURE_FLAG_KEYS.NOVA_SESSION_SWEEP))) {
+    return { ok: false, status: 403, error: disabledMsg, disabled: true };
+  }
+  if (isOwnerSession(session)) return { ok: true, userId: session.user.id };
+
+  const user = (await prisma.user
+    .findUnique({ where: { id: session.user.id }, select: { novaSessionSweepOnDemand: true } })
+    .catch(() => null)) as { novaSessionSweepOnDemand?: boolean } | null;
+  if (user?.novaSessionSweepOnDemand) return { ok: true, userId: session.user.id };
+
   return assertTriStateFlag(
     session,
     FEATURE_FLAG_KEYS.NOVA_SESSION_SWEEP,
     FEATURE_FLAG_KEYS.NOVA_SESSION_SWEEP_OWNER_ONLY,
-    "Nova Session Sweep is not available on your account yet. Contact support if you need access."
+    disabledMsg
   );
 }
 
