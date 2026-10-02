@@ -80,7 +80,7 @@ export default function BiometricSettings() {
           Biometric sign-in
         </CardTitle>
         <p className="text-sm text-muted-foreground">
-          Sign in to the NovaStaris Android app with your fingerprint or face instead of typing your password.
+          Sign in to the NovaStaris Android app with your fingerprint or face instead of typing your password. While it&apos;s on, the app also asks for it when you reopen it or come back after 5 minutes away.
         </p>
       </CardHeader>
       <CardContent className="space-y-3">

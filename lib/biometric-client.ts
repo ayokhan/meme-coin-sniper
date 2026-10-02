@@ -148,6 +148,30 @@ export async function disableBiometricSignIn(): Promise<void> {
   }
 }
 
+export class BiometricInvalidatedError extends Error {
+  constructor() {
+    super("invalidated");
+  }
+}
+
+/** App lock: confirms the enrolled fingerprint/face is present without touching the session. */
+export async function verifyBiometricUnlock(): Promise<void> {
+  const { NativeBiometric } = await plugin();
+  try {
+    await NativeBiometric.getSecureCredentials({
+      server: KEYSTORE_SERVER,
+      title: "Unlock NovaStaris",
+      subtitle: "Use your fingerprint or face",
+      negativeButtonText: "Cancel",
+    });
+  } catch (e) {
+    const code = errorCode(e);
+    if (code === ERR_USER_CANCEL) throw new BiometricCancelledError();
+    if (code === ERR_NO_PROTECTED_CREDENTIALS) throw new BiometricInvalidatedError();
+    throw new Error("Not recognized. Try again or use your password.");
+  }
+}
+
 /** Shows the biometric prompt and exchanges the Keystore token for a session cookie. */
 export async function signInWithBiometric(): Promise<void> {
   const { NativeBiometric } = await plugin();
