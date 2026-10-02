@@ -17,7 +17,6 @@ export const PRODUCT_VISIBILITY_FLAG_ROWS: ProductVisibilityFlagRow[] = [
   { tabId: "ai-analysis", flagKey: "page_tab_ai_analysis", label: "NovaStaris AI Agent" },
   { tabId: "futures", flagKey: "page_tab_futures", label: "Crypto Futures" },
   { tabId: "daily-wrap", flagKey: "page_tab_daily_wrap", label: "Daily Wrap" },
-  { tabId: "trending-perps", flagKey: "page_tab_trending_perps", label: "Trending perps" },
   { tabId: "perp-radar", flagKey: "page_tab_perp_radar", label: "Perp Radar" },
   { tabId: "narratives", flagKey: "page_tab_narratives", label: "Narratives" },
   { tabId: "trading-bot", flagKey: "page_tab_trading_bot", label: "AI Trading Bots" },

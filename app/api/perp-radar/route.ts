@@ -210,6 +210,7 @@ export async function GET(request: Request) {
         pct30m: undefined,
         pct1h: undefined,
         pct4h: undefined,
+        funding: p.funding != null && p.funding !== "" && Number.isFinite(Number(p.funding)) ? Number(p.funding) : undefined,
       }));
       let enriched = items;
       try {

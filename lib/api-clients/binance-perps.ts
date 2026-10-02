@@ -28,6 +28,8 @@ export type PerpRadarItem = {
   trendlineSlopePctWindow?: number;
   trendlineRead?: string;
   blendedDirection?: "bullish" | "bearish" | "sideways";
+  /** Current funding rate as a decimal (0.0001 = 0.01%). Only set where the venue exposes it. */
+  funding?: number;
 };
 
 /** Fetch one kline and return % change (open to close). Returns null on error or 451. */
@@ -94,7 +96,7 @@ export async function getBinancePerpRadar(options?: {
     cache: "no-store",
     headers: { "User-Agent": "NovaStaris/1.0 (https://novastaris.ai)" },
   });
-  if (res.status === 451) throw new Error("BINANCE_451: Binance restricts API access from this server's region. Use «Load from my browser» if you're in an allowed region, or try Trending perps (Hyperliquid) for similar movers.");
+  if (res.status === 451) throw new Error("BINANCE_451: Binance restricts API access from this server's region. Use «Load from my browser» if you're in an allowed region, or switch to the ApexLiquid view for similar movers.");
   if (!res.ok) throw new Error(`Binance API error: ${res.status}`);
   const data = (await res.json()) as BinancePerpTicker[] | BinancePerpTicker | { code?: number; msg?: string };
   if (data && typeof data === "object" && !Array.isArray(data) && ("code" in data || "msg" in data)) {

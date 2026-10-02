@@ -18,7 +18,7 @@ const PATHS = [
     blurb: "Structure crypto perp trades with chart AI and VIP desks.",
     href: "/?tab=futures",
     cta: "Open Crypto Futures",
-    steps: ["Crypto Futures — chart AI + workflow", "VIP: NovaForecast / NovaRadar / NovaQ", "Trending Perps / Perp Radar"],
+    steps: ["Crypto Futures — chart AI + workflow", "VIP: NovaForecast / NovaRadar / NovaQ", "Perp Radar (ApexLiquid, Binance, Blofin)"],
   },
   {
     title: "Forex trading",
@@ -56,7 +56,7 @@ const TAB_GROUPS = [
     heading: "Markets",
     items: [
       { name: "Crypto Futures", use: "Upload a chart → AI entry / TP / SL framing." },
-      { name: "Trending Perps / Perp Radar / Narratives", use: "Perp context and narrative heat." },
+      { name: "Perp Radar / Narratives", use: "Perp movers, funding and narrative heat." },
     ],
   },
   {

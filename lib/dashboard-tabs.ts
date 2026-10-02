@@ -49,7 +49,6 @@ export const DASHBOARD_TAB_ORDER: DashboardTabId[] = [
   "ai-analysis",
   "daily-wrap",
   "futures",
-  "trending-perps",
   "perp-radar",
   "narratives",
   "trading-bot",

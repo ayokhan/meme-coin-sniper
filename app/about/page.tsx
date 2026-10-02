@@ -105,8 +105,7 @@ function AboutContent() {
                 a coin scanner - it is an integrated growth and execution suite.
               </p>
               <p className="text-base leading-relaxed">
-                <strong className="text-zinc-900 dark:text-zinc-100">Trending perps</strong>—one feed, all the heat. See what’s pumping or dumping across 5m, 15m, 30m, 1h, and 24h so you catch momentum before the crowd.{" "}
-                <strong className="text-zinc-900 dark:text-zinc-100">Perp Radar</strong> scans for the biggest 24h perp movers across exchanges so you don’t miss 100%+ runs.{" "}
+                <strong className="text-zinc-900 dark:text-zinc-100">Perp Radar</strong>—one radar, all the heat. See what’s pumping or dumping across 5m, 15m, 30m, 1h, 4h, and 24h on ApexLiquid, Binance, Blofin, macro and metals perps, with funding to show who’s crowded, so you catch momentum before the crowd.{" "}
                 <strong className="text-zinc-900 dark:text-zinc-100">Crypto Futures</strong> gives VIP subscribers two edges: <strong className="text-zinc-900 dark:text-zinc-100">NovaStaris AI Chart Analysis</strong>—upload a chart (any timeframe), set margin and leverage, and get AI support/resistance, entry zone, take profit and stop loss tailored for futures; <strong className="text-zinc-900 dark:text-zinc-100">Institutional Workflow</strong>—a 4-phase checklist (macro bias, daily flow check, pre-trade setup, execution rules) using powerful tools (COT reports via CFTC and Tradingster, Coinglass, CryptoQuant, Arkham, Whale Alert) and six non-negotiable rules so you trade with institutional flow instead of against it.                 VIP-only tools in that workflow also include <strong className="text-zinc-900 dark:text-zinc-100">Nova Forecast &amp; NovaQ</strong> for crypto perps, <strong className="text-zinc-900 dark:text-zinc-100">Nova Pulse</strong> for short-horizon futures and forex plans, and <strong className="text-zinc-900 dark:text-zinc-100">Nova Forex Agent</strong> when you trade gold, FX, or indices in the same session,{" "}
                 <strong className="text-zinc-900 dark:text-zinc-100">Nova Investment Agent</strong>{" "}
                 <span className="text-zinc-600 dark:text-zinc-500">(Finance &amp; Investment Agent)</span>,{" "}
@@ -153,20 +152,11 @@ function AboutContent() {
                   </div>
                 </div>
                 <div className="flex gap-3 rounded-xl border border-zinc-200/80 dark:border-zinc-700/80 bg-zinc-50/80 dark:bg-zinc-800/50 p-4">
-                  <TrendingUp className="h-6 w-6 text-cyan-500 shrink-0 mt-0.5" />
-                  <div>
-                    <h3 className="font-semibold text-zinc-900 dark:text-zinc-100">Trending perps</h3>
-                    <p className="text-sm text-zinc-600 dark:text-zinc-400 mt-1">
-                      One feed for the biggest perp movers—5m to 24h. Spot momentum early, then use Crypto Futures (AI or Institutional Workflow) to trade with an edge.
-                    </p>
-                  </div>
-                </div>
-                <div className="flex gap-3 rounded-xl border border-zinc-200/80 dark:border-zinc-700/80 bg-zinc-50/80 dark:bg-zinc-800/50 p-4">
                   <TrendingUp className="h-6 w-6 text-amber-500 shrink-0 mt-0.5" />
                   <div>
                     <h3 className="font-semibold text-zinc-900 dark:text-zinc-100">Perp Radar</h3>
                     <p className="text-sm text-zinc-600 dark:text-zinc-400 mt-1">
-                      Cross-exchange radar for the biggest 24h perp movers—so you can catch Binance and CEX perps going 100%+ before CT wakes up.
+                      One radar for the biggest perp movers—5m to 24h across ApexLiquid, Binance and Blofin, with funding and presets like Early breakout. Spot momentum early, then use Crypto Futures (AI or Institutional Workflow) to trade with an edge.
                     </p>
                   </div>
                 </div>

@@ -35,7 +35,6 @@ export const TAB_NEW_BADGE_OPTIONS: { id: string; label: string }[] = [
   { id: "session-sweep", label: "Session Sweep" },
   { id: "crypto-buddie", label: "Crypto Buddie" },
   { id: "meme-intelligence", label: "Nova Meme Intelligence" },
-  { id: "trending-perps", label: "Trending perps" },
   { id: "perp-radar", label: "Perp Radar" },
   { id: "narratives", label: "Narratives" },
   { id: "trading-bot", label: "NovaStaris AI Trading Bots" },

@@ -317,8 +317,9 @@ const FLAG_LABELS: Record<string, { label: string; description: string }> = {
       "Show/hide the Daily Wrap top-level tab. Public — no login required. Default ON.",
   },
   page_tab_trending_perps: {
-    label: "Tab: Trending perps",
-    description: "Show/hide the Trending perps tab in the main GUI.",
+    label: "Tab: Trending perps (retired)",
+    description:
+      "No effect — Trending perps is now the ApexLiquid view inside Perp Radar, and old links redirect there. Use the Perp Radar flag instead.",
   },
   page_tab_perp_radar: {
     label: "Tab: Perp Radar",

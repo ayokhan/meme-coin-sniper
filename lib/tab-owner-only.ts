@@ -16,7 +16,6 @@ export const OWNER_ONLY_MANAGED_TABS = [
   "ai-analysis",
   "daily-wrap",
   "futures",
-  "trending-perps",
   "perp-radar",
   "narratives",
   "trading-bot",
