@@ -266,6 +266,148 @@ function useElementWidth<T extends HTMLElement>(): [React.RefObject<T | null>, n
   return [ref, width];
 }
 
+function zoneClock(d: Date, timeZone: string): { min: number; weekday: string } {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    hour: "2-digit",
+    minute: "2-digit",
+    weekday: "short",
+    hourCycle: "h23",
+  }).formatToParts(d);
+  const get = (t: string) => parts.find((p) => p.type === t)?.value ?? "0";
+  return { min: (Number(get("hour")) % 24) * 60 + Number(get("minute")), weekday: get("weekday") };
+}
+
+function fmtLeft(mins: number): string {
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  return h ? `${h}h ${m}m left` : `${m}m left`;
+}
+
+/** Mirrors the engine's windows (lib/session-sweep.ts huntSessionAt / sessionKeyFor) for the current moment. */
+function sessionNow(d: Date, market: "forex" | "metal" | "crypto") {
+  const ny = zoneClock(d, "America/New_York");
+  const ld = zoneClock(d, "Europe/London");
+  const weekendClosed =
+    market !== "crypto" && (ny.weekday === "Sat" || (ny.weekday === "Fri" && ny.min >= 17 * 60) || (ny.weekday === "Sun" && ny.min < 17 * 60));
+  const recording =
+    ny.min >= 20 * 60
+      ? "Asia range is being recorded until midnight New York time."
+      : ld.min >= 7 * 60 && ld.min < 10 * 60
+        ? "London range is being recorded until 10:00 am London time."
+        : ny.min >= 7 * 60 && ny.min < 10 * 60
+          ? "New York range is being recorded until 10:00 am New York time."
+          : null;
+  let title: string;
+  let detail: string;
+  let tone: "live" | "quiet";
+  if (ny.min >= 7 * 60 && ny.min < 13 * 60) {
+    title = "New York hunt is on";
+    detail = `A sweep of an untouched level can start a setup until 1:00 pm New York time (${fmtLeft(13 * 60 - ny.min)}).`;
+    tone = "live";
+  } else if (ld.min >= 7 * 60 && ny.min < 7 * 60) {
+    title = "London hunt is on";
+    detail = `A sweep of an untouched level can start a setup until 7:00 am New York time (${fmtLeft(7 * 60 - ny.min)}).`;
+    tone = "live";
+  } else if (ny.min >= 20 * 60 || ld.min < 7 * 60) {
+    const left = ld.min < 7 * 60 ? 7 * 60 - ld.min : 24 * 60 - ld.min + 7 * 60;
+    title = "Asia hunt is on";
+    detail = `A sweep of an untouched level can start a setup until the London open, 7:00 am London time (${fmtLeft(left)}).`;
+    tone = "live";
+  } else {
+    title = "Quiet hours";
+    detail = `No new setups until the Asia hunt starts at 8:00 pm New York time (${fmtLeft(20 * 60 - ny.min)}). Open trades still run to their target or stop.`;
+    tone = "quiet";
+  }
+  return { title, detail, tone, recording, weekendClosed };
+}
+
+function SessionNowBanner({ market }: { market: "forex" | "metal" | "crypto" }) {
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), 30_000);
+    return () => clearInterval(id);
+  }, []);
+  const s = sessionNow(now, market);
+  return (
+    <div
+      className={`mb-3 rounded-md border px-3 py-2 text-xs ${
+        s.weekendClosed
+          ? "border-zinc-300 dark:border-zinc-700 bg-zinc-500/5 text-zinc-600 dark:text-zinc-400"
+          : s.tone === "live"
+            ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-800 dark:text-emerald-200"
+            : "border-zinc-300 dark:border-zinc-700 bg-zinc-500/5 text-zinc-700 dark:text-zinc-300"
+      }`}
+    >
+      {s.weekendClosed ? (
+        <p>
+          <span className="font-semibold">Market closed for the weekend.</span> Forex and metals reopen Sunday 5:00 pm New York time.
+        </p>
+      ) : (
+        <>
+          <p>
+            <span className="inline-flex items-center gap-1.5 font-semibold">
+              {s.tone === "live" && <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />}
+              Now: {s.title}.
+            </span>{" "}
+            {s.detail}
+          </p>
+          {s.recording && <p className="mt-0.5 opacity-80">{s.recording}</p>}
+        </>
+      )}
+    </div>
+  );
+}
+
+type ChartLabel = {
+  key: string;
+  x: number;
+  y: number;
+  text: string;
+  color: string;
+  weight: number;
+  priority: number;
+  anchor?: "start" | "middle" | "end";
+  fillOpacity?: number;
+  opacity?: number;
+};
+
+/**
+ * Greedy label placement: highest priority first, each label nudged up/down until it no longer overlaps
+ * an already placed one. Low-priority labels that can't fit are dropped; priority >= 80 always shows.
+ */
+function layoutChartLabels(
+  labels: ChartLabel[],
+  b: { minX: number; maxX: number; minY: number; maxY: number }
+): ChartLabel[] {
+  const clampY = (y: number) => Math.min(b.maxY, Math.max(b.minY, y));
+  const boxes: { x1: number; x2: number; y1: number; y2: number }[] = [];
+  const out: ChartLabel[] = [];
+  for (const l of [...labels].sort((p, q) => q.priority - p.priority)) {
+    const w = l.text.length * (l.weight >= 600 ? 6.2 : 5.6) + 2;
+    const left0 = l.anchor === "middle" ? l.x - w / 2 : l.anchor === "end" ? l.x - w : l.x;
+    const shift = left0 + w > b.maxX ? b.maxX - (left0 + w) : left0 < b.minX ? b.minX - left0 : 0;
+    const left = left0 + shift;
+    const boxAt = (y: number) => ({ x1: left - 1, x2: left + w + 1, y1: y - 10, y2: y + 2 });
+    let y: number | null = null;
+    for (const dy of [0, -12, 12, -24, 24, -36, 36]) {
+      const cand = clampY(l.y + dy);
+      const box = boxAt(cand);
+      if (!boxes.some((o) => box.x1 < o.x2 && box.x2 > o.x1 && box.y1 < o.y2 && box.y2 > o.y1)) {
+        y = cand;
+        break;
+      }
+    }
+    if (y == null) {
+      if (l.priority < 80) continue;
+      y = clampY(l.y);
+    }
+    boxes.push(boxAt(y));
+    out.push({ ...l, x: l.x + shift, y });
+  }
+  return out;
+}
+
 function SweepChartView({
   chart,
   tfMinutes,
@@ -351,6 +493,64 @@ function SweepChartView({
 
   const hovered = hover != null ? bars[hover] : null;
   const chartEndTs = bars[bars.length - 1]![0];
+  const showWindowStart = windowStartTs != null && windowStartTs > bars[0]![0] && windowStartTs <= chartEndTs;
+
+  const labels: ChartLabel[] = [];
+  if (geom) {
+    if (showWindowStart) {
+      labels.push({
+        key: "window-start",
+        x: geom.xTs(windowStartTs!) - geom.step / 2 + 4,
+        y: padT + 10,
+        text: "Backtest starts",
+        color: "currentColor",
+        fillOpacity: 0.7,
+        weight: 400,
+        priority: 40,
+      });
+    }
+    for (const r of chart.ranges) {
+      const c = SESSION_COLORS[r.session];
+      const x1 = geom.xTs(r.startTs) - geom.step / 2;
+      labels.push({ key: `${r.key}-h`, x: x1 + 3, y: geom.y(r.high) - 4, text: `${r.session} H ${formatSweepPrice(r.high)}`, color: c.text, weight: 600, priority: 60 });
+      labels.push({ key: `${r.key}-l`, x: x1 + 3, y: geom.y(r.low) + 12, text: `L ${formatSweepPrice(r.low)}`, color: c.text, weight: 600, priority: 60 });
+    }
+    for (const tr of chart.trades) {
+      const isShort = tr.direction === "short";
+      const focus = !highlightId || highlightId === tr.id;
+      const base = focus ? 80 : 30;
+      const opacity = focus ? 1 : 0.35;
+      const xs = geom.xTs(tr.sweepTs);
+      const xc = geom.xTs(tr.chochTs);
+      const xe = geom.xTs(tr.entryTs);
+      const yExt = geom.y(tr.sweepExtreme);
+      const common = { opacity, weight: 700 };
+      labels.push({ key: `${tr.id}-sweep`, x: xs, y: isShort ? yExt - 13 : yExt + 21, text: "Sweep", color: "#f59e0b", anchor: "middle", priority: base, ...common });
+      labels.push({ key: `${tr.id}-choch`, x: xc - 18, y: geom.y(tr.chochLevel) + (isShort ? 12 : -4), text: "CHoCH", color: "#8b5cf6", priority: base - 5, ...common });
+      if (tr.bosTs !== tr.chochTs) {
+        labels.push({ key: `${tr.id}-bos`, x: xe - 18, y: geom.y(tr.bosLevel) + (isShort ? 12 : -4), text: "BOS", color: "#6366f1", priority: base - 5, ...common });
+      }
+      labels.push({ key: `${tr.id}-tp`, x: xe + 3, y: geom.y(tr.target) + (isShort ? -4 : 12), text: `TP ${formatSweepPrice(tr.target)}`, color: "#10b981", priority: base + 5, opacity, weight: 600 });
+      labels.push({ key: `${tr.id}-sl`, x: xe + 3, y: geom.y(tr.stop) + (isShort ? 12 : -4), text: `SL ${formatSweepPrice(tr.stop)}`, color: "#f43f5e", priority: base + 5, opacity, weight: 600 });
+      labels.push({
+        key: `${tr.id}-entry`,
+        x: xe + 3,
+        y: geom.y(tr.entry) - 3,
+        text: `${isShort ? "Short" : "Long"} ${formatSweepPrice(tr.entry)}`,
+        color: "currentColor",
+        fillOpacity: 0.85,
+        priority: base + 10,
+        opacity,
+        weight: 600,
+      });
+    }
+  }
+  const placedLabels = geom
+    ? layoutChartLabels(labels, { minX: padL, maxX: width - padR, minY: padT + 9, maxY: height - padB - 3 })
+    : [];
+  const plotCx = padL + (width - padL - padR) / 2;
+  const plotCy = padT + (height - padT - padB) / 2;
+  const watermarkSize = Math.max(28, Math.min(72, (width - padL - padR) / 7));
 
   return (
     <div ref={wrapRef} className="relative w-full select-none">
@@ -388,7 +588,34 @@ function SweepChartView({
             </text>
           ))}
 
-          {windowStartTs != null && windowStartTs > bars[0]![0] && windowStartTs <= chartEndTs && (
+          <g pointerEvents="none" fill="currentColor">
+            <text
+              x={plotCx}
+              y={plotCy}
+              textAnchor="middle"
+              dominantBaseline="middle"
+              fontSize={watermarkSize}
+              fontWeight={800}
+              letterSpacing="0.04em"
+              fillOpacity={0.06}
+            >
+              NovaStaris
+            </text>
+            <text
+              x={plotCx}
+              y={plotCy + watermarkSize * 0.62}
+              textAnchor="middle"
+              dominantBaseline="middle"
+              fontSize={Math.max(10, watermarkSize / 5)}
+              fontWeight={600}
+              letterSpacing="0.2em"
+              fillOpacity={0.07}
+            >
+              NOVASTARIS.AI
+            </text>
+          </g>
+
+          {showWindowStart && (
             <g>
               <rect
                 x={padL}
@@ -407,9 +634,6 @@ function SweepChartView({
                 strokeOpacity={0.45}
                 strokeDasharray="3 3"
               />
-              <text x={geom.xTs(windowStartTs) - geom.step / 2 + 4} y={padT + 10} fontSize={10} fill="currentColor" fillOpacity={0.7}>
-                Backtest starts
-              </text>
             </g>
           )}
 
@@ -429,12 +653,6 @@ function SweepChartView({
                     <line x1={x2} x2={extendTo} y1={yL} y2={yL} stroke={c.stroke} strokeDasharray="4 3" strokeWidth={1} />
                   </>
                 )}
-                <text x={x1 + 3} y={yH - 4} fontSize={10} fontWeight={600} fill={c.text}>
-                  {r.session} H {formatSweepPrice(r.high)}
-                </text>
-                <text x={x1 + 3} y={yL + 12} fontSize={10} fontWeight={600} fill={c.text}>
-                  L {formatSweepPrice(r.low)}
-                </text>
               </g>
             );
           })}
@@ -468,20 +686,9 @@ function SweepChartView({
             return (
               <g key={tr.id} opacity={dim}>
                 <polygon points={tri} fill="#f59e0b" />
-                <text x={xs} y={isShort ? yExt - 13 : yExt + 21} fontSize={10} fontWeight={700} textAnchor="middle" fill="#f59e0b">
-                  Sweep
-                </text>
                 <line x1={xc - 18} x2={xc + 6} y1={geom.y(tr.chochLevel)} y2={geom.y(tr.chochLevel)} stroke="#8b5cf6" strokeWidth={1.5} />
-                <text x={xc - 18} y={geom.y(tr.chochLevel) + (isShort ? 12 : -4)} fontSize={10} fontWeight={700} fill="#8b5cf6">
-                  CHoCH
-                </text>
                 {tr.bosTs !== tr.chochTs && (
-                  <>
-                    <line x1={xe - 18} x2={xe + 6} y1={geom.y(tr.bosLevel)} y2={geom.y(tr.bosLevel)} stroke="#6366f1" strokeWidth={1.5} />
-                    <text x={xe - 18} y={geom.y(tr.bosLevel) + (isShort ? 12 : -4)} fontSize={10} fontWeight={700} fill="#6366f1">
-                      BOS
-                    </text>
-                  </>
+                  <line x1={xe - 18} x2={xe + 6} y1={geom.y(tr.bosLevel)} y2={geom.y(tr.bosLevel)} stroke="#6366f1" strokeWidth={1.5} />
                 )}
                 <rect
                   x={xe}
@@ -498,18 +705,31 @@ function SweepChartView({
                   fill="rgba(244,63,94,0.14)"
                 />
                 <line x1={xe} x2={xx} y1={geom.y(tr.entry)} y2={geom.y(tr.entry)} stroke="currentColor" strokeOpacity={0.6} strokeWidth={1} />
-                <text x={xe + 3} y={geom.y(tr.target) + (isShort ? -4 : 12)} fontSize={10} fontWeight={600} fill="#10b981">
-                  TP {formatSweepPrice(tr.target)}
-                </text>
-                <text x={xe + 3} y={geom.y(tr.stop) + (isShort ? 12 : -4)} fontSize={10} fontWeight={600} fill="#f43f5e">
-                  SL {formatSweepPrice(tr.stop)}
-                </text>
-                <text x={xe + 3} y={geom.y(tr.entry) - 3} fontSize={10} fontWeight={600} fill="currentColor" fillOpacity={0.8}>
-                  {isShort ? "Short" : "Long"} {formatSweepPrice(tr.entry)}
-                </text>
               </g>
             );
           })}
+
+          {placedLabels.map((l) => (
+            <text
+              key={l.key}
+              x={l.x}
+              y={l.y}
+              fontSize={10}
+              fontWeight={l.weight}
+              textAnchor={l.anchor ?? "start"}
+              fill={l.color}
+              fillOpacity={l.fillOpacity ?? 1}
+              opacity={l.opacity ?? 1}
+              className="stroke-white dark:stroke-zinc-950"
+              strokeWidth={3}
+              strokeOpacity={0.9}
+              strokeLinejoin="round"
+              style={{ paintOrder: "stroke" }}
+              pointerEvents="none"
+            >
+              {l.text}
+            </text>
+          ))}
 
           {hover != null && (
             <line x1={geom.x(hover)} x2={geom.x(hover)} y1={padT} y2={height - padB} stroke="currentColor" strokeOpacity={0.25} />
@@ -970,6 +1190,7 @@ export default function NovaSessionSweepPanel({ enabled }: Props) {
 
           <div className="rounded-lg border border-zinc-200 dark:border-zinc-700 p-4">
             <h3 className="text-sm font-semibold text-zinc-800 dark:text-zinc-200 mb-2">Session levels</h3>
+            <SessionNowBanner market={result.market} />
             <div className="grid sm:grid-cols-3 gap-2">
               {SESSION_SWEEP_NAMES.map((name) => {
                 const hi = result.levels.find((l) => l.session === name && l.side === "high");
