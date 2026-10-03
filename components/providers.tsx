@@ -11,6 +11,7 @@ import CapacitorAuthBridge from "@/components/CapacitorAuthBridge";
 import AuthWelcomeBanner from "@/components/AuthWelcomeBanner";
 import BiometricEnrollPrompt from "@/components/BiometricEnrollPrompt";
 import BiometricAppLock from "@/components/BiometricAppLock";
+import AppUpdateBanner from "@/components/AppUpdateBanner";
 import NovaScalpPlanWatcher from "@/components/NovaScalpPlanWatcher";
 import NovaScalpWatchBanner from "@/components/NovaScalpWatchBanner";
 import NovaScalpActiveTradeBar from "@/components/NovaScalpActiveTradeBar";
@@ -40,6 +41,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
           <NovaScalpPlanWatcher />
           <NovaScalpActiveTradeBar />
           <NovaScalpWatchBanner />
+          <AppUpdateBanner />
           <BiometricAppLock />
         </DashboardScreenProvider>
       </SessionProvider>
