@@ -36,7 +36,18 @@ function SignInForm() {
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [googleEnabled, setGoogleEnabled] = useState(false);
-  const [error, setError] = useState("");
+  const authError = searchParams.get("error");
+  const [error, setError] = useState(() =>
+    !authError
+      ? ""
+      : authError === "AccessDenied"
+        ? "Gmail sign-in was cancelled or not allowed for this account."
+        : authError === "OAuthAccountNotLinked"
+          ? "This email already has an account with a different sign-in method. Sign in with your password instead."
+          : authError.startsWith("OAuth") || authError === "Callback"
+            ? `Gmail sign-in didn't finish (${authError}). Please try again, or sign in with your email and password.`
+            : `Sign-in failed (${authError}). Please try again.`
+  );
 
   useEffect(() => {
     if (status === "authenticated") {
