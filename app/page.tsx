@@ -28,7 +28,6 @@ import {
   savePerpTablesAutoRefresh,
   sortRowsWithFavoriteContracts,
 } from "@/lib/perp-table-prefs";
-import { useTheme } from "next-themes";
 import { useSession, signOut, getSession } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
@@ -609,7 +608,6 @@ function HomeGate() {
 
 function Dashboard() {
   const { t } = useI18n();
-  const { theme, setTheme } = useTheme();
   const router = useRouter();
   const { data: session, status } = useSession();
   const sessionPaid = (session?.user as { isPaid?: boolean } | undefined)?.isPaid ?? false;
@@ -4863,25 +4861,6 @@ function Dashboard() {
               </Button>
             </div>
             <div className="hidden md:flex items-center gap-2 flex-wrap">
-            <div className="flex items-center gap-2" role="group" aria-label={t("nav.theme")}>
-              <span className="text-xs font-medium text-zinc-600 dark:text-zinc-400 shrink-0">{t("nav.theme")}</span>
-              <div className="flex rounded-md border border-zinc-200 dark:border-zinc-700 bg-zinc-50/80 dark:bg-zinc-800/50 p-0.5">
-                {(["light", "dark", "system"] as const).map((themeOpt) => (
-                  <button
-                    key={themeOpt}
-                    type="button"
-                    onClick={() => setTheme(themeOpt)}
-                    className={`rounded px-2.5 py-1.5 text-xs font-medium transition-all ${
-                      !mounted ? "text-zinc-500 dark:text-zinc-400" : theme === themeOpt
-                        ? "bg-cyan-500 text-white dark:bg-cyan-600 shadow-sm"
-                        : "text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-200/80 dark:hover:bg-zinc-700/80"
-                    }`}
-                  >
-                    {themeOpt === "light" ? t("nav.light") : themeOpt === "dark" ? t("nav.dark") : t("nav.system")}
-                  </button>
-                ))}
-              </div>
-            </div>
             <LanguageSwitcher compact />
             <Button variant="outline" size="sm" asChild className="font-normal border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100">
               <Link href="/qr"><QrCode className="h-3.5 w-3.5 mr-1.5 inline" />{t("nav.qr")}</Link>
@@ -5054,16 +5033,6 @@ function Dashboard() {
           </div>
           {mobileMenuOpen && (
             <div className="md:hidden mt-3 pt-3 border-t border-zinc-200 dark:border-zinc-800 flex flex-col gap-1 max-h-[70vh] overflow-y-auto">
-              <div className="flex items-center gap-2 py-2 min-h-[44px]" role="group" aria-label={t("nav.theme")}>
-                <span className="text-sm font-medium text-zinc-600 dark:text-zinc-400 shrink-0">{t("nav.theme")}</span>
-                <div className="flex rounded-md border border-zinc-200 dark:border-zinc-700 bg-zinc-50/80 dark:bg-zinc-800/50 p-0.5">
-                  {(["light", "dark", "system"] as const).map((themeOpt) => (
-                    <button key={themeOpt} type="button" onClick={() => setTheme(themeOpt)} className={`rounded px-3 py-2 text-sm font-medium transition-all min-h-[40px] ${!mounted ? "text-zinc-500" : theme === themeOpt ? "bg-cyan-500 text-white dark:bg-cyan-600" : "text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200/80 dark:hover:bg-zinc-700/80"}`}>
-                      {themeOpt === "light" ? t("nav.light") : themeOpt === "dark" ? t("nav.dark") : t("nav.system")}
-                    </button>
-                  ))}
-                </div>
-              </div>
               <div className="py-2">
                 <LanguageSwitcher compact={false} />
               </div>

@@ -22,7 +22,7 @@ import { I18nProvider } from "@/components/I18nProvider";
 
 export function Providers({ children }: { children: React.ReactNode }) {
   return (
-    <ThemeProvider attribute="class" defaultTheme="dark" enableSystem>
+    <ThemeProvider attribute="class" defaultTheme="dark" forcedTheme="dark" enableSystem={false}>
       <I18nProvider>
       <SessionProvider>
         <DashboardScreenProvider>
