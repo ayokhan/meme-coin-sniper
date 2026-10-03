@@ -1930,7 +1930,10 @@ function Dashboard() {
     (tabsForNavGroup(group, homePins) as TabId[]).filter(navTabVisible);
 
   /** Opening a shared tool from a market group lands on that market's view (e.g. Wallets from Perps → Leverage). */
+  /** Once the user picks a tab, a late-arriving deep link must not yank them back to the URL's tab. */
+  const userPickedTabRef = useRef(false);
   const openTopTab = (tab: TabId, group: DashboardNavGroup = navGroup) => {
+    userPickedTabRef.current = true;
     setActiveTab(tab);
     if (tab === "nova-pulse" && (group === "forex" || group === "perps")) setNovaPulseSubTab(group === "forex" ? "forex" : "futures");
     if (tab === "wallets" && group === "perps") setWalletTrackerView("leverage");
@@ -1940,6 +1943,7 @@ function Dashboard() {
   };
 
   const selectNavGroup = (group: DashboardNavGroup) => {
+    userPickedTabRef.current = true;
     setNavGroup(group);
     saveNavGroup(group);
     const tabs = visibleNavTabs(group);
@@ -2124,8 +2128,16 @@ function Dashboard() {
     [isTabVisibleInGui]
   );
 
+  /** The URL is read once on load; afterwards state drives the URL, never the reverse (re-reading ping-pongs tabs). */
+  const urlStateAppliedRef = useRef(false);
   useEffect(() => {
-    if (!pageTabFlagsLoaded || typeof window === "undefined") return;
+    if (urlStateAppliedRef.current || typeof window === "undefined") return;
+    if (userPickedTabRef.current) {
+      urlStateAppliedRef.current = true;
+      setDashboardUrlReady(true);
+      return;
+    }
+    if (!pageTabFlagsLoaded || status === "loading") return;
     const params = new URLSearchParams(window.location.search);
     const tab = params.get("tab");
     // Nova Forex Bots / PnL Calculator visibility depends on vipFuturesAddons. If we mark the URL
@@ -2235,8 +2247,9 @@ function Dashboard() {
     if (boss === "chart" || boss === "demandFib") {
       setOnlineBossSubTab(boss);
     }
+    urlStateAppliedRef.current = true;
     setDashboardUrlReady(true);
-  }, [pageTabFlagsLoaded, isTabVisibleInGui, vipFuturesAddons]);
+  }, [pageTabFlagsLoaded, status, isTabVisibleInGui, vipFuturesAddons]);
 
   useEffect(() => {
     if (status !== "authenticated" || !pageTabFlagsLoaded || typeof window === "undefined") return;
